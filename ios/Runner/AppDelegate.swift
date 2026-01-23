@@ -1,0 +1,40 @@
+import Flutter
+import UIKit
+import FirebaseAuth
+
+@main
+@objc class AppDelegate: FlutterAppDelegate {
+  override func application(
+    _ application: UIApplication,
+    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+  ) -> Bool {
+    GeneratedPluginRegistrant.register(with: self)
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+  
+  override func application(
+    _ app: UIApplication,
+    open url: URL,
+    options: [UIApplication.OpenURLOptionsKey : Any] = [:]
+  ) -> Bool {
+    // Handle Firebase Auth deep links
+    if Auth.auth().canHandle(url) {
+      return true
+    }
+    return super.application(app, open: url, options: options)
+  }
+  
+  override func application(
+    _ application: UIApplication,
+    continue userActivity: NSUserActivity,
+    restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void
+  ) -> Bool {
+    // Handle universal links for Firebase
+    if let url = userActivity.webpageURL {
+      if Auth.auth().canHandle(url) {
+        return true
+      }
+    }
+    return super.application(application, continue: userActivity, restorationHandler: restorationHandler)
+  }
+}
