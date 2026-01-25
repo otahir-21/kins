@@ -4,9 +4,13 @@ import 'package:kins_app/screens/splash/splash_screen.dart';
 import 'package:kins_app/screens/onboarding/onboarding_screen.dart';
 import 'package:kins_app/screens/auth/phone_auth_screen.dart';
 import 'package:kins_app/screens/auth/otp_verification_screen.dart';
-import 'package:kins_app/screens/auth/otp_verified_screen.dart';
 import 'package:kins_app/screens/user_details/user_details_screen.dart';
 import 'package:kins_app/screens/user_details/user_details_success_screen.dart';
+import 'package:kins_app/screens/home/home_screen.dart';
+import 'package:kins_app/screens/dummy/dummy_screen.dart';
+import 'package:kins_app/screens/notifications/notifications_screen.dart';
+import 'package:kins_app/screens/map/nearby_kins_screen.dart';
+import 'package:kins_app/screens/interests/interests_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: AppConstants.routeSplash,
@@ -39,11 +43,6 @@ final appRouter = GoRouter(
       },
     ),
     GoRoute(
-      path: AppConstants.routeOtpVerified,
-      name: 'otp-verified',
-      builder: (context, state) => const OtpVerifiedScreen(),
-    ),
-    GoRoute(
       path: AppConstants.routeUserDetails,
       name: 'user-details',
       builder: (context, state) => const UserDetailsScreen(),
@@ -52,6 +51,66 @@ final appRouter = GoRouter(
       path: AppConstants.routeUserDetailsSuccess,
       name: 'user-details-success',
       builder: (context, state) => const UserDetailsSuccessScreen(),
+    ),
+    GoRoute(
+      path: AppConstants.routeHome,
+      name: 'home',
+      builder: (context, state) => const HomeScreen(),
+    ),
+    GoRoute(
+      path: AppConstants.routeMarketplace,
+      name: 'marketplace',
+      builder: (context, state) => const MarketplaceScreen(),
+    ),
+    GoRoute(
+      path: AppConstants.routeAskExpert,
+      name: 'ask-expert',
+      builder: (context, state) => const AskExpertScreen(),
+    ),
+    GoRoute(
+      path: AppConstants.routeJoinGroup,
+      name: 'join-group',
+      builder: (context, state) => const JoinGroupScreen(),
+    ),
+    GoRoute(
+      path: AppConstants.routeAddAction,
+      name: 'add-action',
+      builder: (context, state) => const AddActionScreen(),
+    ),
+    GoRoute(
+      path: AppConstants.routeCompass,
+      name: 'compass',
+      builder: (context, state) => const CompassScreen(),
+    ),
+    GoRoute(
+      path: AppConstants.routeChat,
+      name: 'chat',
+      builder: (context, state) => const ChatScreen(),
+    ),
+    GoRoute(
+      path: AppConstants.routeProfile,
+      name: 'profile',
+      builder: (context, state) => const ProfileScreen(),
+    ),
+    GoRoute(
+      path: AppConstants.routeSettings,
+      name: 'settings',
+      builder: (context, state) => const SettingsScreen(),
+    ),
+    GoRoute(
+      path: AppConstants.routeNotifications,
+      name: 'notifications',
+      builder: (context, state) => const NotificationsScreen(),
+    ),
+    GoRoute(
+      path: AppConstants.routeNearbyKins,
+      name: 'nearby-kins',
+      builder: (context, state) => const NearbyKinsScreen(),
+    ),
+    GoRoute(
+      path: AppConstants.routeInterests,
+      name: 'interests',
+      builder: (context, state) => const InterestsScreen(),
     ),
     // Catch-all route for Firebase deep links and unknown paths
     GoRoute(

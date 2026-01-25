@@ -7,6 +7,8 @@ import 'package:kins_app/firebase_options.dart';
 import 'package:kins_app/core/theme/app_theme.dart';
 import 'package:kins_app/core/utils/storage_service.dart';
 import 'package:kins_app/routes/app_router.dart';
+import 'package:kins_app/services/fcm_service.dart';
+import 'dart:io' show Platform;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,6 +33,15 @@ void main() async {
   
   // Initialize Storage Service
   await StorageService.init();
+  
+  // Initialize FCM for Android/iOS
+  try {
+    final fcmService = FCMService();
+    await fcmService.initialize();
+  } catch (e) {
+    debugPrint('⚠️ FCM initialization error: $e');
+    // Continue app initialization even if FCM fails
+  }
   
   runApp(
     const ProviderScope(

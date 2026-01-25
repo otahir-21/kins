@@ -4,6 +4,8 @@ import 'package:kins_app/models/user_model.dart';
 import 'package:kins_app/services/bunny_cdn_service.dart';
 import 'dart:io';
 
+import '../models/user_profile_status.dart';
+
 class UserDetailsRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final BunnyCDNService? _bunnyCDN;
@@ -14,14 +16,14 @@ class UserDetailsRepository {
   Future<void> saveUserDetails({
     required String userId,
     required String name,
-    required String gender,
-    String? documentUrl,
+    required String email,
+    required DateTime dateOfBirth,
   }) async {
     try {
       final userData = {
         'name': name,
-        'gender': gender,
-        'documentUrl': documentUrl,
+        'email': email,
+        'dateOfBirth': dateOfBirth.toIso8601String(),
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
@@ -97,10 +99,103 @@ class UserDetailsRepository {
         name: data['name'],
         gender: data['gender'],
         documentUrl: data['documentUrl'],
+        status: data['status'],
         createdAt: data['createdAt']?.toDate(),
       );
     } catch (e) {
       debugPrint('❌ Failed to get user details: $e');
+      rethrow;
+    }
+  }
+
+  /// Update user status (motherhood status)
+  Future<void> updateUserStatus({
+    required String userId,
+    required String status,
+  }) async {
+    try {
+      await _firestore.collection('users').doc(userId).update({
+        'status': status,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      debugPrint('✅ User status updated: $status');
+    } catch (e) {
+      debugPrint('❌ Failed to update user status: $e');
+      rethrow;
+    }
+  }
+
+  /// Find user by phone number and check profile completion status
+  Future<UserProfileStatus> checkUserByPhoneNumber(String phoneNumber) async {
+    try {
+      // Query users collection by phone number
+      final querySnapshot = await _firestore
+          .collection('users')
+          .where('phoneNumber', isEqualTo: phoneNumber)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        debugPrint('📱 Phone number not found: $phoneNumber');
+        return UserProfileStatus(
+          exists: false,
+          phoneNumber: phoneNumber,
+        );
+      }
+
+      final doc = querySnapshot.docs.first;
+      final data = doc.data();
+      final userId = doc.id;
+
+      // Check if profile is complete (name, email, dateOfBirth)
+      final hasName = data['name'] != null && 
+                      (data['name'] as String).trim().isNotEmpty;
+      final hasEmail = data['email'] != null && 
+                       (data['email'] as String).trim().isNotEmpty;
+      final hasDateOfBirth = data['dateOfBirth'] != null;
+      
+      final hasProfile = hasName && hasEmail && hasDateOfBirth;
+
+      // Check if interests exist and has at least one
+      final interests = data['interests'] as List<dynamic>?;
+      final hasInterests = interests != null && interests.isNotEmpty;
+
+      debugPrint('📱 User found: $userId');
+      debugPrint('   Profile complete: $hasProfile (name: $hasName, email: $hasEmail, DOB: $hasDateOfBirth)');
+      debugPrint('   Interests: $hasInterests (count: ${interests?.length ?? 0})');
+
+      return UserProfileStatus(
+        exists: true,
+        hasProfile: hasProfile,
+        hasInterests: hasInterests,
+        userId: userId,
+        phoneNumber: phoneNumber,
+      );
+    } catch (e) {
+      debugPrint('❌ Failed to check user by phone number: $e');
+      // Return not found on error
+      return UserProfileStatus(
+        exists: false,
+        phoneNumber: phoneNumber,
+      );
+    }
+  }
+
+  /// Save phone number to user document (called after OTP verification)
+  Future<void> savePhoneNumber({
+    required String userId,
+    required String phoneNumber,
+  }) async {
+    try {
+      await _firestore.collection('users').doc(userId).set({
+        'phoneNumber': phoneNumber,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      debugPrint('✅ Phone number saved: $phoneNumber');
+    } catch (e) {
+      debugPrint('❌ Failed to save phone number: $e');
       rethrow;
     }
   }

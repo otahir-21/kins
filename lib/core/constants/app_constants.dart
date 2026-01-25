@@ -12,4 +12,16 @@ class AppConstants {
   static const String routeOtpVerified = '/otp-verified';
   static const String routeUserDetails = '/user-details';
   static const String routeUserDetailsSuccess = '/user-details-success';
+  static const String routeHome = '/home';
+  static const String routeMarketplace = '/marketplace';
+  static const String routeAskExpert = '/ask-expert';
+  static const String routeJoinGroup = '/join-group';
+  static const String routeAddAction = '/add-action';
+  static const String routeCompass = '/compass';
+  static const String routeChat = '/chat';
+  static const String routeProfile = '/profile';
+  static const String routeSettings = '/settings';
+  static const String routeNotifications = '/notifications';
+  static const String routeNearbyKins = '/nearby-kins';
+  static const String routeInterests = '/interests';
 }

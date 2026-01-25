@@ -45,3 +45,9 @@ android {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // Firebase Messaging
+    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
+    implementation("com.google.firebase:firebase-messaging")
+}

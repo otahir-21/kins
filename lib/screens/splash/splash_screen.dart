@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
-import 'package:kins_app/providers/onboarding_provider.dart';
-import 'package:kins_app/repositories/auth_repository.dart';
+import 'package:kins_app/core/utils/storage_service.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -25,16 +25,17 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
     if (!mounted) return;
 
-    final onboardingCompleted = ref.read(onboardingProvider);
-    final authRepository = AuthRepository();
-    final isAuthenticated = authRepository.isAuthenticated();
+    // Check if user has an active session
+    final user = FirebaseAuth.instance.currentUser;
+    final userId = StorageService.getString(AppConstants.keyUserId);
 
-    if (!onboardingCompleted) {
-      context.go(AppConstants.routeOnboarding);
-    } else if (!isAuthenticated) {
-      context.go(AppConstants.routePhoneAuth);
+    // If user is authenticated (has Firebase session and local storage)
+    if (user != null && userId != null && userId.isNotEmpty) {
+      // User has session, navigate to home
+      context.go(AppConstants.routeHome);
     } else {
-      context.go(AppConstants.routeOtpVerified);
+      // No session, navigate to phone auth
+      context.go(AppConstants.routePhoneAuth);
     }
   }
 

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kins_app/repositories/user_details_repository.dart';
 import 'package:kins_app/services/bunny_cdn_service.dart';
 import 'package:kins_app/config/bunny_cdn_config.dart';
-import 'dart:io';
 
 // Bunny CDN Configuration Provider
 final bunnyCDNServiceProvider = Provider<BunnyCDNService?>((ref) {
@@ -51,24 +50,22 @@ class UserDetailsState {
   final bool isLoading;
   final String? error;
   final String? name;
-  final String? gender;
-  final File? documentFile;
+  final String? email;
+  final DateTime? dateOfBirth;
   final bool nameFilled;
-  final bool genderFilled;
-  final bool documentSelected;
-  final String? documentUrl;
+  final bool emailFilled;
+  final bool dobFilled;
   final bool isSubmitting;
 
   UserDetailsState({
     this.isLoading = false,
     this.error,
     this.name,
-    this.gender,
-    this.documentFile,
+    this.email,
+    this.dateOfBirth,
     this.nameFilled = false,
-    this.genderFilled = false,
-    this.documentSelected = false,
-    this.documentUrl,
+    this.emailFilled = false,
+    this.dobFilled = false,
     this.isSubmitting = false,
   });
 
@@ -76,24 +73,22 @@ class UserDetailsState {
     bool? isLoading,
     String? error,
     String? name,
-    String? gender,
-    File? documentFile,
+    String? email,
+    DateTime? dateOfBirth,
     bool? nameFilled,
-    bool? genderFilled,
-    bool? documentSelected,
-    String? documentUrl,
+    bool? emailFilled,
+    bool? dobFilled,
     bool? isSubmitting,
   }) {
     return UserDetailsState(
       isLoading: isLoading ?? this.isLoading,
       error: error ?? this.error,
       name: name ?? this.name,
-      gender: gender ?? this.gender,
-      documentFile: documentFile ?? this.documentFile,
+      email: email ?? this.email,
+      dateOfBirth: dateOfBirth ?? this.dateOfBirth,
       nameFilled: nameFilled ?? this.nameFilled,
-      genderFilled: genderFilled ?? this.genderFilled,
-      documentSelected: documentSelected ?? this.documentSelected,
-      documentUrl: documentUrl ?? this.documentUrl,
+      emailFilled: emailFilled ?? this.emailFilled,
+      dobFilled: dobFilled ?? this.dobFilled,
       isSubmitting: isSubmitting ?? this.isSubmitting,
     );
   }
@@ -113,59 +108,52 @@ class UserDetailsNotifier extends StateNotifier<UserDetailsState> {
     );
   }
 
-  void setGender(String gender) {
+  void setEmail(String email) {
     state = state.copyWith(
-      gender: gender,
-      genderFilled: gender.trim().isNotEmpty,
+      email: email,
+      emailFilled: email.trim().isNotEmpty && email.contains('@'),
       error: null,
     );
   }
 
-  void setDocumentFile(File? file) {
+  void setDateOfBirth(DateTime dateOfBirth) {
     state = state.copyWith(
-      documentFile: file,
-      documentSelected: file != null,
+      dateOfBirth: dateOfBirth,
+      dobFilled: true,
       error: null,
     );
   }
 
   Future<void> submitUserDetails(String userId) async {
     if (state.name == null || state.name!.trim().isEmpty) {
-      state = state.copyWith(error: 'Please enter your name');
+      state = state.copyWith(error: 'Please enter your full name');
       return;
     }
 
-    if (state.gender == null || state.gender!.trim().isEmpty) {
-      state = state.copyWith(error: 'Please select your gender');
+    if (state.email == null || state.email!.trim().isEmpty) {
+      state = state.copyWith(error: 'Please enter your email');
+      return;
+    }
+
+    if (state.dateOfBirth == null) {
+      state = state.copyWith(error: 'Please select your date of birth');
       return;
     }
 
     state = state.copyWith(isSubmitting: true, error: null);
 
     try {
-      String? documentUrl;
-
-      // Upload document if provided
-      if (state.documentFile != null) {
-        debugPrint('📤 Uploading document to Bunny CDN...');
-        documentUrl = await _repository.uploadDocument(
-          userId: userId,
-          documentFile: state.documentFile!,
-        );
-      }
-
       // Save user details to Firestore
       debugPrint('💾 Saving user details to Firestore...');
       await _repository.saveUserDetails(
         userId: userId,
         name: state.name!,
-        gender: state.gender!,
-        documentUrl: documentUrl,
+        email: state.email!,
+        dateOfBirth: state.dateOfBirth!,
       );
 
       state = state.copyWith(
         isSubmitting: false,
-        documentUrl: documentUrl,
       );
 
       debugPrint('✅ User details saved successfully');

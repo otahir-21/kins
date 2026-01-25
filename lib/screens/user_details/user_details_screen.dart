@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/providers/auth_provider.dart';
 import 'package:kins_app/providers/user_details_provider.dart';
-import 'dart:io';
 
 class UserDetailsScreen extends ConsumerStatefulWidget {
   const UserDetailsScreen({super.key});
@@ -16,37 +15,30 @@ class UserDetailsScreen extends ConsumerStatefulWidget {
 
 class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
   final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  String? _selectedGender;
+  DateTime? _selectedDateOfBirth;
+  final DateFormat _dateFormat = DateFormat('yyyy-MM-dd');
 
   @override
   void dispose() {
     _nameController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
-  Future<void> _pickDocument() async {
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf'],
-        allowMultiple: false,
-      );
-
-      if (result != null && result.files.single.path != null) {
-        final file = File(result.files.single.path!);
-        ref.read(userDetailsProvider.notifier).setDocumentFile(file);
-      }
-    } catch (e) {
-      debugPrint('❌ Error picking file: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error selecting file: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+  Future<void> _selectDateOfBirth() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now().subtract(const Duration(days: 365 * 18)), // Default to 18 years ago
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+      helpText: 'Select Date of Birth',
+    );
+    if (picked != null && picked != _selectedDateOfBirth) {
+      setState(() {
+        _selectedDateOfBirth = picked;
+      });
     }
   }
 
@@ -55,10 +47,10 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
       return;
     }
 
-    if (_selectedGender == null) {
+    if (_selectedDateOfBirth == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select your gender'),
+          content: Text('Please select your date of birth'),
           backgroundColor: Colors.red,
         ),
       );
@@ -78,9 +70,10 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
       return;
     }
 
-    // Update provider with name and gender
+    // Update provider with name, email, and DOB
     ref.read(userDetailsProvider.notifier).setName(_nameController.text.trim());
-    ref.read(userDetailsProvider.notifier).setGender(_selectedGender!);
+    ref.read(userDetailsProvider.notifier).setEmail(_emailController.text.trim());
+    ref.read(userDetailsProvider.notifier).setDateOfBirth(_selectedDateOfBirth!);
 
     // Submit
     await ref.read(userDetailsProvider.notifier).submitUserDetails(userId);
@@ -96,8 +89,8 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
           ),
         );
       } else {
-        // Navigate to success screen
-        context.go(AppConstants.routeUserDetailsSuccess);
+        // Navigate to interest screen
+        context.go(AppConstants.routeInterests);
       }
     }
   }
@@ -120,6 +113,7 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
           'Complete Your Profile',
           style: TextStyle(color: Colors.black),
         ),
+        centerTitle: true,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -130,135 +124,90 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 16),
-                // Name Field
+                // Full Name Field
                 TextFormField(
                   controller: _nameController,
                   decoration: InputDecoration(
-                    labelText: 'Name',
+                    labelText: 'Full Name',
                     hintText: 'Enter your full name',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                     prefixIcon: const Icon(Icons.person),
-                    suffixIcon: userDetailsState.nameFilled ||
-                            _nameController.text.trim().isNotEmpty
+                    suffixIcon: _nameController.text.trim().isNotEmpty
                         ? const Icon(Icons.check_circle, color: Colors.green)
                         : null,
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Please enter your name';
+                      return 'Please enter your full name';
                     }
                     return null;
                   },
                   onChanged: (value) {
+                    setState(() {});
                     ref.read(userDetailsProvider.notifier).setName(value);
                   },
                 ),
                 const SizedBox(height: 24),
-                // Gender Field
-                DropdownButtonFormField<String>(
-                  value: _selectedGender,
-                  decoration: InputDecoration(
-                    labelText: 'Gender',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                // Date of Birth Field
+                InkWell(
+                  onTap: _selectDateOfBirth,
+                  child: InputDecorator(
+                    decoration: InputDecoration(
+                      labelText: 'Date of Birth',
+                      hintText: 'Select your date of birth',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      prefixIcon: const Icon(Icons.calendar_today),
+                      suffixIcon: _selectedDateOfBirth != null
+                          ? const Icon(Icons.check_circle, color: Colors.green)
+                          : const Icon(Icons.arrow_drop_down),
                     ),
-                    prefixIcon: const Icon(Icons.person_outline),
-                    suffixIcon: userDetailsState.genderFilled
-                        ? const Icon(Icons.check_circle, color: Colors.green)
-                        : null,
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'male', child: Text('Male')),
-                    DropdownMenuItem(value: 'female', child: Text('Female')),
-                    DropdownMenuItem(value: 'other', child: Text('Other')),
-                  ],
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedGender = value;
-                    });
-                    if (value != null) {
-                      ref.read(userDetailsProvider.notifier).setGender(value);
-                    }
-                  },
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please select your gender';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 24),
-                // Document Upload Field
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: InkWell(
-                    onTap: _pickDocument,
-                    borderRadius: BorderRadius.circular(12),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        children: [
-                          Icon(
-                            userDetailsState.documentSelected
-                                ? Icons.check_circle
-                                : Icons.upload_file,
-                            size: 48,
-                            color: userDetailsState.documentSelected
-                                ? Colors.green
-                                : Colors.grey,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            userDetailsState.documentSelected
-                                ? 'Document Selected'
-                                : 'Upload Document ID / Emirates ID (PDF)',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: userDetailsState.documentSelected
-                                  ? Colors.green
-                                  : Colors.grey.shade700,
-                              fontWeight: userDetailsState.documentSelected
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          if (userDetailsState.documentSelected &&
-                              userDetailsState.documentFile != null)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 8.0),
-                              child: Text(
-                                userDetailsState.documentFile!.path
-                                    .split('/')
-                                    .last,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey.shade600,
-                                ),
-                                textAlign: TextAlign.center,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          const SizedBox(height: 4),
-                          Text(
-                            userDetailsState.documentSelected
-                                ? 'Tap to change'
-                                : '(Optional)',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade500,
-                            ),
-                          ),
-                        ],
+                    child: Text(
+                      _selectedDateOfBirth != null
+                          ? _dateFormat.format(_selectedDateOfBirth!)
+                          : 'Select date of birth',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: _selectedDateOfBirth != null
+                            ? Colors.black
+                            : Colors.grey.shade600,
                       ),
                     ),
                   ),
+                ),
+                const SizedBox(height: 24),
+                // Email Field
+                TextFormField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: InputDecoration(
+                    labelText: 'Email',
+                    hintText: 'Enter your email address',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    prefixIcon: const Icon(Icons.email),
+                    suffixIcon: _emailController.text.trim().isNotEmpty &&
+                            _emailController.text.contains('@')
+                        ? const Icon(Icons.check_circle, color: Colors.green)
+                        : null,
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter your email';
+                    }
+                    if (!value.contains('@') || !value.contains('.')) {
+                      return 'Please enter a valid email address';
+                    }
+                    return null;
+                  },
+                  onChanged: (value) {
+                    setState(() {});
+                    ref.read(userDetailsProvider.notifier).setEmail(value);
+                  },
                 ),
                 const SizedBox(height: 32),
                 // Submit Button
@@ -283,7 +232,7 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
                           ),
                         )
                       : const Text(
-                          'Submit',
+                          'Continue',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,

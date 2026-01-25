@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:intl_phone_field/countries.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/core/utils/storage_service.dart';
 import 'package:kins_app/providers/auth_provider.dart';
@@ -243,7 +244,64 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
                     labelText: 'Phone Number',
                     border: OutlineInputBorder(),
                   ),
-                  initialCountryCode: 'US',
+                  initialCountryCode: 'AE', // UAE (United Arab Emirates)
+                  // Filter to show only GCC countries
+                  countries: const [
+                    Country(
+                      name: 'United Arab Emirates',
+                      code: 'AE',
+                      dialCode: '971', // No + sign, package adds it automatically
+                      flag: '🇦🇪',
+                      nameTranslations: {'en': 'United Arab Emirates'},
+                      minLength: 9,
+                      maxLength: 9,
+                    ),
+                    Country(
+                      name: 'Saudi Arabia',
+                      code: 'SA',
+                      dialCode: '966',
+                      flag: '🇸🇦',
+                      nameTranslations: {'en': 'Saudi Arabia'},
+                      minLength: 9,
+                      maxLength: 9,
+                    ),
+                    Country(
+                      name: 'Kuwait',
+                      code: 'KW',
+                      dialCode: '965',
+                      flag: '🇰🇼',
+                      nameTranslations: {'en': 'Kuwait'},
+                      minLength: 8,
+                      maxLength: 8,
+                    ),
+                    Country(
+                      name: 'Qatar',
+                      code: 'QA',
+                      dialCode: '974',
+                      flag: '🇶🇦',
+                      nameTranslations: {'en': 'Qatar'},
+                      minLength: 8,
+                      maxLength: 8,
+                    ),
+                    Country(
+                      name: 'Bahrain',
+                      code: 'BH',
+                      dialCode: '973',
+                      flag: '🇧🇭',
+                      nameTranslations: {'en': 'Bahrain'},
+                      minLength: 8,
+                      maxLength: 8,
+                    ),
+                    Country(
+                      name: 'Oman',
+                      code: 'OM',
+                      dialCode: '968',
+                      flag: '🇴🇲',
+                      nameTranslations: {'en': 'Oman'},
+                      minLength: 8,
+                      maxLength: 8,
+                    ),
+                  ],
                   onChanged: (phone) {
                     _completePhoneNumber = phone.completeNumber;
                   },

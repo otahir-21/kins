@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/providers/auth_provider.dart';
+import 'package:kins_app/repositories/user_details_repository.dart';
+import 'package:kins_app/models/user_profile_status.dart';
 
 class OtpVerificationScreen extends ConsumerStatefulWidget {
   final String phoneNumber;
@@ -21,7 +24,9 @@ class OtpVerificationScreen extends ConsumerStatefulWidget {
 class _OtpVerificationScreenState
     extends ConsumerState<OtpVerificationScreen> {
   final _otpController = TextEditingController();
+  final _userDetailsRepository = UserDetailsRepository();
   bool _isDisposed = false;
+  bool _isCheckingUser = false;
 
   @override
   void dispose() {
@@ -37,6 +42,11 @@ class _OtpVerificationScreenState
 
   Future<void> _verifyOTP(String otp) async {
     if (otp.length == 6 && !_isDisposed) {
+      // Show loading state
+      setState(() {
+        _isCheckingUser = true;
+      });
+
       await ref.read(authProvider.notifier).verifyOTP(otp);
 
       if (mounted && !_isDisposed) {
@@ -44,11 +54,14 @@ class _OtpVerificationScreenState
         if (authState.error != null) {
           // Log error to console
           debugPrint('❌ OTP Verification Error: ${authState.error}');
+          setState(() {
+            _isCheckingUser = false;
+          });
           try {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(authState.error!),
-                backgroundColor: Colors.black,
+                backgroundColor: Colors.red,
                 duration: const Duration(seconds: 3),
               ),
             );
@@ -57,8 +70,72 @@ class _OtpVerificationScreenState
           }
         } else if (authState.user != null) {
           debugPrint('✅ OTP Verified Successfully');
-          context.go(AppConstants.routeOtpVerified);
+          
+          // Get Firebase Auth user
+          final firebaseUser = FirebaseAuth.instance.currentUser;
+          if (firebaseUser == null) {
+            setState(() {
+              _isCheckingUser = false;
+            });
+            return;
+          }
+
+          // Save phone number to Firestore (using UID as document ID)
+          try {
+            await _userDetailsRepository.savePhoneNumber(
+              userId: firebaseUser.uid,
+              phoneNumber: widget.phoneNumber,
+            );
+          } catch (e) {
+            debugPrint('⚠️ Failed to save phone number: $e');
+            // Continue anyway
+          }
+
+          // Check user status by phone number
+          await _checkUserAndNavigate(widget.phoneNumber);
         }
+      }
+    }
+  }
+
+  Future<void> _checkUserAndNavigate(String phoneNumber) async {
+    try {
+      debugPrint('🔍 Checking user status for: $phoneNumber');
+      
+      final profileStatus = await _userDetailsRepository.checkUserByPhoneNumber(phoneNumber);
+      
+      if (!mounted || _isDisposed) return;
+
+      setState(() {
+        _isCheckingUser = false;
+      });
+
+      // Navigate based on profile status
+      if (!profileStatus.exists || profileStatus.needsProfile) {
+        // New user or missing profile details -> Profile Details Screen
+        debugPrint('📝 Navigating to Profile Details Screen');
+        context.go(AppConstants.routeUserDetails);
+      } else if (profileStatus.needsInterests) {
+        // Has profile but missing interests -> Interest Screen
+        debugPrint('🎯 Navigating to Interest Screen');
+        context.go(AppConstants.routeInterests);
+      } else if (profileStatus.isComplete) {
+        // Complete profile -> Home Screen
+        debugPrint('🏠 Navigating to Home Screen');
+        context.go(AppConstants.routeHome);
+      } else {
+        // Fallback: go to profile details
+        debugPrint('⚠️ Unknown status, navigating to Profile Details');
+        context.go(AppConstants.routeUserDetails);
+      }
+    } catch (e) {
+      debugPrint('❌ Error checking user status: $e');
+      if (mounted && !_isDisposed) {
+        setState(() {
+          _isCheckingUser = false;
+        });
+        // On error, navigate to profile details as fallback
+        context.go(AppConstants.routeUserDetails);
       }
     }
   }
@@ -177,7 +254,7 @@ class _OtpVerificationScreenState
               else
                 const SizedBox(height: 60),
               const SizedBox(height: 32),
-              if (authState.isLoading)
+              if (authState.isLoading || _isCheckingUser)
                 const Center(
                   child: CircularProgressIndicator(
                     color: Colors.black,
