@@ -6,6 +6,7 @@ class UserModel {
   final String? gender;
   final String? documentUrl;
   final String? status; // Motherhood status (Expecting Mother, New Mother, etc.)
+  final String? profilePictureUrl;
 
   UserModel({
     required this.uid,
@@ -15,6 +16,7 @@ class UserModel {
     this.gender,
     this.documentUrl,
     this.status,
+    this.profilePictureUrl,
   });
 
   Map<String, dynamic> toMap() {
@@ -26,6 +28,7 @@ class UserModel {
       'gender': gender,
       'documentUrl': documentUrl,
       'status': status,
+      'profilePictureUrl': profilePictureUrl,
     };
   }
 
@@ -40,6 +43,7 @@ class UserModel {
       gender: map['gender'],
       documentUrl: map['documentUrl'],
       status: map['status'],
+      profilePictureUrl: map['profilePictureUrl'],
     );
   }
 }

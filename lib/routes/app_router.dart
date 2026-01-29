@@ -11,6 +11,11 @@ import 'package:kins_app/screens/dummy/dummy_screen.dart';
 import 'package:kins_app/screens/notifications/notifications_screen.dart';
 import 'package:kins_app/screens/map/nearby_kins_screen.dart';
 import 'package:kins_app/screens/interests/interests_screen.dart';
+import 'package:kins_app/screens/discover/discover_screen.dart';
+import 'package:kins_app/screens/create_post/create_post_screen.dart';
+import 'package:kins_app/screens/chat/chat_screen.dart';
+import 'package:kins_app/screens/chat/conversation_screen.dart';
+import 'package:kins_app/screens/dummy/dummy_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: AppConstants.routeSplash,
@@ -88,6 +93,19 @@ final appRouter = GoRouter(
       builder: (context, state) => const ChatScreen(),
     ),
     GoRoute(
+      path: '/chat/:chatId',
+      name: 'chat-conversation',
+      builder: (context, state) {
+        final chatId = state.pathParameters['chatId'] ?? '';
+        final extra = state.extra as Map<String, dynamic>?;
+        return ConversationScreen(
+          chatId: chatId,
+          otherUserName: extra?['otherUserName'] as String?,
+          otherUserAvatarUrl: extra?['otherUserAvatarUrl'] as String?,
+        );
+      },
+    ),
+    GoRoute(
       path: AppConstants.routeProfile,
       name: 'profile',
       builder: (context, state) => const ProfileScreen(),
@@ -111,6 +129,21 @@ final appRouter = GoRouter(
       path: AppConstants.routeInterests,
       name: 'interests',
       builder: (context, state) => const InterestsScreen(),
+    ),
+    GoRoute(
+      path: AppConstants.routeAwards,
+      name: 'awards',
+      builder: (context, state) => const AwardsScreen(),
+    ),
+    GoRoute(
+      path: AppConstants.routeDiscover,
+      name: 'discover',
+      builder: (context, state) => const DiscoverScreen(),
+    ),
+    GoRoute(
+      path: AppConstants.routeCreatePost,
+      name: 'create-post',
+      builder: (context, state) => const CreatePostScreen(),
     ),
     // Catch-all route for Firebase deep links and unknown paths
     GoRoute(

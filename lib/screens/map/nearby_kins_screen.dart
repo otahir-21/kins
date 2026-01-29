@@ -217,7 +217,7 @@ class _NearbyKinsScreenState extends ConsumerState<NearbyKinsScreen> {
               initialCameraPosition: CameraPosition(
                 target: _currentPosition != null
                     ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
-                    : const LatLng(40.3573, -74.6672), // Default to Princeton
+                    : const LatLng(25.2048, 55.2708), // Default to Dubai
                 zoom: 14.0,
               ),
               markers: _buildMarkers(),
@@ -226,6 +226,15 @@ class _NearbyKinsScreenState extends ConsumerState<NearbyKinsScreen> {
               mapType: MapType.normal,
               onMapCreated: (controller) {
                 _mapController = controller;
+                // Move camera to current position if available
+                if (_currentPosition != null) {
+                  controller.animateCamera(
+                    CameraUpdate.newLatLngZoom(
+                      LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+                      14.0,
+                    ),
+                  );
+                }
               },
               onCameraMove: (position) {
                 // Check if we need clustering based on zoom
@@ -282,9 +291,19 @@ class _NearbyKinsScreenState extends ConsumerState<NearbyKinsScreen> {
             ),
           ),
 
-          // Profile preview card (slides up from bottom)
+          // Profile preview dialog (shown when kin marker is tapped)
           if (_selectedKin != null)
-            _buildProfilePreviewCard(),
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedKin = null;
+                });
+              },
+              child: Container(
+                color: Colors.transparent,
+                child: _buildKinProfileDialog(),
+              ),
+            ),
         ],
       ),
     );
@@ -373,64 +392,79 @@ class _NearbyKinsScreenState extends ConsumerState<NearbyKinsScreen> {
     );
   }
 
-  Widget _buildProfilePreviewCard() {
+  Widget _buildKinProfileDialog() {
     final kin = _selectedKin!;
-    final distance = _currentPosition != null
-        ? _locationService.calculateDistance(
-            _currentPosition!.latitude,
-            _currentPosition!.longitude,
-            kin.latitude,
-            kin.longitude,
-          )
-        : 0.0;
 
-    return DraggableScrollableSheet(
-      initialChildSize: 0.4,
-      minChildSize: 0.2,
-      maxChildSize: 0.9,
-      builder: (context, scrollController) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(20),
-              topRight: Radius.circular(20),
+    return Positioned(
+      bottom: 20,
+      right: 20,
+      left: 20,
+      child: GestureDetector(
+        onTap: () {
+          // Prevent dismissing when tapping inside the dialog
+        },
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 20,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black12,
-                blurRadius: 10,
-                offset: Offset(0, -2),
-              ),
-            ],
-          ),
-          child: Column(
+          child: Stack(
             children: [
-              // Drag handle
-              Container(
-                margin: const EdgeInsets.symmetric(vertical: 8),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
+              // Close/Expand button
+              Positioned(
+                top: 12,
+                right: 12,
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedKin = null;
+                    });
+                  },
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.close,
+                      size: 18,
+                      color: Colors.black87,
+                    ),
+                  ),
                 ),
               ),
-              Expanded(
-                child: ListView(
-                  controller: scrollController,
-                  padding: const EdgeInsets.all(16.0),
+              Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Profile picture and name
+                    // Profile Picture and Info Row
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Profile picture
+                        // Large Profile Picture
                         Container(
-                          width: 60,
-                          height: 60,
+                          width: 100,
+                          height: 100,
                           decoration: BoxDecoration(
                             color: const Color(0xFF6B4C93),
                             shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.grey.shade200,
+                              width: 2,
+                            ),
                           ),
                           child: kin.profilePicture != null
                               ? ClipOval(
@@ -441,7 +475,7 @@ class _NearbyKinsScreenState extends ConsumerState<NearbyKinsScreen> {
                                       return const Icon(
                                         Icons.person,
                                         color: Colors.white,
-                                        size: 30,
+                                        size: 50,
                                       );
                                     },
                                   ),
@@ -449,102 +483,140 @@ class _NearbyKinsScreenState extends ConsumerState<NearbyKinsScreen> {
                               : const Icon(
                                   Icons.person,
                                   color: Colors.white,
-                                  size: 30,
+                                  size: 50,
                                 ),
                         ),
-                        const SizedBox(width: 12),
-                        // Name and distance
+                        const SizedBox(width: 16),
+                        // User Information
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              // Name
                               Text(
-                                kin.name ?? 'Unknown',
+                                kin.name ?? 'Unknown User',
                                 style: const TextStyle(
-                                  fontSize: 18,
+                                  fontSize: 20,
                                   fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
                                 ),
                               ),
-                              if (distance > 0)
-                                Text(
-                                  '${distance.toStringAsFixed(1)} km away',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey.shade600,
-                                  ),
+                              const SizedBox(height: 8),
+                              // Description/Tagline
+                              Text(
+                                kin.description ?? 'Lorem Ipsum is Lorem Ipsum',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey.shade600,
                                 ),
+                              ),
+                              const SizedBox(height: 12),
+                              // Nationality
+                              if (kin.nationality != null)
+                                Row(
+                                  children: [
+                                    Text(
+                                      'Nationality: ',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey.shade700,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    Text(
+                                      kin.nationality!,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey.shade800,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              const SizedBox(height: 6),
+                              // Status
+                              Row(
+                                children: [
+                                  Text(
+                                    'Status: ',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey.shade700,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  Text(
+                                    kin.motherhoodStatus ?? 'Expecting',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey.shade800,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ],
                           ),
                         ),
-                        // Expand icon
-                        IconButton(
-                          icon: const Icon(Icons.open_in_new),
-                          onPressed: () {
-                            // TODO: Navigate to full profile
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Profile screen - Coming soon'),
-                              ),
-                            );
-                          },
-                        ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    // Description
-                    if (kin.description != null)
-                      Text(
-                        kin.description!,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade700,
-                        ),
-                      ),
-                    const SizedBox(height: 16),
-                    // Attributes
-                    if (kin.nationality != null)
-                      _buildAttributeRow('Nationality', kin.nationality!),
-                    if (kin.motherhoodStatus != null)
-                      _buildAttributeRow('Motherhood', kin.motherhoodStatus!),
-                    const SizedBox(height: 24),
-                    // Action buttons
+                    const SizedBox(height: 20),
+                    // Action Buttons
                     Row(
                       children: [
                         Expanded(
                           child: ElevatedButton(
                             onPressed: () {
-                              // TODO: Implement follow
+                              // TODO: Implement follow functionality
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Follow - Coming soon'),
+                                  content: Text('Follow functionality coming soon'),
                                 ),
                               );
                             },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF6B4C93),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              backgroundColor: const Color(0xFFE6E6FA), // Light purple
+                              foregroundColor: Colors.black87,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 0,
                             ),
-                            child: const Text('Follow'),
+                            child: const Text(
+                              'Follow',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: OutlinedButton(
+                          child: ElevatedButton(
                             onPressed: () {
-                              // TODO: Implement message
+                              // TODO: Navigate to message screen
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Message - Coming soon'),
+                                  content: Text('Message functionality coming soon'),
                                 ),
                               );
                             },
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFF6B4C93),
-                              side: const BorderSide(color: Color(0xFF6B4C93)),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFE6E6FA), // Light purple
+                              foregroundColor: Colors.black87,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 0,
                             ),
-                            child: const Text('Message'),
+                            child: const Text(
+                              'Message',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -554,33 +626,8 @@ class _NearbyKinsScreenState extends ConsumerState<NearbyKinsScreen> {
               ),
             ],
           ),
-        );
-      },
-    );
-  }
-
-  Widget _buildAttributeRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Row(
-        children: [
-          Text(
-            '$label: ',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: Colors.grey.shade700,
-            ),
-          ),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Colors.black,
-            ),
-          ),
-        ],
+        ),
       ),
-    );
+    ),);
   }
 }

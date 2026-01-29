@@ -42,18 +42,23 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
     if (verificationId != null && 
         verificationId.isNotEmpty && 
         _completePhoneNumber.isNotEmpty &&
-        !_isNavigating) {
+        !_isNavigating &&
+        mounted) {
+      debugPrint('✅ Verification ID found in _checkForVerificationId, navigating...');
+      _isRecaptchaInProgress = false;
       _isNavigating = true;
       // Wait to ensure reCAPTCHA is fully done
-      Future.delayed(const Duration(milliseconds: 1000), () {
+      Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted && _isNavigating) {
           // Double-check verification ID is still there
           final currentVerificationId = StorageService.getString('verification_id');
           if (currentVerificationId != null && currentVerificationId.isNotEmpty) {
+            debugPrint('🚀 Navigating to OTP screen from _checkForVerificationId');
             context.go(
               '${AppConstants.routeOtpVerification}?phone=${Uri.encodeComponent(_completePhoneNumber)}',
             );
           } else {
+            debugPrint('⚠️ Verification ID disappeared, resetting navigation flag');
             _isNavigating = false;
           }
         }
@@ -104,8 +109,8 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
             debugPrint('❌ SnackBar Error: $e');
           }
         } else {
-          // DO NOT navigate immediately - wait for reCAPTCHA to complete
-          // Navigation will be handled by listener or polling after reCAPTCHA completes
+          // Wait for reCAPTCHA to complete and verification ID to be available
+          // Start polling immediately
           _pollForVerificationId();
         }
       }
@@ -113,51 +118,64 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
   }
 
   void _pollForVerificationId() async {
-    // Poll for verification ID for up to 15 seconds (reCAPTCHA might take time)
+    debugPrint('🔄 Starting to poll for verification ID...');
+    // Poll for verification ID for up to 20 seconds (reCAPTCHA might take time)
     // Check both state and storage
-    for (int i = 0; i < 75 && !_isNavigating && mounted && _isRecaptchaInProgress; i++) {
+    for (int i = 0; i < 100 && !_isNavigating && mounted; i++) {
       await Future.delayed(const Duration(milliseconds: 200));
       
-      if (mounted && !_isNavigating && _isRecaptchaInProgress) {
-        // Check storage directly (more reliable)
-        final verificationId = StorageService.getString('verification_id');
-        if (verificationId != null && verificationId.isNotEmpty) {
-          // Mark reCAPTCHA as done
-          _isRecaptchaInProgress = false;
-          // Wait a bit more to ensure reCAPTCHA is fully done
-          await Future.delayed(const Duration(milliseconds: 1000));
-          if (mounted && !_isNavigating) {
-            _isNavigating = true;
-            context.go(
-              '${AppConstants.routeOtpVerification}?phone=${Uri.encodeComponent(_completePhoneNumber)}',
-            );
-          }
-          break;
+      if (!mounted || _isNavigating) break;
+      
+      // Check storage directly (more reliable)
+      final verificationId = StorageService.getString('verification_id');
+      if (verificationId != null && verificationId.isNotEmpty) {
+        debugPrint('✅ Verification ID found in storage, navigating...');
+        _isRecaptchaInProgress = false;
+        // Wait a bit to ensure reCAPTCHA dialog is fully closed
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted && !_isNavigating) {
+          _isNavigating = true;
+          debugPrint('🚀 Navigating to OTP screen');
+          context.go(
+            '${AppConstants.routeOtpVerification}?phone=${Uri.encodeComponent(_completePhoneNumber)}',
+          );
         }
-        
-        // Also check state
-        final authState = ref.read(authProvider);
-        if (authState.verificationId != null && 
-            authState.verificationId!.isNotEmpty) {
-          // Mark reCAPTCHA as done
-          _isRecaptchaInProgress = false;
-          // Wait a bit more to ensure reCAPTCHA is fully done
-          await Future.delayed(const Duration(milliseconds: 1000));
-          if (mounted && !_isNavigating) {
-            _isNavigating = true;
-            context.go(
-              '${AppConstants.routeOtpVerification}?phone=${Uri.encodeComponent(_completePhoneNumber)}',
-            );
-          }
-          break;
+        return;
+      }
+      
+      // Also check state
+      final authState = ref.read(authProvider);
+      if (authState.verificationId != null && 
+          authState.verificationId!.isNotEmpty) {
+        debugPrint('✅ Verification ID found in state, navigating...');
+        _isRecaptchaInProgress = false;
+        // Wait a bit to ensure reCAPTCHA dialog is fully closed
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted && !_isNavigating) {
+          _isNavigating = true;
+          debugPrint('🚀 Navigating to OTP screen');
+          context.go(
+            '${AppConstants.routeOtpVerification}?phone=${Uri.encodeComponent(_completePhoneNumber)}',
+          );
         }
-      } else {
-        break;
+        return;
       }
     }
-    // If polling ended without finding verification ID, mark reCAPTCHA as done
-    if (_isRecaptchaInProgress) {
-      _isRecaptchaInProgress = false;
+    
+    // If polling ended without finding verification ID
+    debugPrint('⚠️ Polling ended without finding verification ID');
+    _isRecaptchaInProgress = false;
+    
+    // Final check - maybe it was stored after polling ended
+    if (mounted && !_isNavigating) {
+      final verificationId = StorageService.getString('verification_id');
+      if (verificationId != null && verificationId.isNotEmpty) {
+        debugPrint('✅ Verification ID found in final check, navigating...');
+        _isNavigating = true;
+        context.go(
+          '${AppConstants.routeOtpVerification}?phone=${Uri.encodeComponent(_completePhoneNumber)}',
+        );
+      }
     }
   }
 
@@ -167,27 +185,30 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
     
     // Listen to auth state changes - must be in build method
     ref.listen<AuthState>(authProvider, (previous, next) {
-      // Navigate when verification ID is received and we're not already navigating
-      // Only navigate if reCAPTCHA is done
-      if (!_isNavigating && 
-          !_isRecaptchaInProgress &&
+      // Navigate when verification ID is received
+      if (!_isNavigating &&
           previous?.verificationId != next.verificationId &&
           next.verificationId != null && 
           next.verificationId!.isNotEmpty &&
           !next.isLoading &&
           next.error == null &&
-          _completePhoneNumber.isNotEmpty) {
+          _completePhoneNumber.isNotEmpty &&
+          mounted) {
+        debugPrint('✅ Verification ID received in listener, navigating...');
+        _isRecaptchaInProgress = false;
         _isNavigating = true;
-        // Wait longer to ensure reCAPTCHA is fully done before navigating
-        Future.delayed(const Duration(milliseconds: 1000), () {
-          if (mounted && _isNavigating && !_isRecaptchaInProgress) {
+        // Wait a bit to ensure reCAPTCHA dialog is fully closed
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted && _isNavigating) {
             // Double-check verification ID is still there
             final verificationId = StorageService.getString('verification_id');
             if (verificationId != null && verificationId.isNotEmpty) {
+              debugPrint('🚀 Navigating to OTP screen from listener');
               context.go(
                 '${AppConstants.routeOtpVerification}?phone=${Uri.encodeComponent(_completePhoneNumber)}',
               );
             } else {
+              debugPrint('⚠️ Verification ID disappeared in listener, resetting');
               _isNavigating = false;
             }
           }
@@ -197,7 +218,7 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
     
     // Also check storage when widget rebuilds (after reCAPTCHA returns)
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_isNavigating && _completePhoneNumber.isNotEmpty) {
+      if (!_isNavigating && _completePhoneNumber.isNotEmpty && mounted) {
         _checkForVerificationId();
       }
     });

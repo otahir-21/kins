@@ -226,107 +226,6 @@ class CompassScreen extends StatelessWidget {
   }
 }
 
-// Chat Screen
-class ChatScreen extends StatelessWidget {
-  const ChatScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.chat_bubble_outline,
-                  size: 64,
-                  color: Colors.grey.shade400,
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Chat',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry\'s standard dummy text ever since the 1500s.',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey.shade600,
-                    height: 1.5,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-      bottomNavigationBar: Builder(
-        builder: (context) => _buildBottomNavigation(context, 2),
-      ),
-    );
-  }
-
-  Widget _buildBottomNavigation(BuildContext context, int currentIndex) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(context, Icons.home, 0, currentIndex, AppConstants.routeHome),
-              _buildNavItem(context, Icons.explore, 1, currentIndex, AppConstants.routeCompass),
-              _buildNavItem(context, Icons.chat_bubble_outline, 2, currentIndex, AppConstants.routeChat),
-              _buildNavItem(context, Icons.person_outline, 3, currentIndex, AppConstants.routeProfile),
-              _buildNavItem(context, Icons.settings_outlined, 4, currentIndex, AppConstants.routeSettings),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNavItem(BuildContext context, IconData icon, int index, int currentIndex, String route) {
-    final isActive = index == currentIndex;
-    return GestureDetector(
-      onTap: () {
-        if (!isActive) {
-          context.go(route);
-        }
-      },
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        child: Icon(
-          icon,
-          color: isActive ? const Color(0xFF6B4C93) : Colors.grey,
-          size: 24,
-        ),
-      ),
-    );
-  }
-}
-
 // Profile Screen
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -602,6 +501,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           size: 24,
         ),
       ),
+    );
+  }
+}
+
+// Awards Screen
+class AwardsScreen extends StatelessWidget {
+  const AwardsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const DummyScreen(
+      title: 'Awards',
+      content: 'Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry\'s standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book.',
     );
   }
 }

@@ -1,18 +1,18 @@
 /// Bunny CDN Configuration Template
-/// 
+///
 /// Copy this file to bunny_cdn_config.dart and fill in your credentials
-/// 
+///
 /// IMPORTANT: Never commit bunny_cdn_config.dart with real credentials!
+///
+/// Storage Zone: kins-app (UK)
+/// Dashboard: Storage → kins-app → FTP & API access
 class BunnyCDNConfig {
   // Storage Zone Name
-  // Get this from: Bunny CDN Dashboard → Storage → Storage Zones → Your zone name
-  static const String storageZoneName = 'YOUR_STORAGE_ZONE_NAME';
-  
-  // API Key (Storage Zone Password)
-  // Get this from: Bunny CDN Dashboard → Storage → Your Zone → FTP & API Access → Password
-  static const String apiKey = 'YOUR_API_KEY';
-  
-  // CDN Hostname for public file access
-  // Example: 'syd.storage.bunnycdn.com' or 'your-zone.b-cdn.net'
-  static const String cdnHostname = 'YOUR_CDN_HOSTNAME';
+  static const String storageZoneName = 'kins-app';
+
+  // API Key = Storage Zone "Password" (FTP & API access → Password, NOT Read-only password)
+  static const String apiKey = 'YOUR_STORAGE_ZONE_PASSWORD';
+
+  // Storage API hostname (region: UK)
+  static const String cdnHostname = 'uk.storage.bunnycdn.com';
 }

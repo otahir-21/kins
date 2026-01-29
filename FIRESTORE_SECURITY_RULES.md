@@ -23,16 +23,10 @@ service cloud.firestore {
     
     // Users collection
     match /users/{userId} {
-      // Users can read/write their own document completely
+      // Owner can read/write their own document
       allow read, write: if isOwner(userId);
-      
-      // Other users can read basic profile info (for map markers)
-      // But only if location is visible
-      allow read: if isAuthenticated() && 
-        (!resource.data.location || resource.data.location.isVisible == true);
-      
-      // Allow list/query operations for authenticated users
-      // This is needed for session management (querying by phoneNumber)
+      // Any authenticated user can read any user (chat name/photo, search by phone, map)
+      allow read: if isAuthenticated();
       allow list: if isAuthenticated();
       
       // Documents subcollection - only owner can access
@@ -59,6 +53,37 @@ service cloud.firestore {
       // Only allow write for admins (you can restrict this further if needed)
       // For now, no write access from client
       allow write: if false;
+    }
+    
+    // Posts collection (Discover feed)
+    match /posts/{postId} {
+      // Any authenticated user can read posts (feed)
+      allow read: if isAuthenticated();
+      // Only authenticated users can create posts (authorId must match)
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.authorId;
+      // Author can update/delete. Any authenticated user can update (for poll vote counts).
+      // For production, consider a Cloud Function to apply votes so only author can update post body.
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated() && resource.data.authorId == request.auth.uid;
+      // Poll votes subcollection: each user can only read/write their own vote doc
+      match /votes/{userId} {
+        allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      }
+    }
+    
+    // Chats (1:1 conversations) – only participants can read/write
+    match /chats/{chatId} {
+      // Read: allow if doc doesn't exist (for get-or-create) OR user is participant
+      allow read: if isAuthenticated()
+        && (!exists(/databases/$(database)/documents/chats/$(chatId))
+            || request.auth.uid in resource.data.participantIds);
+      allow update, delete: if isAuthenticated()
+        && request.auth.uid in resource.data.participantIds;
+      allow create: if isAuthenticated();
+      match /messages/{messageId} {
+        allow read, write: if isAuthenticated()
+          && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
+      }
     }
   }
 }

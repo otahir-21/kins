@@ -19,9 +19,14 @@ class AppConstants {
   static const String routeAddAction = '/add-action';
   static const String routeCompass = '/compass';
   static const String routeChat = '/chat';
+  /// Path for 1:1 conversation; use [chatConversationPath(chatId)] to build.
+  static String chatConversationPath(String chatId) => '/chat/$chatId';
   static const String routeProfile = '/profile';
   static const String routeSettings = '/settings';
   static const String routeNotifications = '/notifications';
   static const String routeNearbyKins = '/nearby-kins';
   static const String routeInterests = '/interests';
+  static const String routeAwards = '/awards';
+  static const String routeDiscover = '/discover';
+  static const String routeCreatePost = '/create-post';
 }

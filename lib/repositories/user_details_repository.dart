@@ -93,6 +93,7 @@ class UserDetailsRepository {
       }
 
       final data = doc.data()!;
+      final profilePic = data['profilePictureUrl'] ?? data['profilePicture'];
       return UserModel(
         uid: userId,
         phoneNumber: data['phoneNumber'] ?? '',
@@ -101,6 +102,7 @@ class UserDetailsRepository {
         documentUrl: data['documentUrl'],
         status: data['status'],
         createdAt: data['createdAt']?.toDate(),
+        profilePictureUrl: profilePic is String ? profilePic : null,
       );
     } catch (e) {
       debugPrint('❌ Failed to get user details: $e');

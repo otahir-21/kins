@@ -29,17 +29,33 @@ class FCMService {
       if (settings.authorizationStatus == AuthorizationStatus.authorized) {
         debugPrint('✅ Notification permission granted');
 
-        // Get FCM token
-        final token = await _messaging.getToken();
-        if (token != null) {
-          debugPrint('✅ FCM Token: $token');
-          _saveTokenToFirestore(token);
+        // Get FCM token (ignore APNS errors on iOS)
+        try {
+          final token = await _messaging.getToken();
+          if (token != null) {
+            debugPrint('✅ FCM Token: $token');
+            _saveTokenToFirestore(token);
+          }
+        } catch (e) {
+          // Ignore APNS token errors (iOS requires Apple Developer account)
+          if (e.toString().contains('apns-token-not-set')) {
+            debugPrint('⚠️ APNS token not set (iOS requires Apple Developer account) - continuing without FCM token');
+          } else {
+            debugPrint('⚠️ Failed to get FCM token: $e');
+          }
         }
 
-        // Listen for token refresh
+        // Listen for token refresh (ignore APNS errors)
         _messaging.onTokenRefresh.listen((newToken) {
           debugPrint('🔄 FCM Token refreshed: $newToken');
           _saveTokenToFirestore(newToken);
+        }, onError: (e) {
+          // Ignore APNS token errors
+          if (e.toString().contains('apns-token-not-set')) {
+            debugPrint('⚠️ APNS token not set - ignoring token refresh error');
+          } else {
+            debugPrint('⚠️ Token refresh error: $e');
+          }
         });
 
         // Handle foreground messages

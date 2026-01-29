@@ -39,7 +39,12 @@ void main() async {
     final fcmService = FCMService();
     await fcmService.initialize();
   } catch (e) {
-    debugPrint('⚠️ FCM initialization error: $e');
+    // Ignore APNS token errors (iOS requires Apple Developer account)
+    if (e.toString().contains('apns-token-not-set')) {
+      debugPrint('⚠️ APNS token not set (iOS requires Apple Developer account) - ignoring');
+    } else {
+      debugPrint('⚠️ FCM initialization error: $e');
+    }
     // Continue app initialization even if FCM fails
   }
   
