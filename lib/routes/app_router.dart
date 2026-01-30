@@ -7,7 +7,7 @@ import 'package:kins_app/screens/auth/otp_verification_screen.dart';
 import 'package:kins_app/screens/user_details/user_details_screen.dart';
 import 'package:kins_app/screens/user_details/user_details_success_screen.dart';
 import 'package:kins_app/screens/home/home_screen.dart';
-import 'package:kins_app/screens/dummy/dummy_screen.dart';
+import 'package:kins_app/screens/dummy/dummy_screen.dart' hide ProfileScreen, SettingsScreen;
 import 'package:kins_app/screens/notifications/notifications_screen.dart';
 import 'package:kins_app/screens/map/nearby_kins_screen.dart';
 import 'package:kins_app/screens/interests/interests_screen.dart';
@@ -15,7 +15,13 @@ import 'package:kins_app/screens/discover/discover_screen.dart';
 import 'package:kins_app/screens/create_post/create_post_screen.dart';
 import 'package:kins_app/screens/chat/chat_screen.dart';
 import 'package:kins_app/screens/chat/conversation_screen.dart';
-import 'package:kins_app/screens/dummy/dummy_screen.dart';
+import 'package:kins_app/screens/membership/membership_screen.dart';
+import 'package:kins_app/screens/profile/profile_screen.dart';
+import 'package:kins_app/screens/profile/settings_menu_screen.dart';
+import 'package:kins_app/screens/profile/account_settings_screen.dart';
+import 'package:kins_app/screens/profile/edit_tags_screen.dart';
+import 'package:kins_app/screens/profile/followers_screen.dart';
+import 'package:kins_app/screens/profile/following_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: AppConstants.routeSplash,
@@ -113,7 +119,27 @@ final appRouter = GoRouter(
     GoRoute(
       path: AppConstants.routeSettings,
       name: 'settings',
-      builder: (context, state) => const SettingsScreen(),
+      builder: (context, state) => const SettingsMenuScreen(),
+    ),
+    GoRoute(
+      path: AppConstants.routeAccountSettings,
+      name: 'account-settings',
+      builder: (context, state) => const AccountSettingsScreen(),
+    ),
+    GoRoute(
+      path: AppConstants.routeEditTags,
+      name: 'edit-tags',
+      builder: (context, state) => const EditTagsScreen(),
+    ),
+    GoRoute(
+      path: AppConstants.routeFollowers,
+      name: 'followers',
+      builder: (context, state) => const FollowersScreen(),
+    ),
+    GoRoute(
+      path: AppConstants.routeFollowing,
+      name: 'following',
+      builder: (context, state) => const FollowingScreen(),
     ),
     GoRoute(
       path: AppConstants.routeNotifications,
@@ -134,6 +160,11 @@ final appRouter = GoRouter(
       path: AppConstants.routeAwards,
       name: 'awards',
       builder: (context, state) => const AwardsScreen(),
+    ),
+    GoRoute(
+      path: AppConstants.routeMembership,
+      name: 'membership',
+      builder: (context, state) => const MembershipScreen(),
     ),
     GoRoute(
       path: AppConstants.routeDiscover,

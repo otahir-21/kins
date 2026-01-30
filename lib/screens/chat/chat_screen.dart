@@ -346,7 +346,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               _buildBottomNavItem(0, Icons.home_outlined, Icons.home, AppConstants.routeHome),
               _buildBottomNavItem(1, Icons.explore_outlined, Icons.explore, AppConstants.routeDiscover),
               _buildBottomNavItem(2, Icons.chat_bubble_outline, Icons.chat_bubble, AppConstants.routeChat),
-              _buildBottomNavItem(3, Icons.star_outline, Icons.star, AppConstants.routeAwards),
+              _buildBottomNavItem(3, Icons.card_membership_outlined, Icons.card_membership, AppConstants.routeMembership),
               _buildBottomNavItem(4, Icons.shopping_bag_outlined, Icons.shopping_bag, AppConstants.routeMarketplace),
             ],
           ),

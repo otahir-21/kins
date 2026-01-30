@@ -280,27 +280,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
               
-              // Profile Picture (on the right)
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: _profilePictureUrl != null ? null : const Color(0xFF6B4C93),
-                  shape: BoxShape.circle,
-                  image: _profilePictureUrl != null
-                      ? DecorationImage(
-                          image: NetworkImage(_profilePictureUrl!),
-                          fit: BoxFit.cover,
+              // Profile Picture (on the right) – tap to open profile
+              GestureDetector(
+                onTap: () => context.push(AppConstants.routeProfile),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: _profilePictureUrl != null ? null : const Color(0xFF6B4C93),
+                    shape: BoxShape.circle,
+                    image: _profilePictureUrl != null
+                        ? DecorationImage(
+                            image: NetworkImage(_profilePictureUrl!),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
+                  ),
+                  child: _profilePictureUrl == null
+                      ? const Icon(
+                          Icons.person,
+                          color: Colors.white,
+                          size: 24,
                         )
                       : null,
                 ),
-                child: _profilePictureUrl == null
-                    ? const Icon(
-                        Icons.person,
-                        color: Colors.white,
-                        size: 24,
-                      )
-                    : null,
               ),
             ],
           ),
@@ -1048,10 +1051,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               _buildBottomNavItem(
                 index: 3,
-                icon: Icons.star_outline,
-                activeIcon: Icons.star,
-                label: 'Awards',
-                route: AppConstants.routeAwards,
+                icon: Icons.card_membership_outlined,
+                activeIcon: Icons.card_membership,
+                label: 'Membership',
+                route: AppConstants.routeMembership,
               ),
               _buildBottomNavItem(
                 index: 4,

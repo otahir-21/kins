@@ -87,6 +87,22 @@ class PostRepository {
         .toList();
   }
 
+  /// Get posts by author (for profile feed). Sorted by createdAt in memory to avoid composite index.
+  Stream<List<PostModel>> getPostsByAuthor(String authorId, {int limit = 50}) {
+    return _firestore
+        .collection(_postsCollection)
+        .where('authorId', isEqualTo: authorId)
+        .limit(limit)
+        .snapshots()
+        .map((snap) {
+          final list = snap.docs
+              .map((doc) => PostModel.fromFirestore(doc.id, doc.data()))
+              .toList();
+          list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return list;
+        });
+  }
+
   /// Get user's vote for a poll (optionIndex or null)
   Future<int?> getUserVote(String postId, String userId) async {
     final doc = await _firestore

@@ -103,6 +103,7 @@ class UserDetailsRepository {
         status: data['status'],
         createdAt: data['createdAt']?.toDate(),
         profilePictureUrl: profilePic is String ? profilePic : null,
+        bio: data['bio'] is String ? data['bio'] as String? : null,
       );
     } catch (e) {
       debugPrint('❌ Failed to get user details: $e');
@@ -181,6 +182,20 @@ class UserDetailsRepository {
         exists: false,
         phoneNumber: phoneNumber,
       );
+    }
+  }
+
+  /// Update bio on user document
+  Future<void> updateBio({required String userId, required String bio}) async {
+    try {
+      await _firestore.collection('users').doc(userId).set({
+        'bio': bio,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      debugPrint('✅ Bio updated');
+    } catch (e) {
+      debugPrint('❌ Failed to update bio: $e');
+      rethrow;
     }
   }
 

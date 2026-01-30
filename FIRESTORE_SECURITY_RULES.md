@@ -28,6 +28,10 @@ service cloud.firestore {
       // Any authenticated user can read any user (chat name/photo, search by phone, map)
       allow read: if isAuthenticated();
       allow list: if isAuthenticated();
+      // Allow any authenticated user to update only followerCount/followingCount (for follow/unfollow).
+      // For production, consider a Cloud Function to enforce correct increments.
+      allow update: if isAuthenticated()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followerCount', 'followingCount']);
       
       // Documents subcollection - only owner can access
       match /documents/{documentId} {
@@ -37,6 +41,20 @@ service cloud.firestore {
       // Notifications subcollection - only owner can access
       match /notifications/{notificationId} {
         allow read, write: if isOwner(userId);
+      }
+      
+      // Followers: doc id = follower's uid. Only that user can add/remove themselves.
+      match /followers/{followerId} {
+        allow read: if isAuthenticated();
+        allow create, delete: if isAuthenticated() && request.auth.uid == followerId;
+        allow update: if false;
+      }
+      
+      // Following: doc id = followed user's uid. Only owner (userId) can add/remove.
+      match /following/{targetId} {
+        allow read: if isAuthenticated();
+        allow create, delete: if isAuthenticated() && request.auth.uid == userId;
+        allow update: if false;
       }
     }
     

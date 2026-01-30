@@ -23,10 +23,15 @@ class AppConstants {
   static String chatConversationPath(String chatId) => '/chat/$chatId';
   static const String routeProfile = '/profile';
   static const String routeSettings = '/settings';
+  static const String routeAccountSettings = '/account-settings';
+  static const String routeEditTags = '/edit-tags';
+  static const String routeFollowers = '/followers';
+  static const String routeFollowing = '/following';
   static const String routeNotifications = '/notifications';
   static const String routeNearbyKins = '/nearby-kins';
   static const String routeInterests = '/interests';
   static const String routeAwards = '/awards';
+  static const String routeMembership = '/membership';
   static const String routeDiscover = '/discover';
   static const String routeCreatePost = '/create-post';
 }
