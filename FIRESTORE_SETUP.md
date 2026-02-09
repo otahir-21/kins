@@ -65,6 +65,27 @@ users/
         size: number          // File size in bytes
 ```
 
+### Uniqueness lookup collections (username / email / phone)
+
+Used for real-time availability checks (O(1) by document ID). Document ID = normalized value (e.g. lowercase username).
+
+```
+usernames/
+  {normalizedUsername}/        // e.g. "johndoe"
+    userId: string
+
+emails/
+  {normalizedEmail}/           // e.g. "user@example.com"
+    userId: string
+
+phones/
+  {normalizedPhone}/           // digits only, e.g. "971501234567"
+    userId: string
+```
+
+- **Read**: authenticated users may read any document (to check availability).
+- **Write**: only the app should set/update these when a user claims or updates their username/email/phone (e.g. allow write if `request.auth != null` and your backend or client logic ensures one claim per user).
+
 ## Security Rules (Important!)
 
 ### For Development/Testing
@@ -142,6 +163,16 @@ After setup, test if it works:
 - Your security rules are blocking the operation
 - Check that you're using the correct user ID
 - Verify the rules match the structure above
+
+### "Could not check" on username / email / phone
+
+**Cause:** The app needs read access to the `usernames`, `emails`, and `phones` collections for real-time availability checks. If these collections are not covered by your rules, reads are denied.
+
+**Solution:**
+1. Open **FIRESTORE_SECURITY_RULES.md** in this project and copy the **complete** security rules (including the `usernames`, `emails`, and `phones` blocks).
+2. In Firebase Console → **Firestore Database** → **Rules** tab, replace your rules with the full rules from that file.
+3. Click **Publish** and wait ~30 seconds.
+4. Run the app again; username/email/phone checks should work.
 
 ## Billing Note
 

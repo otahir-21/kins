@@ -124,7 +124,11 @@ class UserDetailsNotifier extends StateNotifier<UserDetailsState> {
     );
   }
 
-  Future<void> submitUserDetails(String userId) async {
+  Future<void> submitUserDetails(
+    String userId, {
+    String? username,
+    String? phoneNumber,
+  }) async {
     if (state.name == null || state.name!.trim().isEmpty) {
       state = state.copyWith(error: 'Please enter your full name');
       return;
@@ -143,13 +147,14 @@ class UserDetailsNotifier extends StateNotifier<UserDetailsState> {
     state = state.copyWith(isSubmitting: true, error: null);
 
     try {
-      // Save user details to Firestore
       debugPrint('💾 Saving user details to Firestore...');
       await _repository.saveUserDetails(
         userId: userId,
         name: state.name!,
         email: state.email!,
         dateOfBirth: state.dateOfBirth!,
+        username: username?.trim().isEmpty == true ? null : username?.trim(),
+        phoneNumber: phoneNumber?.trim().isEmpty == true ? null : phoneNumber?.trim(),
       );
 
       state = state.copyWith(

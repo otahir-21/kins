@@ -1,8 +1,10 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/core/utils/storage_service.dart';
+import 'package:kins_app/widgets/kins_logo.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -32,11 +34,17 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       return;
     }
 
-    // 2. Check if user has an active session (JWT + userId from backend)
-    final userId = StorageService.getString(AppConstants.keyUserId);
-    final token = StorageService.getString(AppConstants.keyJwtToken);
+    // 2. Check if user has an active session
+    final hasSession = AppConstants.useFirebaseAuth
+        ? FirebaseAuth.instance.currentUser != null
+        : () {
+            final userId = StorageService.getString(AppConstants.keyUserId);
+            final token = StorageService.getString(AppConstants.keyJwtToken);
+            return (userId != null && userId.isNotEmpty) &&
+                (token != null && token.isNotEmpty);
+          }();
 
-    if (userId != null && userId.isNotEmpty && token != null && token.isNotEmpty) {
+    if (hasSession) {
       context.go(AppConstants.routeHome);
     } else {
       context.go(AppConstants.routePhoneAuth);
@@ -47,23 +55,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Center(
-        child: Image.asset(
-          'assets/logo/Logo-KINS.png',
-          width: 200,
-          height: 200,
-          fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => Text(
-            'KINS',
-            style: TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey.shade700,
-              letterSpacing: 2,
-            ),
-          ),
-        ),
-      ),
+      body: KinsLogo(width: 200, height: 200),
     );
   }
 }

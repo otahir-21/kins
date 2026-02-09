@@ -6,18 +6,88 @@ import 'dart:io';
 
 import '../models/user_profile_status.dart';
 
+/// Lookup collection names for O(1) uniqueness checks (document ID = normalized value).
+const String _usernamesCollection = 'usernames';
+const String _emailsCollection = 'emails';
+const String _phonesCollection = 'phones';
+
 class UserDetailsRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final BunnyCDNService? _bunnyCDN;
 
   UserDetailsRepository({BunnyCDNService? bunnyCDN}) : _bunnyCDN = bunnyCDN;
 
-  /// Save user details to Firestore
+  static String _normalizeUsername(String username) =>
+      username.trim().toLowerCase().replaceAll(RegExp(r'\s+'), '');
+
+  static String _normalizeEmail(String email) => email.trim().toLowerCase();
+
+  static String _normalizePhone(String phone) =>
+      phone.replaceAll(RegExp(r'\D'), '');
+
+  /// Check if username is available (not taken by another user). Case-insensitive.
+  /// [currentUserId] if set: treat as available when claimed by this user (own username).
+  Future<bool> checkUsernameAvailable(String username,
+      {String? currentUserId}) async {
+    final norm = _normalizeUsername(username);
+    if (norm.isEmpty || norm.length < 2) return false;
+    try {
+      final doc = await _firestore.collection(_usernamesCollection).doc(norm).get();
+      if (!doc.exists) return true;
+      final existingUserId = doc.data()?['userId'] as String?;
+      return existingUserId == currentUserId;
+    } catch (e, st) {
+      debugPrint('❌ checkUsernameAvailable: $e');
+      debugPrint('   If this is PERMISSION_DENIED, add usernames/emails/phones rules (see FIRESTORE_SECURITY_RULES.md)');
+      debugPrint('$st');
+      rethrow;
+    }
+  }
+
+  /// Check if email is available. Case-insensitive.
+  Future<bool> checkEmailAvailable(String email,
+      {String? currentUserId}) async {
+    final norm = _normalizeEmail(email);
+    if (norm.isEmpty || !norm.contains('@')) return false;
+    try {
+      final doc = await _firestore.collection(_emailsCollection).doc(norm).get();
+      if (!doc.exists) return true;
+      final existingUserId = doc.data()?['userId'] as String?;
+      return existingUserId == currentUserId;
+    } catch (e, st) {
+      debugPrint('❌ checkEmailAvailable: $e');
+      debugPrint('   If this is PERMISSION_DENIED, add usernames/emails/phones rules (see FIRESTORE_SECURITY_RULES.md)');
+      debugPrint('$st');
+      rethrow;
+    }
+  }
+
+  /// Check if phone is available (digits-only normalization). [currentUserId] = own phone is available.
+  Future<bool> checkPhoneAvailable(String phone,
+      {String? currentUserId}) async {
+    final norm = _normalizePhone(phone);
+    if (norm.length < 8) return false;
+    try {
+      final doc = await _firestore.collection(_phonesCollection).doc(norm).get();
+      if (!doc.exists) return true;
+      final existingUserId = doc.data()?['userId'] as String?;
+      return existingUserId == currentUserId;
+    } catch (e, st) {
+      debugPrint('❌ checkPhoneAvailable: $e');
+      debugPrint('   If this is PERMISSION_DENIED, add usernames/emails/phones rules (see FIRESTORE_SECURITY_RULES.md)');
+      debugPrint('$st');
+      rethrow;
+    }
+  }
+
+  /// Save user details to Firestore and claim username/email/phone in lookup collections.
   Future<void> saveUserDetails({
     required String userId,
     required String name,
     required String email,
     required DateTime dateOfBirth,
+    String? username,
+    String? phoneNumber,
   }) async {
     try {
       final userData = {
@@ -26,11 +96,39 @@ class UserDetailsRepository {
         'dateOfBirth': dateOfBirth.toIso8601String(),
         'updatedAt': FieldValue.serverTimestamp(),
       };
+      if (username != null && username.trim().isNotEmpty) {
+        userData['username'] = username.trim();
+      }
+      if (phoneNumber != null && phoneNumber.trim().isNotEmpty) {
+        userData['phoneNumber'] = phoneNumber.trim();
+      }
 
       await _firestore.collection('users').doc(userId).set(
-        userData,
-        SetOptions(merge: true),
-      );
+            userData,
+            SetOptions(merge: true),
+          );
+
+      final batch = _firestore.batch();
+      if (username != null) {
+        final norm = _normalizeUsername(username);
+        if (norm.length >= 2) {
+          final ref = _firestore.collection(_usernamesCollection).doc(norm);
+          batch.set(ref, {'userId': userId});
+        }
+      }
+      final emailNorm = _normalizeEmail(email);
+      if (emailNorm.isNotEmpty) {
+        final ref = _firestore.collection(_emailsCollection).doc(emailNorm);
+        batch.set(ref, {'userId': userId});
+      }
+      if (phoneNumber != null) {
+        final phoneNorm = _normalizePhone(phoneNumber);
+        if (phoneNorm.length >= 8) {
+          final ref = _firestore.collection(_phonesCollection).doc(phoneNorm);
+          batch.set(ref, {'userId': userId});
+        }
+      }
+      await batch.commit();
 
       debugPrint('✅ User details saved to Firestore: $userId');
     } catch (e) {
@@ -199,17 +297,22 @@ class UserDetailsRepository {
     }
   }
 
-  /// Save phone number to user document (called after OTP verification)
+  /// Save phone number to user document and claim in phones lookup (called after OTP verification).
   Future<void> savePhoneNumber({
     required String userId,
     required String phoneNumber,
   }) async {
     try {
+      final normalized = _normalizePhone(phoneNumber);
       await _firestore.collection('users').doc(userId).set({
         'phoneNumber': phoneNumber,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-
+      if (normalized.length >= 8) {
+        await _firestore.collection(_phonesCollection).doc(normalized).set({
+          'userId': userId,
+        });
+      }
       debugPrint('✅ Phone number saved: $phoneNumber');
     } catch (e) {
       debugPrint('❌ Failed to save phone number: $e');

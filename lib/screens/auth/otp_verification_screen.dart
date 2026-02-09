@@ -7,7 +7,8 @@ import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/providers/auth_provider.dart';
 import 'package:kins_app/repositories/user_details_repository.dart';
-import 'package:kins_app/models/user_profile_status.dart';
+
+import '../../widgets/kins_logo.dart';
 
 class OtpVerificationScreen extends ConsumerStatefulWidget {
   final String phoneNumber;
@@ -196,103 +197,187 @@ class _OtpVerificationScreenState
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
+    final otpLength = _otpController.text.length;
+    final canContinue = otpLength == 6 && !authState.isLoading && !_isCheckingUser;
+    final theme = Theme.of(context);
+    final textTheme = theme.textTheme;
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text(
-          'Verify OTP',
-          style: TextStyle(color: Colors.black),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black, size: 20),
+          onPressed: () => context.pop(),
         ),
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 48),
-              const Text(
-                'Enter Verification Code',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'We sent a 6-digit code to\n${widget.phoneNumber}',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey.shade700,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 48),
-              if (mounted && !_isDisposed)
-                PinCodeTextField(
-                  appContext: context,
-                  length: 6,
-                  controller: _otpController,
-                  pinTheme: PinTheme(
-                    shape: PinCodeFieldShape.box,
-                    borderRadius: BorderRadius.circular(8),
-                    fieldHeight: 60,
-                    fieldWidth: 50,
-                    activeFillColor: Colors.white,
-                    inactiveFillColor: Colors.white,
-                    selectedFillColor: Colors.white,
-                    activeColor: Colors.black,
-                    inactiveColor: Colors.grey.shade300,
-                    selectedColor: Colors.black,
+        child: Column(
+          children: [
+            const KinsLogo(),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                child: Container(
+                  width: double.infinity,
+                  constraints: const BoxConstraints(maxWidth: 400),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(40),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.06),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                        spreadRadius: 0,
+                      ),
+                    ],
                   ),
-                  enableActiveFill: true,
-                  keyboardType: TextInputType.number,
-                  onCompleted: _isDisposed ? null : _verifyOTP,
-                  onChanged: (value) {},
-                )
-              else
-                const SizedBox(height: 60),
-              const SizedBox(height: 32),
-              if (authState.isLoading || _isCheckingUser)
-                const Center(
-                  child: CircularProgressIndicator(
-                    color: Colors.black,
-                  ),
-                )
-              else
-                ElevatedButton(
-                  onPressed: (_isDisposed || !mounted) 
-                      ? null 
-                      : () {
-                          if (mounted && !_isDisposed) {
-                            try {
-                              final otp = _otpController.text;
-                              if (otp.length == 6) {
-                                _verifyOTP(otp);
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Enter OTP',
+                        style: textTheme.titleLarge?.copyWith(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'We have sent the OTP on your registered number:',
+                        style: textTheme.bodyMedium?.copyWith(
+                          fontSize: 12,
+                          color: Colors.black87,
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        widget.phoneNumber,
+                        style: textTheme.bodyLarge?.copyWith(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+                      if (mounted && !_isDisposed)
+                        PinCodeTextField(
+                          appContext: context,
+                          length: 6,
+                          controller: _otpController,
+                          pinTheme: PinTheme(
+                            shape: PinCodeFieldShape.box,
+                            borderRadius: BorderRadius.circular(12),
+                            fieldHeight: 52,
+                            fieldWidth: 42,
+                            activeFillColor: Colors.grey.shade100,
+                            inactiveFillColor: Colors.grey.shade100,
+                            selectedFillColor: Colors.grey.shade200,
+                            activeColor: Colors.black,
+                            inactiveColor: Colors.grey.shade300,
+                            selectedColor: Colors.black,
+                          ),
+                          enableActiveFill: true,
+                          keyboardType: TextInputType.number,
+                          onCompleted: _isDisposed ? null : _verifyOTP,
+                          onChanged: (value) => setState(() {}),
+                        )
+                      else
+                        const SizedBox(height: 52),
+                      const SizedBox(height: 24),
+                      if (authState.isLoading || _isCheckingUser)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                            child: SizedBox(
+                              height: 24,
+                              width: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                            ),
+                          ),
+                        )
+                      else
+                        SizedBox(
+                          height: 52,
+                          child: ElevatedButton(
+                            onPressed: (_isDisposed || !mounted)
+                                ? null
+                                : canContinue
+                                ? () {
+                              if (mounted && !_isDisposed) {
+                                try {
+                                  final otp = _otpController.text;
+                                  if (otp.length == 6) _verifyOTP(otp);
+                                } catch (e) { /* controller disposed */ }
                               }
-                            } catch (e) {
-                              // Controller might be disposed, ignore
                             }
-                          }
-                        },
-                  child: const Text('Verify OTP'),
-                ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: (authState.isLoading || _resendCooldownSeconds > 0)
-                    ? null
-                    : _resendOTP,
-                child: Text(
-                  _resendCooldownSeconds > 0
-                      ? 'Resend in ${_resendCooldownSeconds}s'
-                      : 'Resend OTP',
+                                : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: canContinue ? Colors.black : Colors.grey.shade300,
+                              foregroundColor: canContinue ? Colors.white : Colors.grey.shade600,
+                              disabledBackgroundColor: Colors.grey.shade300,
+                              disabledForegroundColor: Colors.grey.shade600,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(26),
+                              ),
+                            ),
+                            child: Text(
+                              'Continue',
+                              style: textTheme.labelLarge?.copyWith(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: canContinue ? Colors.white : Colors.grey.shade600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 20),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: _resendCooldownSeconds > 0
+                            ? RichText(
+                                text: TextSpan(
+                                  style: textTheme.bodySmall?.copyWith(fontSize: 13, color: Colors.grey.shade700),
+                                  children: [
+                                    const TextSpan(text: 'You can resend OTP in '),
+                                    TextSpan(
+                                      text: '${_resendCooldownSeconds}s',
+                                      style: textTheme.bodySmall?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : TextButton(
+                                onPressed: authState.isLoading ? null : _resendOTP,
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                child: Text(
+                                  'Resend OTP',
+                                  style: textTheme.bodySmall?.copyWith(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ],
-          ),
+            )
+          ],
         ),
       ),
     );

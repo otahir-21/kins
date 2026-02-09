@@ -4,9 +4,11 @@ import 'package:go_router/go_router.dart';
 import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/providers/interest_provider.dart';
-import 'dart:math' as math;
-
+import 'package:kins_app/widgets/kins_logo.dart';
 import '../../models/interest_model.dart';
+
+/// Minimum number of interests required to enable Next (0 = any, 1+ = at least that many).
+const int _kMinInterestsToEnableNext = 1;
 
 class InterestsScreen extends ConsumerStatefulWidget {
   const InterestsScreen({super.key});
@@ -16,22 +18,11 @@ class InterestsScreen extends ConsumerStatefulWidget {
 }
 
 class _InterestsScreenState extends ConsumerState<InterestsScreen> {
-  // Predefined colors for selected interest chips
-  final List<Color> _chipColors = [
-    const Color(0xFF6B4C93), // Dark purple
-    const Color(0xFFFFB6C1), // Light pink
-    const Color(0xFFFFE4B5), // Light peach
-    const Color(0xFF8B4513), // Brown
-    const Color(0xFFE6E6FA), // Lavender
-    const Color(0xFFFF6347), // Red-orange
-  ];
-  
   bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    // Load interests on screen init
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(interestProvider.notifier).loadInterests();
     });
@@ -41,447 +32,338 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
     final uid = currentUserId;
     if (uid.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('User not authenticated'),
-          backgroundColor: Colors.red,
+        SnackBar(
+          content: const Text('User not authenticated'),
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
       return;
     }
 
     final interestState = ref.read(interestProvider);
-    if (interestState.selectedInterestIds.isEmpty) {
+    if (interestState.selectedInterestIds.length < _kMinInterestsToEnableNext) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select at least one interest'),
+        SnackBar(
+          content: Text(
+            _kMinInterestsToEnableNext == 1
+                ? 'Please select at least one interest'
+                : 'Please select at least $_kMinInterestsToEnableNext interests',
+          ),
           backgroundColor: Colors.orange,
         ),
       );
       return;
     }
 
-    // Prevent multiple taps
     if (_isSaving) return;
-
-    setState(() {
-      _isSaving = true;
-    });
+    setState(() => _isSaving = true);
 
     try {
-      // Save selected interest IDs to user profile
       await ref.read(interestProvider.notifier).saveUserInterests(uid);
-      
-      if (mounted) {
-        // Navigate to home screen after successful save
-        context.go(AppConstants.routeHome);
-      }
+      if (mounted) context.go(AppConstants.routeHome);
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _isSaving = false;
-        });
+        setState(() => _isSaving = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to save interests: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
     }
   }
 
+  void _handleSkip() {
+    context.go(AppConstants.routeHome);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
     final interestState = ref.watch(interestProvider);
-    final selectedInterests = interestState.selectedInterests;
 
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
-            // Top section with logo and skip
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24.0, 8.0, 24.0, 16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // KINS Logo
-                  Container(
-                    width: 100,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF6B4C93),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Center(
-                      child: Text(
-                        'kins',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Skip button
-                  TextButton(
-                    onPressed: () {
-                      // Navigate to home if skip
-                      context.go(AppConstants.routeHome);
-                    },
-                    style: TextButton.styleFrom(
-                      padding: EdgeInsets.zero,
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    child: Text(
-                      'Skip',
-                      style: TextStyle(
-                        color: Colors.grey.shade400,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            // Top: centered logo + Skip (outside card)
+            const KinsLogo(),
+            // Card expanded to end of screen
+            const SizedBox(height: 120),
 
-            // Main content
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 16),
-                    // Title
-                    const Text(
-                      'Select your interest',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                child: Container(
+                  width: double.infinity,
+                  constraints: const BoxConstraints(maxWidth: 500),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(40),
+                    border: Border.all(color: Colors.grey.shade300, width: 1),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.06),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                        spreadRadius: 0,
                       ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Interests grid
-                    if (interestState.isLoading)
-                      const Expanded(
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            color: Color(0xFF6B4C93),
-                          ),
-                        ),
-                      )
-                    else if (interestState.error != null)
-                      Expanded(
-                        child: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.error_outline,
-                                size: 48,
-                                color: Colors.grey.shade400,
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                interestState.error!,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.grey.shade600,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: 16),
-                              ElevatedButton(
-                                onPressed: () {
-                                  ref.read(interestProvider.notifier).loadInterests();
-                                },
-                                child: const Text('Retry'),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                    else
-                      Expanded(
-                        child: _buildInterestsGrid(interestState),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Bottom action bar
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24.0, 0, 24.0, 24.0),
-              child: Row(
-                children: [
-                  // Selected interests indicator (overlapping circles)
-                  Expanded(
-                    child: _buildSelectedInterestsIndicator(selectedInterests),
+                    ],
                   ),
-                  const SizedBox(width: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Header (fixed)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+                        child: Text(
+                          'Select your interests',
+                          style: textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w500,
+                            color: colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
 
-                  // Continue button
-                  _buildContinueButton(),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+                      // Interest pills (expands to fill remaining space, scrolls inside)
+                      Expanded(
+                        child: interestState.isLoading
+                            ? const Center(
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : interestState.error != null
+                                ? Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                                    child: Center(
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.error_outline, size: 48, color: Colors.grey.shade400),
+                                          const SizedBox(height: 12),
+                                          Text(
+                                            interestState.error!,
+                                            style: textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                          const SizedBox(height: 16),
+                                          TextButton(
+                                            onPressed: () => ref.read(interestProvider.notifier).loadInterests(),
+                                            child: const Text('Retry'),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  )
+                                : SingleChildScrollView(
+                                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                                    child: _InterestsScrollableRows(
+                                      interests: interestState.interests,
+                                      selectedIds: interestState.selectedInterestIds,
+                                      onToggle: (id) => ref.read(interestProvider.notifier).toggleInterest(id),
+                                    ),
+                                  ),
+                      ),
 
-  Widget _buildInterestsGrid(InterestState state) {
-    return GridView.builder(
-      padding: const EdgeInsets.only(bottom: 16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 2.5,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemCount: state.interests.length,
-      itemBuilder: (context, index) {
-        final interest = state.interests[index];
-        final isSelected = state.selectedInterestIds.contains(interest.id);
-
-        return _buildInterestChip(interest, isSelected);
-      },
-    );
-  }
-
-  Widget _buildInterestChip(InterestModel interest, bool isSelected) {
-    return InkWell(
-      onTap: () {
-        ref.read(interestProvider.notifier).toggleInterest(interest.id);
-      },
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected
-                ? const Color(0xFF6B4C93)
-                : Colors.grey.shade300,
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Text(
-                interest.name,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                  color: Colors.black,
+                      // Next button (fixed at bottom of card)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: _NextButton(
+                            enabled: interestState.selectedInterestIds.length >= _kMinInterestsToEnableNext && !_isSaving,
+                            isLoading: _isSaving,
+                            onPressed: _handleContinue,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                overflow: TextOverflow.ellipsis,
               ),
-            ),
-            Icon(
-              isSelected ? Icons.close : Icons.add,
-              size: 18,
-              color: isSelected
-                  ? const Color(0xFF6B4C93)
-                  : Colors.grey.shade600,
             ),
           ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildSelectedInterestsIndicator(List<InterestModel> selectedInterests) {
-    if (selectedInterests.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade200.withOpacity(0.6),
-          borderRadius: BorderRadius.circular(30),
-        ),
-        child: Text(
-          'No interests selected',
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey.shade600,
-          ),
-        ),
+/// Target number of pills per row; each row is horizontally scrollable.
+const int _kPillsPerRow = 6;
+
+class _InterestsScrollableRows extends StatelessWidget {
+  const _InterestsScrollableRows({
+    required this.interests,
+    required this.selectedIds,
+    required this.onToggle,
+  });
+
+  final List<InterestModel> interests;
+  final Set<String> selectedIds;
+  final ValueChanged<String> onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    if (interests.isEmpty) return const SizedBox.shrink();
+
+    final rows = <List<InterestModel>>[];
+    for (var i = 0; i < interests.length; i += _kPillsPerRow) {
+      rows.add(
+        interests.sublist(i, i + _kPillsPerRow > interests.length ? interests.length : i + _kPillsPerRow),
       );
     }
 
-    // Show first 5 interests, then +N for remaining
-    final visibleCount = math.min(selectedInterests.length, 5);
-    final remainingCount = selectedInterests.length - visibleCount;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade200.withOpacity(0.6),
-        borderRadius: BorderRadius.circular(30),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Visible interest chips (overlapping)
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var r = 0; r < rows.length; r++) ...[
+          if (r > 0) const SizedBox(height: 12),
           SizedBox(
-            width: (visibleCount * 30.0) + 20.0, // Width for overlapping circles
             height: 48,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: List.generate(visibleCount, (index) {
-                final interest = selectedInterests[index];
-                final color = _chipColors[index % _chipColors.length];
-                
-                return Positioned(
-                  left: index * 30.0, // Overlap by 30px
-                  child: Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white,
-                        width: 2.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Center(
-                      child: Text(
-                        _getInterestInitials(interest.name),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.5,
-                        ),
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              itemCount: rows[r].length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (context, index) {
+                final interest = rows[r][index];
+                return _InterestPill(
+                  interest: interest,
+                  isSelected: selectedIds.contains(interest.id),
+                  onTap: () => onToggle(interest.id),
                 );
-              }),
+              },
             ),
           ),
-          // +N indicator if more than 5
-          if (remainingCount > 0) ...[
-            const SizedBox(width: 8),
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFF6347), // Red-orange
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.white,
-                  width: 2.5,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Center(
-                child: Text(
-                  '+$remainingCount',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          ],
         ],
+      ],
+    );
+  }
+}
+
+class _InterestPill extends StatelessWidget {
+  const _InterestPill({
+    required this.interest,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final InterestModel interest;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  static const double _pillRadius = 24;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(_pillRadius),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(_pillRadius),
+            border: Border.all(
+              color: isSelected ? colorScheme.primary : Colors.grey.shade300,
+              width: isSelected ? 1.5 : 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+                spreadRadius: 0,
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                interest.name,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                isSelected ? Icons.close : Icons.add,
+                size: 18,
+                color: isSelected ? colorScheme.primary : colorScheme.primary,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
+}
 
-  String _getInterestInitials(String name) {
-    if (name.length <= 4) {
-      return name.toUpperCase();
-    }
-    // Get first 3-4 characters
-    return name.substring(0, math.min(4, name.length)).toUpperCase();
-  }
+/// Next button: icon only (→), white background, soft shadow, fully rounded, minimal iOS-style.
+class _NextButton extends StatelessWidget {
+  const _NextButton({
+    required this.enabled,
+    required this.isLoading,
+    required this.onPressed,
+  });
 
-  Widget _buildContinueButton() {
-    final interestState = ref.watch(interestProvider);
-    final hasSelection = interestState.selectedInterestIds.isNotEmpty;
-    final isEnabled = hasSelection && !_isSaving;
+  final bool enabled;
+  final bool isLoading;
+  final VoidCallback onPressed;
 
-    return Container(
-      width: 56,
-      height: 56,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isEnabled
-              ? [
-                  const Color(0xFFFFE4B5), // Light peach
-                  const Color(0xFFFFB6C1), // Light pink
-                ]
-              : [
-                  Colors.grey.shade300,
-                  Colors.grey.shade400,
-                ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: enabled && !isLoading ? onPressed : null,
         borderRadius: BorderRadius.circular(28),
-        boxShadow: isEnabled
-            ? [
-                BoxShadow(
-                  color: const Color(0xFFFFB6C1).withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ]
-            : null,
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(28),
-          onTap: isEnabled ? _handleContinue : null,
+        child: Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            color: enabled ? Colors.white : Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(
+              color: enabled ? Colors.grey.shade300 : Colors.grey.shade300,
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+                spreadRadius: 0,
+              ),
+            ],
+          ),
           child: Center(
-            child: _isSaving
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
+            child: isLoading
+                ? SizedBox(
+                    width: 24,
+                    height: 24,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      color: Colors.grey.shade600,
                     ),
                   )
                 : Icon(
                     Icons.arrow_forward,
-                    color: isEnabled ? Colors.white : Colors.grey.shade600,
                     size: 24,
+                    color: enabled ? colorScheme.onSurface : Colors.grey.shade500,
                   ),
           ),
         ),

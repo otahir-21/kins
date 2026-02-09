@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
+import 'package:kins_app/providers/auth_provider.dart';
 import 'package:kins_app/repositories/auth_repository.dart';
 
 /// Settings menu: Account Settings, Favourite, FAQ's, Terms, Privacy, About us, Log out.
-class SettingsMenuScreen extends StatelessWidget {
+class SettingsMenuScreen extends ConsumerWidget {
   const SettingsMenuScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -31,7 +33,7 @@ class SettingsMenuScreen extends StatelessWidget {
           _buildItem(context, 'Privacy Policy', Icons.privacy_tip_outlined, () => _showComingSoon(context)),
           _buildItem(context, 'About us', Icons.info_outline, () => _showComingSoon(context)),
           const Divider(height: 24),
-          _buildItem(context, 'Log out', Icons.logout, () => _onLogout(context), isLogout: true),
+          _buildItem(context, 'Log out', Icons.logout, () => _onLogout(context, ref), isLogout: true),
           const SizedBox(height: 24),
         ],
       ),
@@ -52,7 +54,7 @@ class SettingsMenuScreen extends StatelessWidget {
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Coming soon')));
   }
 
-  void _onLogout(BuildContext context) async {
+  void _onLogout(BuildContext context, WidgetRef ref) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -66,7 +68,7 @@ class SettingsMenuScreen extends StatelessWidget {
     );
     if (confirm != true) return;
     try {
-      await AuthRepository().signOut();
+      await ref.read(authRepositoryProvider).signOut();
       if (context.mounted) context.go(AppConstants.routeSplash);
     } catch (e) {
       if (context.mounted) {

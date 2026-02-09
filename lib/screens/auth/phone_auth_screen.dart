@@ -8,6 +8,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/providers/auth_provider.dart';
+import 'package:kins_app/widgets/kins_logo.dart';
 
 class PhoneAuthScreen extends ConsumerStatefulWidget {
   const PhoneAuthScreen({super.key});
@@ -71,23 +72,7 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            Center(
-              child: Image.asset(
-                'assets/logo/Logo-KINS.png',
-                width: 150,
-                height: 150,
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => Text(
-                  'KINS',
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade700,
-                    letterSpacing: 2,
-                  ),
-                ),
-              ),
-            ),
+            const KinsLogo(),
             Padding(
               padding: const EdgeInsets.all(24.0),
               child: Form(

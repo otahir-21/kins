@@ -41,8 +41,9 @@ dependencies:
   # Navigation
   go_router: ^14.0.0
   
-  # Firebase (data/storage only; auth via backend JWT)
+  # Firebase (Firestore, FCM; optional Firebase Phone Auth via useFirebaseAuth flag)
   firebase_core: ^3.0.0
+  firebase_auth: ^5.0.0
   cloud_firestore: ^5.0.0
   firebase_messaging: ^15.0.0
   

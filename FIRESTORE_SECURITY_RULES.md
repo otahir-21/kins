@@ -64,6 +64,25 @@ service cloud.firestore {
         request.auth.uid == resource.data.userId;
     }
     
+    // Uniqueness lookups: used for real-time username/email/phone availability checks
+    // Read: allow all (so it works with Firebase Auth AND Twilio/backend auth; docs only store { userId })
+    // Write: only allow setting a doc that points to the current user (claim own username/email/phone)
+    match /usernames/{usernameId} {
+      allow read: if true;
+      allow create, update: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow delete: if false;
+    }
+    match /emails/{emailId} {
+      allow read: if true;
+      allow create, update: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow delete: if false;
+    }
+    match /phones/{phoneId} {
+      allow read: if true;
+      allow create, update: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow delete: if false;
+    }
+    
     // Interests collection - anyone authenticated can read active interests
     match /interests/{interestId} {
       // Allow read for all authenticated users (to show in interest selection)
@@ -162,9 +181,26 @@ After updating the rules:
 
 ## Troubleshooting
 
-### Still getting permission-denied?
+### Still getting permission-denied (e.g. on username/email/phone check)?
 
-1. **Check if user is authenticated:**
+1. **Use the exact rules from this file**
+   - Open **FIRESTORE_SECURITY_RULES.md** and copy the **entire** "Complete Security Rules" block (from `rules_version = '2';` to the closing `}`).
+   - In Firebase Console → **Firestore Database** → **Rules** tab, **select all** (Cmd+A / Ctrl+A) and **paste** to replace everything. Then click **Publish**.
+
+2. **Confirm the right Firebase project**
+   - Your app uses the project in `ios/Runner/GoogleService-Info.plist` and `android/app/google-services.json`.
+   - In Firebase Console, make sure you’re in that same project when editing rules.
+
+3. **Wait and restart**
+   - After publishing, wait **1–2 minutes** for rules to propagate.
+   - Fully close the app and run again (e.g. stop the run and `flutter run` again).
+
+4. **Check Firestore is enabled**
+   - Firebase Console → Firestore Database → make sure the database exists and you’re on the correct (default) database if you have more than one.
+
+### Other permission-denied
+
+1. **Check if user is authenticated (Firebase Auth):**
    ```dart
    final user = FirebaseAuth.instance.currentUser;
    if (user == null) {
@@ -172,14 +208,7 @@ After updating the rules:
    }
    ```
 
-2. **Check Firestore is enabled:**
-   - Go to Firebase Console → Firestore Database
-   - Make sure database is created
-
-3. **Wait a few seconds:**
-   - Rules can take 10-30 seconds to propagate
-
-4. **Clear app cache:**
+2. **Clear app cache:**
    ```bash
    flutter clean
    flutter pub get

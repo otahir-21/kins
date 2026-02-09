@@ -1,14 +1,17 @@
+import 'dart:io' show Platform;
+
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:kins_app/firebase_options.dart';
+import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/core/theme/app_theme.dart';
 import 'package:kins_app/core/utils/secure_storage_service.dart';
 import 'package:kins_app/core/utils/storage_service.dart';
+import 'package:kins_app/firebase_options.dart';
 import 'package:kins_app/routes/app_router.dart';
 import 'package:kins_app/services/fcm_service.dart';
-import 'dart:io' show Platform;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,7 +24,18 @@ void main() async {
   // Initialize Storage Service and secure storage (JWT)
   await StorageService.init();
   await SecureStorageService.init();
-  
+
+  // When using Firebase Auth, sync current user to storage so app-wide currentUserId works
+  if (AppConstants.useFirebaseAuth) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await StorageService.setString(AppConstants.keyUserId, user.uid);
+      if (user.phoneNumber != null && user.phoneNumber!.isNotEmpty) {
+        await StorageService.setString(AppConstants.keyUserPhoneNumber, user.phoneNumber!);
+      }
+    }
+  }
+
   // Initialize FCM for Android/iOS
   try {
     final fcmService = FCMService();

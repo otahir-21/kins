@@ -12,7 +12,13 @@ class AppConstants {
   );
   static const String sendOtpPath = '/auth/send-otp';
   static const String verifyOtpPath = '/auth/verify-otp';
-  
+
+  /// When true: use Firebase Phone Auth. When false: use Twilio backend (send-otp/verify-otp).
+  static const bool useFirebaseAuth = bool.fromEnvironment(
+    'USE_FIREBASE_AUTH',
+    defaultValue: true,
+  );
+
   // Routes
   static const String routeSplash = '/';
   static const String routeOnboarding = '/onboarding';

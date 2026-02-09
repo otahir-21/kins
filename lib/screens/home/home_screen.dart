@@ -13,6 +13,7 @@ import 'package:kins_app/providers/auth_provider.dart';
 import 'package:kins_app/providers/notification_provider.dart';
 import 'package:kins_app/services/location_service.dart';
 import 'package:kins_app/repositories/location_repository.dart';
+import 'package:kins_app/services/account_deletion_service.dart';
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -930,6 +931,53 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     const Divider(height: 1),
                     _buildDrawerItem(
+                      title: 'Delete account',
+                      isDestructive: true,
+                      onTap: () async {
+                        Navigator.pop(context);
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Delete account'),
+                            content: const Text(
+                              'This will permanently delete your account and all your data from our servers. This action cannot be undone.\n\nAre you sure you want to continue?',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('Cancel'),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                                child: const Text('Delete account'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirm != true || !mounted) return;
+                        try {
+                          final service = AccountDeletionService();
+                          await service.deleteAccount(
+                            userId: uid,
+                            authRepository: authRepository,
+                          );
+                          if (mounted) {
+                            context.go(AppConstants.routeSplash);
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Failed to delete account: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                    ),
+                    _buildDrawerItem(
                       title: 'Log out',
                       isLogout: true,
                       onTap: () async {
@@ -988,19 +1036,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     required String title,
     required VoidCallback onTap,
     bool isLogout = false,
+    bool isDestructive = false,
   }) {
+    final useRed = isLogout || isDestructive;
     return ListTile(
       title: Text(
         title,
         style: TextStyle(
-          color: isLogout ? Colors.red : Colors.black87,
+          color: useRed ? Colors.red : Colors.black87,
           fontSize: 16,
           fontWeight: FontWeight.w500,
         ),
       ),
       trailing: Icon(
         Icons.chevron_right,
-        color: isLogout ? Colors.red : Colors.grey.shade400,
+        color: useRed ? Colors.red : Colors.grey.shade400,
       ),
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),

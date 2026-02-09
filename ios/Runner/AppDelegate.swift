@@ -1,6 +1,7 @@
 import Flutter
 import UIKit
 import FirebaseCore
+import FirebaseAuth
 import FirebaseMessaging
 import UserNotifications
 import GoogleMaps
@@ -45,7 +46,25 @@ import GoogleMaps
     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
     Messaging.messaging().apnsToken = deviceToken
   }
-  
+
+  // Firebase Auth: handle phone auth deep links when USE_FIREBASE_AUTH is enabled
+  override func application(
+    _ app: UIApplication,
+    open url: URL,
+    options: [UIApplication.OpenURLOptionsKey : Any] = [:]
+  ) -> Bool {
+    if Auth.auth().canHandle(url) { return true }
+    return super.application(app, open: url, options: options)
+  }
+
+  override func application(
+    _ application: UIApplication,
+    continue userActivity: NSUserActivity,
+    restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void
+  ) -> Bool {
+    if let url = userActivity.webpageURL, Auth.auth().canHandle(url) { return true }
+    return super.application(application, continue: userActivity, restorationHandler: restorationHandler)
+  }
 }
 
 // FCM Messaging Delegate

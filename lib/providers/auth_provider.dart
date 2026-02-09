@@ -1,10 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kins_app/repositories/auth_repository.dart';
+import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/models/user_model.dart';
+import 'package:kins_app/repositories/auth_repository.dart';
+import 'package:kins_app/repositories/firebase_auth_repository.dart';
+import 'package:kins_app/repositories/twilio_auth_repository.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  return AuthRepository();
+  return AppConstants.useFirebaseAuth ? FirebaseAuthRepository() : TwilioAuthRepository();
 });
 
 class AuthState {
