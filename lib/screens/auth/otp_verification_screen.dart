@@ -1,8 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/providers/auth_provider.dart';
 import 'package:kins_app/repositories/user_details_repository.dart';
@@ -27,11 +28,29 @@ class _OtpVerificationScreenState
   final _userDetailsRepository = UserDetailsRepository();
   bool _isDisposed = false;
   bool _isCheckingUser = false;
+  int _resendCooldownSeconds = 60;
+  Timer? _resendTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startResendCooldown();
+  }
+
+  void _startResendCooldown() {
+    _resendTimer?.cancel();
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted || _isDisposed) return;
+      setState(() {
+        _resendCooldownSeconds = (_resendCooldownSeconds - 1).clamp(0, 60);
+      });
+    });
+  }
 
   @override
   void dispose() {
     _isDisposed = true;
-    // Safely dispose controller
+    _resendTimer?.cancel();
     try {
       _otpController.dispose();
     } catch (e) {
@@ -41,61 +60,43 @@ class _OtpVerificationScreenState
   }
 
   Future<void> _verifyOTP(String otp) async {
-    if (otp.length == 6 && !_isDisposed) {
-      // Show loading state
-      setState(() {
-        _isCheckingUser = true;
-      });
+    if (otp.length != 6 || _isDisposed) return;
 
-      await ref.read(authProvider.notifier).verifyOTP(otp);
+    setState(() => _isCheckingUser = true);
+    await ref.read(authProvider.notifier).verifyOTP(widget.phoneNumber, otp);
 
-      if (mounted && !_isDisposed) {
-        final authState = ref.read(authProvider);
-        if (authState.error != null) {
-          // Log error to console
-          debugPrint('❌ OTP Verification Error: ${authState.error}');
-          setState(() {
-            _isCheckingUser = false;
-          });
-          try {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(authState.error!),
-                backgroundColor: Colors.red,
-                duration: const Duration(seconds: 3),
-              ),
-            );
-          } catch (e) {
-            debugPrint('❌ SnackBar Error: $e');
-          }
-        } else if (authState.user != null) {
-          debugPrint('✅ OTP Verified Successfully');
-          
-          // Get Firebase Auth user
-          final firebaseUser = FirebaseAuth.instance.currentUser;
-          if (firebaseUser == null) {
-            setState(() {
-              _isCheckingUser = false;
-            });
-            return;
-          }
+    if (!mounted || _isDisposed) return;
+    final authState = ref.read(authProvider);
 
-          // Save phone number to Firestore (using UID as document ID)
-          try {
-            await _userDetailsRepository.savePhoneNumber(
-              userId: firebaseUser.uid,
-              phoneNumber: widget.phoneNumber,
-            );
-          } catch (e) {
-            debugPrint('⚠️ Failed to save phone number: $e');
-            // Continue anyway
-          }
-
-          // Check user status by phone number
-          await _checkUserAndNavigate(widget.phoneNumber);
-        }
-      }
+    if (authState.error != null) {
+      setState(() => _isCheckingUser = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authState.error!),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      return;
     }
+
+    if (authState.user == null) {
+      setState(() => _isCheckingUser = false);
+      return;
+    }
+
+    debugPrint('✅ OTP verified, user: ${authState.user!.uid}');
+
+    try {
+      await _userDetailsRepository.savePhoneNumber(
+        userId: authState.user!.uid,
+        phoneNumber: widget.phoneNumber,
+      );
+    } catch (e) {
+      debugPrint('⚠️ Failed to save phone number: $e');
+    }
+
+    await _checkUserAndNavigate(widget.phoneNumber);
   }
 
   Future<void> _checkUserAndNavigate(String phoneNumber) async {
@@ -160,6 +161,7 @@ class _OtpVerificationScreenState
             debugPrint('❌ SnackBar Error: $e');
           }
         } else {
+          if (mounted) setState(() => _resendCooldownSeconds = 60);
           try {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -280,8 +282,14 @@ class _OtpVerificationScreenState
                 ),
               const SizedBox(height: 16),
               TextButton(
-                onPressed: authState.isLoading ? null : _resendOTP,
-                child: const Text('Resend OTP'),
+                onPressed: (authState.isLoading || _resendCooldownSeconds > 0)
+                    ? null
+                    : _resendOTP,
+                child: Text(
+                  _resendCooldownSeconds > 0
+                      ? 'Resend in ${_resendCooldownSeconds}s'
+                      : 'Resend OTP',
+                ),
               ),
             ],
           ),

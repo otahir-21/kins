@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:intl/intl.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
@@ -178,7 +178,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Widget _buildChatsList() {
-    final myUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final myUid = currentUserId;
     final chatsAsync = ref.watch(myChatsStreamProvider);
     return chatsAsync.when(
       data: (chats) {
@@ -315,7 +315,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => _NewChatSheet(
-        myUid: FirebaseAuth.instance.currentUser?.uid ?? '',
+        myUid: currentUserId,
         onStarted: () => Navigator.pop(context),
       ),
     );

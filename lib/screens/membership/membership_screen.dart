@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/providers/user_details_provider.dart';
@@ -34,7 +34,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
   }
 
   Future<void> _loadMembershipStatus() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = currentUserId;
     if (uid == null) {
       if (mounted) setState(() => _isLoading = false);
       return;

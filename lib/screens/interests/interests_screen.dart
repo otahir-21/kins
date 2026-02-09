@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/providers/interest_provider.dart';
 import 'dart:math' as math;
@@ -38,8 +38,8 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
   }
 
   Future<void> _handleContinue() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
+    final uid = currentUserId;
+    if (uid.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('User not authenticated'),
@@ -69,7 +69,7 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
 
     try {
       // Save selected interest IDs to user profile
-      await ref.read(interestProvider.notifier).saveUserInterests(user.uid);
+      await ref.read(interestProvider.notifier).saveUserInterests(uid);
       
       if (mounted) {
         // Navigate to home screen after successful save

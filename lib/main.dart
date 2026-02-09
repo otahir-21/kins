@@ -2,9 +2,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:kins_app/firebase_options.dart';
 import 'package:kins_app/core/theme/app_theme.dart';
+import 'package:kins_app/core/utils/secure_storage_service.dart';
 import 'package:kins_app/core/utils/storage_service.dart';
 import 'package:kins_app/routes/app_router.dart';
 import 'package:kins_app/services/fcm_service.dart';
@@ -18,21 +18,9 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   
-  // OPTIONAL: Use Firebase Auth Emulator for development (bypasses reCAPTCHA)
-  // Uncomment the lines below to use emulator:
-  // if (kDebugMode) {
-  //   try {
-  //     await FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
-  //     debugPrint('✅ Using Firebase Auth Emulator - reCAPTCHA will be bypassed');
-  //   } catch (e) {
-  //     debugPrint('⚠️ Auth Emulator not available: $e');
-  //   }
-  // }
-  // Note: Requires Firebase Emulator Suite to be running
-  // Run: firebase emulators:start --only auth
-  
-  // Initialize Storage Service
+  // Initialize Storage Service and secure storage (JWT)
   await StorageService.init();
+  await SecureStorageService.init();
   
   // Initialize FCM for Android/iOS
   try {
@@ -62,7 +50,7 @@ class KINSApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp.router(
       title: 'KINS',
-      theme: AppTheme.lightTheme,
+      theme: AppTheme.lightTheme(platformIsIOS: Platform.isIOS),
       routerConfig: appRouter,
       debugShowCheckedModeBanner: false,
     );

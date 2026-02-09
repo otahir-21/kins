@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/screens/home/home_screen.dart';
 import 'package:kins_app/repositories/location_repository.dart';
@@ -388,10 +388,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _loadLocationVisibility() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
+    final uid = currentUserId;
+    if (uid.isNotEmpty) {
       final repository = LocationRepository();
-      final isVisible = await repository.getUserLocationVisibility(user.uid);
+      final isVisible = await repository.getUserLocationVisibility(uid);
       if (mounted) {
         setState(() {
           _isLocationVisible = isVisible;
@@ -408,8 +408,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _toggleLocationVisibility(bool value) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    final uid = currentUserId;
+    if (uid.isEmpty) return;
 
     setState(() {
       _isLocationVisible = value;
@@ -418,7 +418,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     try {
       final repository = LocationRepository();
       await repository.updateLocationVisibility(
-        userId: user.uid,
+        userId: uid,
         isVisible: value,
       );
     } catch (e) {

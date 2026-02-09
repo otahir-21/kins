@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:kins_app/models/notification_model.dart';
 import 'package:kins_app/providers/notification_provider.dart';
 import 'package:intl/intl.dart';
@@ -11,14 +11,14 @@ class NotificationsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
+    final uid = currentUserId;
+    if (uid.isEmpty) {
       return const Scaffold(
         body: Center(child: Text('Please log in')),
       );
     }
 
-    final notificationsState = ref.watch(notificationsProvider(user.uid));
+    final notificationsState = ref.watch(notificationsProvider(uid));
 
     // Group notifications by date
     final groupedNotifications = _groupNotificationsByDate(
@@ -47,7 +47,7 @@ class NotificationsScreen extends ConsumerWidget {
           ? const Center(child: CircularProgressIndicator())
           : groupedNotifications.isEmpty
               ? _buildEmptyState()
-              : _buildNotificationsList(context, ref, user.uid, groupedNotifications),
+              : _buildNotificationsList(context, ref, uid, groupedNotifications),
     );
   }
 

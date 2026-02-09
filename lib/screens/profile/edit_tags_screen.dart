@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:kins_app/providers/user_details_provider.dart';
 
@@ -37,7 +37,7 @@ class _EditTagsScreenState extends ConsumerState<EditTagsScreen> {
   }
 
   Future<void> _loadUser() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = currentUserId.isNotEmpty ? currentUserId : null;
     if (uid == null) return;
     try {
       final userRepo = ref.read(userDetailsRepositoryProvider);
@@ -220,7 +220,7 @@ class _EditTagsScreenState extends ConsumerState<EditTagsScreen> {
   }
 
   Future<void> _save() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = currentUserId.isNotEmpty ? currentUserId : null;
     if (uid == null) return;
     try {
       await FirebaseFirestore.instance.collection('users').doc(uid).set({

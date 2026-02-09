@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/core/utils/storage_service.dart';
 
@@ -25,16 +24,21 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
     if (!mounted) return;
 
-    // Check if user has an active session
-    final user = FirebaseAuth.instance.currentUser;
-    final userId = StorageService.getString(AppConstants.keyUserId);
+    // 1. Show walkthrough/onboarding first if user hasn't seen it
+    final onboardingCompleted =
+        StorageService.getBool(AppConstants.keyOnboardingCompleted) ?? false;
+    if (!onboardingCompleted) {
+      context.go(AppConstants.routeOnboarding);
+      return;
+    }
 
-    // If user is authenticated (has Firebase session and local storage)
-    if (user != null && userId != null && userId.isNotEmpty) {
-      // User has session, navigate to home
+    // 2. Check if user has an active session (JWT + userId from backend)
+    final userId = StorageService.getString(AppConstants.keyUserId);
+    final token = StorageService.getString(AppConstants.keyJwtToken);
+
+    if (userId != null && userId.isNotEmpty && token != null && token.isNotEmpty) {
       context.go(AppConstants.routeHome);
     } else {
-      // No session, navigate to phone auth
       context.go(AppConstants.routePhoneAuth);
     }
   }
@@ -44,33 +48,20 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // App Logo/Name
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: Colors.black,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Center(
-                child: Text(
-                  'KINS',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
+        child: Image.asset(
+          'assets/logo/Logo-KINS.png',
+          width: 200,
+          height: 200,
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => Text(
+            'KINS',
+            style: TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey.shade700,
+              letterSpacing: 2,
             ),
-            const SizedBox(height: 24),
-            const CircularProgressIndicator(
-              color: Colors.black,
-            ),
-          ],
+          ),
         ),
       ),
     );

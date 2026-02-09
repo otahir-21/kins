@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:kins_app/repositories/location_repository.dart';
 
 /// Account settings: location visibility toggle (and more later).
@@ -22,20 +22,20 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
   }
 
   Future<void> _loadLocationVisibility() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
+    final uid = currentUserId;
+    if (uid.isNotEmpty) {
       final repository = LocationRepository();
-      final isVisible = await repository.getUserLocationVisibility(user.uid);
+      final isVisible = await repository.getUserLocationVisibility(uid);
       if (mounted) setState(() { _isLocationVisible = isVisible; _isLoading = false; });
     } else if (mounted) setState(() => _isLoading = false);
   }
 
   Future<void> _toggleLocationVisibility(bool value) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    final uid = currentUserId;
+    if (uid.isEmpty) return;
     setState(() => _isLocationVisible = value);
     try {
-      await LocationRepository().updateLocationVisibility(userId: user.uid, isVisible: value);
+      await LocationRepository().updateLocationVisibility(userId: uid, isVisible: value);
     } catch (e) {
       setState(() => _isLocationVisible = !value);
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));

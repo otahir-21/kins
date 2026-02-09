@@ -4,6 +4,18 @@ import 'package:go_router/go_router.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/providers/onboarding_provider.dart';
 
+/// Onboarding image paths (add img-2.png, img-3.png to assets/onboardingIcons/ for pages 2 & 3)
+const String _onboardingImg1 = 'assets/onboardingIcons/img-1.png';
+const String _onboardingImg2 = 'assets/onboardingIcons/img-2.png';
+const String _onboardingImg3 = 'assets/onboardingIcons/img-3.png';
+
+/// Onboarding colors matching the design
+class _OnboardingColors {
+  static const Color activeDot = Color(0xFF5A1D6B); // dark purple
+  static const Color inactiveDotBorder = Color(0xFFE0E0E0);
+  static const Color imageContainerBackground = Colors.white;
+}
+
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -14,19 +26,29 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
+  static const double _swipeToAuthThreshold = 50;
 
-  final List<OnboardingPage> _pages = [
-    const OnboardingPage(
-      title: 'Welcome to KINS',
-      description: 'Your trusted companion for all your needs',
+  static const List<OnboardingPageData> _pages = [
+    OnboardingPageData(
+      imagePath: _onboardingImg1,
+      title: 'Lorem Ipsum',
+      subtitle: 'Expert & Share Stories',
+      description:
+          'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
     ),
-    const OnboardingPage(
+    OnboardingPageData(
+      imagePath: _onboardingImg2,
       title: 'Easy to Use',
-      description: 'Simple and intuitive interface for everyone',
+      subtitle: 'Simple and intuitive',
+      description:
+          'Designed for everyone. Find what you need and connect with your community.',
     ),
-    const OnboardingPage(
+    OnboardingPageData(
+      imagePath: _onboardingImg3,
       title: 'Get Started',
-      description: 'Join thousands of users already using KINS',
+      subtitle: 'Join KINS today',
+      description:
+          'Join thousands of users already using KINS. Your journey starts here.',
     ),
   ];
 
@@ -36,101 +58,120 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     super.dispose();
   }
 
-  void _onPageChanged(int index) {
-    setState(() {
-      _currentPage = index;
-    });
+  bool _handleScrollNotification(ScrollNotification notification) {
+    if (_currentPage != _pages.length - 1) return false;
+    final m = notification.metrics;
+    final overscroll = m.pixels - m.maxScrollExtent;
+    if (overscroll > _swipeToAuthThreshold) {
+      _completeOnboarding();
+      return true;
+    }
+    return false;
   }
 
-  void _nextPage() {
-    if (_currentPage < _pages.length - 1) {
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    } else {
-      _completeOnboarding();
-    }
+  void _onPageChanged(int index) {
+    setState(() => _currentPage = index);
   }
 
   void _skipOnboarding() {
-    _completeOnboarding();
+    ref.read(onboardingProvider.notifier).completeOnboarding();
+    if (mounted) context.go(AppConstants.routePhoneAuth);
   }
 
   Future<void> _completeOnboarding() async {
     await ref.read(onboardingProvider.notifier).completeOnboarding();
-    if (mounted) {
-      context.go(AppConstants.routePhoneAuth);
-    }
+    if (mounted) context.go(AppConstants.routePhoneAuth);
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textTheme = theme.textTheme;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
-            // Skip button
-            Align(
-              alignment: Alignment.topRight,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: TextButton(
-                  onPressed: _skipOnboarding,
-                  child: const Text(
-                    'Skip',
-                    style: TextStyle(color: Colors.black),
-                  ),
-                ),
-              ),
-            ),
-
-            // Page View
+            // Full-screen PageView: each page = one container (image + Skip) + text below.
+            // On page 3, swiping left (overscroll) goes to auth.
             Expanded(
-              child: PageView.builder(
-                controller: _pageController,
-                onPageChanged: _onPageChanged,
-                itemCount: _pages.length,
-                itemBuilder: (context, index) {
-                  return _pages[index];
-                },
-              ),
-            ),
-
-            // Page Indicators
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                _pages.length,
-                (index) => Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  width: _currentPage == index ? 24 : 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: _currentPage == index
-                        ? Colors.black
-                        : Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
+              child: NotificationListener<ScrollNotification>(
+                onNotification: _handleScrollNotification,
+                child: PageView.builder(
+                  controller: _pageController,
+                  onPageChanged: _onPageChanged,
+                  itemCount: _pages.length,
+                  physics: const BouncingScrollPhysics(parent: PageScrollPhysics()),
+                  itemBuilder: (context, index) {
+                    return _OnboardingPageContent(
+                      data: _pages[index],
+                      textTheme: textTheme,
+                      onSkip: _skipOnboarding,
+                    );
+                  },
                 ),
               ),
             ),
 
-            const SizedBox(height: 32),
-
-            // Next/Get Started Button
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _nextPage,
+            // On page 3: show "Get Started" so user can go to auth (swipe or tap)
+            if (_currentPage == _pages.length - 1)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: TextButton(
+                  onPressed: _completeOnboarding,
                   child: Text(
-                    _currentPage == _pages.length - 1
-                        ? 'Get Started'
-                        : 'Next',
+                    '',
+                    style: textTheme.titleMedium?.copyWith(
+                      color: _OnboardingColors.activeDot,
+                      decoration: TextDecoration.underline,
+                      decorationColor: _OnboardingColors.activeDot,
+                    ),
                   ),
+                ),
+              ),
+
+            // Pagination indicators - active: bigger circle, white background, image in center; inactive: smaller
+            Padding(
+              padding: const EdgeInsets.only(bottom: 40),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  _pages.length,
+                  (index) {
+                    final isActive = _currentPage == index;
+                    final size = isActive ? 56.0 : 40.0;
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: size,
+                        height: size,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: _OnboardingColors.inactiveDotBorder,
+                            width: 1.5,
+                          ),
+                        ),
+                        child: isActive
+                            ? Center(
+                                child: Image.asset(
+                                  'assets/logo/kinsK_Transparent.png',
+                                  width: 32,
+                                  height: 32,
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (_, __, ___) => const SizedBox(
+                                    width: 32,
+                                    height: 32,
+                                  ),
+                                ),
+                              )
+                            : null,
+                      ),
+                    );
+                  },
                 ),
               ),
             ),
@@ -141,56 +182,147 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 }
 
-class OnboardingPage extends StatelessWidget {
+class OnboardingPageData {
+  final String imagePath;
   final String title;
+  final String subtitle;
   final String description;
 
-  const OnboardingPage({
-    super.key,
+  const OnboardingPageData({
+    required this.imagePath,
     required this.title,
+    required this.subtitle,
     required this.description,
+  });
+}
+
+class _OnboardingPageContent extends StatelessWidget {
+  final OnboardingPageData data;
+  final TextTheme textTheme;
+  final VoidCallback onSkip;
+
+  const _OnboardingPageContent({
+    required this.data,
+    required this.textTheme,
+    required this.onSkip,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(32.0),
+    return SingleChildScrollView(
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Placeholder for image/icon
-          Container(
-            width: 200,
-            height: 200,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade200,
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.black, width: 2),
+          // One container: image + Skip (text is outside, below)
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(24),
             ),
-            child: const Icon(
-              Icons.image,
-              size: 80,
-              color: Colors.black,
+            child: Container(
+              margin: EdgeInsets.all(10),
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: Colors.grey.shade300, width: 1),
+                borderRadius: BorderRadius.circular(40),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.3),
+                    blurRadius: 6,
+                    offset: Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Stack(
+                alignment: Alignment.topRight,
+                children: [
+                  Center(
+                    child: SizedBox(
+                      height: 550,
+                      width: double.infinity,
+                      child: Image.asset(
+                        data.imagePath,
+                        errorBuilder: (_, __, ___) => Image.asset(
+                          _onboardingImg1,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8, right: 20),
+                    child: TextButton(
+                      onPressed: onSkip,
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: Text(
+                        'Skip',
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: Colors.black,
+                          decoration: TextDecoration.underline,
+                          decorationColor: Colors.black,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 48),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
+          // Text content (outside the image container)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28),
+            child: Column(
+              children: [
+                const SizedBox(height: 24),
+                Text(
+              data.title,
+              style: textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.w300,
+                color: Colors.black,
+              ) ?? const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                color: Colors.black,
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            description,
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey.shade700,
+            const SizedBox(height: 12),
+            // Subtitle - prominent, black, centered
+            Text(
+              data.subtitle,
+              style: textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w200,
+                color: Colors.black,
+              ) ?? const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: Colors.black,
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
+            const SizedBox(height: 16),
+            // Description - smaller, dark grey, centered
+            Text(
+              data.description,
+              style: textTheme.bodyMedium?.copyWith(
+                color: Colors.black87,
+                height: 1.4,
+              ) ?? const TextStyle(
+                fontSize: 15,
+                color: Colors.black87,
+                height: 1.4,
+              ),
+              textAlign: TextAlign.center,
+            ),
+              ],
+            ),
           ),
         ],
       ),

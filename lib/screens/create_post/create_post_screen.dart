@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/models/post_model.dart';
 import 'package:kins_app/providers/post_provider.dart';
@@ -50,11 +50,11 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   }
 
   Future<void> _loadUser() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    final uid = currentUserId;
+    if (uid.isEmpty) return;
     final repo = UserDetailsRepository();
-    final details = await repo.getUserDetails(user.uid);
-    final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+    final details = await repo.getUserDetails(uid);
+    final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
     final data = doc.exists ? doc.data() : null;
     if (mounted) {
       setState(() {
@@ -106,8 +106,8 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   }
 
   Future<void> _submitPost() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    final uid = currentUserId;
+    if (uid.isEmpty) return;
 
     if (_postType == PostType.text && _textController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter some text')));
@@ -151,7 +151,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       }
 
       await repo.createPost(
-        authorId: user.uid,
+        authorId: uid,
         authorName: _userName ?? 'User',
         authorPhotoUrl: _userPhotoUrl,
         type: _postType,

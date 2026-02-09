@@ -2,16 +2,17 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:kins_app/core/utils/auth_utils.dart';
+import 'package:kins_app/repositories/auth_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/repositories/user_details_repository.dart';
+import 'package:kins_app/providers/auth_provider.dart';
 import 'package:kins_app/providers/notification_provider.dart';
 import 'package:kins_app/services/location_service.dart';
 import 'package:kins_app/repositories/location_repository.dart';
-import 'package:kins_app/repositories/auth_repository.dart';
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -53,8 +54,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Future<void> _initializeLocation() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    final uid = currentUserId;
+    if (uid.isEmpty) return;
 
     try {
       final position = await _locationService.getCurrentLocation();
@@ -73,10 +74,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         );
         
         final locationRepository = LocationRepository();
-        final isVisible = await locationRepository.getUserLocationVisibility(user.uid);
+        final isVisible = await locationRepository.getUserLocationVisibility(uid);
         
         await locationRepository.saveUserLocation(
-          userId: user.uid,
+          userId: uid,
           latitude: position.latitude,
           longitude: position.longitude,
           isVisible: isVisible,
@@ -94,16 +95,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Future<void> _loadUserData() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
+    final uid = currentUserId;
+    if (uid.isNotEmpty) {
       try {
         final repository = UserDetailsRepository();
-        final userDetails = await repository.getUserDetails(user.uid);
+        final userDetails = await repository.getUserDetails(uid);
         
         // Get location and profile picture from Firestore
         final doc = await FirebaseFirestore.instance
             .collection('users')
-            .doc(user.uid)
+            .doc(uid)
             .get();
         
         final data = doc.exists ? doc.data() : null;
@@ -138,12 +139,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Future<void> _updateStatus(String newStatus) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
+    final uid = currentUserId;
+    if (uid.isNotEmpty) {
       final repository = UserDetailsRepository();
       try {
         await repository.updateUserStatus(
-          userId: user.uid,
+          userId: uid,
           status: newStatus,
         );
         setState(() {
@@ -849,8 +850,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildDrawer() {
-    final user = FirebaseAuth.instance.currentUser;
-    final authRepository = AuthRepository();
+    final uid = currentUserId;
+    final authRepository = ref.read(authRepositoryProvider);
 
     return Drawer(
       child: Container(

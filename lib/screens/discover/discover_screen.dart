@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/models/post_model.dart';
+import 'package:kins_app/providers/auth_provider.dart';
 import 'package:kins_app/providers/post_provider.dart';
-import 'package:kins_app/repositories/auth_repository.dart';
 import 'package:kins_app/repositories/post_repository.dart';
 
 /// Filter topic chips (match create post topics)
@@ -51,10 +51,10 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   }
 
   Future<void> _loadUser() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    final uid = currentUserId;
+    if (uid.isEmpty) return;
     try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
       final data = doc.exists ? doc.data() : null;
       final location = data?['location']?['city'] ?? 'Dubai, UAE';
       final profilePicUrl = data?['profilePictureUrl'] ?? data?['profilePicture'];
@@ -276,7 +276,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   }
 
   Widget _buildDrawer() {
-    final authRepository = AuthRepository();
+    final authRepository = ref.read(authRepositoryProvider);
     return Drawer(
       child: Container(
         decoration: const BoxDecoration(
@@ -870,16 +870,16 @@ class _PollCardContentState extends ConsumerState<_PollCardContent> {
   }
 
   Future<void> _loadVote() async {
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null) return;
+    final userId = currentUserId;
+    if (userId.isEmpty) return;
     final option = await widget.postRepo.getUserVote(widget.post.id, userId);
     if (mounted) setState(() => _votedOptionIndex = option);
   }
 
   Future<void> _vote(int optionIndex) async {
     if (_isVoting || _votedOptionIndex != null) return;
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null) return;
+    final userId = currentUserId;
+    if (userId.isEmpty) return;
     setState(() => _isVoting = true);
     try {
       await widget.postRepo.votePoll(

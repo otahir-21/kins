@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:kins_app/providers/follow_provider.dart';
 
 /// Followers list: real data from Firestore. Remove = remove that follower.
@@ -10,7 +10,7 @@ class FollowersScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final uid = currentUserId;
     final followersAsync = ref.watch(followersListStreamProvider(uid));
     final followRepo = ref.read(followRepositoryProvider);
 

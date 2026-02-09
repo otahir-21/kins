@@ -5,7 +5,7 @@ import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/models/chat_model.dart';
 import 'package:kins_app/providers/chat_provider.dart';
 import 'package:kins_app/repositories/chat_repository.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:intl/intl.dart';
 
 /// WhatsApp-like conversation screen: bubbles, time, delivery/seen ticks.
@@ -38,7 +38,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   }
 
   Future<void> _markDeliveredAndSeen() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = currentUserId.isNotEmpty ? currentUserId : null;
     if (uid == null) return;
     try {
       await _chatRepo.markDeliveredAndSeen(widget.chatId, uid);
@@ -55,7 +55,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   Future<void> _sendMessage() async {
     final text = _textController.text.trim();
     if (text.isEmpty || _isSending) return;
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = currentUserId.isNotEmpty ? currentUserId : null;
     if (uid == null) return;
 
     setState(() {
@@ -71,8 +71,8 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    final myUid = user?.uid ?? '';
+    final uid = currentUserId;
+    final myUid = uid;
     final chatSnap = ref.watch(chatStreamProvider(widget.chatId));
     final chat = chatSnap.valueOrNull;
     final otherUserId = _otherUserId(chat);
@@ -196,7 +196,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
 
   String _otherUserId(ChatConversation? chat) {
     if (chat == null) return '';
-    final myUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final myUid = currentUserId;
     final list = chat.participantIds.where((id) => id != myUid).toList();
     return list.isNotEmpty ? list.first : '';
   }

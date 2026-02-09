@@ -3,6 +3,15 @@ class AppConstants {
   static const String keyOnboardingCompleted = 'onboarding_completed';
   static const String keyUserPhoneNumber = 'user_phone_number';
   static const String keyUserId = 'user_id';
+  static const String keyJwtToken = 'jwt_token';
+
+  // Backend API (override with --dart-define or env)
+  static const String apiBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'https://kins-crm.vercel.app',
+  );
+  static const String sendOtpPath = '/auth/send-otp';
+  static const String verifyOtpPath = '/auth/verify-otp';
   
   // Routes
   static const String routeSplash = '/';

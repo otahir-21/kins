@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:kins_app/repositories/follow_repository.dart';
 
 final followRepositoryProvider = Provider<FollowRepository>((ref) {
@@ -8,15 +8,15 @@ final followRepositoryProvider = Provider<FollowRepository>((ref) {
 
 /// Stream follower count for current user (for profile).
 final myFollowerCountStreamProvider = StreamProvider<int>((ref) {
-  final uid = FirebaseAuth.instance.currentUser?.uid;
-  if (uid == null) return Stream.value(0);
+  final uid = currentUserId;
+  if (uid.isEmpty) return Stream.value(0);
   return ref.watch(followRepositoryProvider).streamFollowerCount(uid);
 });
 
 /// Stream following count for current user (for profile).
 final myFollowingCountStreamProvider = StreamProvider<int>((ref) {
-  final uid = FirebaseAuth.instance.currentUser?.uid;
-  if (uid == null) return Stream.value(0);
+  final uid = currentUserId;
+  if (uid.isEmpty) return Stream.value(0);
   return ref.watch(followRepositoryProvider).streamFollowingCount(uid);
 });
 

@@ -1,140 +1,109 @@
-import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:kins_app/core/utils/storage_service.dart';
+import 'package:http/http.dart' as http;
 import 'package:kins_app/core/constants/app_constants.dart';
+import 'package:kins_app/core/utils/storage_service.dart';
 import 'package:kins_app/models/user_model.dart';
 
+/// Phone auth via backend API (send-otp / verify-otp). JWT stored locally.
+/// No Firebase Phone Auth.
 class AuthRepository {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  String? _verificationId;
+  static String get _baseUrl => AppConstants.apiBaseUrl;
 
-  // Send OTP to phone number
+  /// POST /auth/send-otp — request OTP for [phoneNumber].
   Future<void> sendOTP(String phoneNumber) async {
-    _verificationId = null;
-    final completer = Completer<void>();
-    
+    final uri = Uri.parse('$_baseUrl${AppConstants.sendOtpPath}');
     try {
-      await _auth.verifyPhoneNumber(
-        phoneNumber: phoneNumber,
-        verificationCompleted: (PhoneAuthCredential credential) async {
-          try {
-            await _auth.signInWithCredential(credential);
-            if (!completer.isCompleted) {
-              completer.complete();
-            }
-          } catch (e) {
-            if (!completer.isCompleted) {
-              completer.completeError(e);
-            }
-          }
-        },
-        verificationFailed: (FirebaseAuthException e) {
-          String errorMessage = e.message ?? 'Verification failed';
-          
-          // Provide user-friendly error messages
-          if (e.code == 'internal-error') {
-            errorMessage = 'Phone number not registered for testing. Please add test phone numbers in Firebase Console.';
-            debugPrint('❌ Firebase Verification Failed: ${e.code} - ${e.message}');
-            debugPrint('💡 To test with new numbers, add them in Firebase Console → Authentication → Sign-in method → Phone → Phone numbers for testing');
-          } else if (e.code == 'invalid-phone-number') {
-            errorMessage = 'Invalid phone number format. Please check and try again.';
-          } else if (e.code == 'too-many-requests') {
-            errorMessage = 'Too many requests. Please try again later.';
-          } else if (e.code == 'quota-exceeded') {
-            errorMessage = 'SMS quota exceeded. Please try again later or add test numbers in Firebase Console.';
-          }
-          
-          debugPrint('❌ Firebase Verification Failed: ${e.code} - ${e.message}');
-          if (!completer.isCompleted) {
-            completer.completeError(Exception(errorMessage));
-          }
-        },
-        codeSent: (String verificationId, int? resendToken) {
-          // Store verification ID for later use
-          _verificationId = verificationId;
-          StorageService.setString('verification_id', verificationId);
-          debugPrint('✅ OTP Code Sent - Verification ID stored');
-          if (!completer.isCompleted) {
-            completer.complete();
-          }
-        },
-        codeAutoRetrievalTimeout: (String verificationId) {
-          _verificationId = verificationId;
-          StorageService.setString('verification_id', verificationId);
-        },
-        timeout: const Duration(seconds: 60),
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'phone': phoneNumber}),
       );
-      
-      // Wait for the verification process to complete
-      await completer.future;
-      debugPrint('✅ OTP sending process completed');
-    } catch (e) {
-      debugPrint('❌ Failed to send OTP: $e');
-      throw Exception('Failed to send OTP: ${e.toString()}');
-    }
-  }
 
-  // Verify OTP
-  Future<UserModel> verifyOTP(String otp) async {
-    final verificationId = _verificationId ?? StorageService.getString('verification_id');
-    if (verificationId == null) {
-      throw Exception('Verification ID not found. Please request OTP again.');
-    }
-
-    final credential = PhoneAuthProvider.credential(
-      verificationId: verificationId,
-      smsCode: otp,
-    );
-
-    try {
-      final userCredential = await _auth.signInWithCredential(credential);
-      final user = userCredential.user;
-      
-      if (user == null) {
-        throw Exception('User authentication failed');
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        debugPrint('✅ OTP sent to $phoneNumber');
+        return;
       }
 
-      final userModel = UserModel(
-        uid: user.uid,
-        phoneNumber: user.phoneNumber ?? '',
-        createdAt: DateTime.now(),
-      );
-
-      // Save user data locally
-      await StorageService.setString(AppConstants.keyUserId, user.uid);
-      await StorageService.setString(
-        AppConstants.keyUserPhoneNumber,
-        user.phoneNumber ?? '',
-      );
-
-      debugPrint('✅ OTP Verified - User authenticated: ${user.uid}');
-      return userModel;
-    } on FirebaseAuthException catch (e) {
-      debugPrint('❌ OTP Verification Failed: ${e.code} - ${e.message}');
-      throw Exception('OTP verification failed: ${e.message}');
+      final body = _tryDecode(response.body);
+      final message = body?['message'] ?? body?['error'] ?? response.body;
+      throw Exception(message ?? 'Failed to send OTP');
+    } on Exception catch (e) {
+      debugPrint('❌ sendOTP error: $e');
+      rethrow;
     }
   }
 
-  // Get verification ID
-  String? getVerificationId() {
-    return _verificationId ?? StorageService.getString('verification_id');
+  /// POST /auth/verify-otp — verify [otp] for [phoneNumber]. Returns user and stores JWT.
+  Future<UserModel> verifyOTP(String phoneNumber, String otp) async {
+    final uri = Uri.parse('$_baseUrl${AppConstants.verifyOtpPath}');
+    try {
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'phone': phoneNumber, 'code': otp}),
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        final body = _tryDecode(response.body);
+        final message = body?['message'] ?? body?['error'] ?? response.body;
+        throw Exception(message ?? 'Invalid OTP');
+      }
+
+      final body = _tryDecode(response.body) as Map<String, dynamic>?;
+      if (body == null) throw Exception('Invalid response');
+
+      // Backend returns accessToken (JWT); fallback to token
+      final token = (body['accessToken'] ?? body['token']) as String?;
+      final userMap = body['user'] as Map<String, dynamic>?;
+      if (token == null || token.isEmpty || userMap == null) {
+        throw Exception('Missing token or user in response');
+      }
+      // expiresIn (optional) can be used for token refresh later
+
+      final userId = userMap['id']?.toString() ?? userMap['userId']?.toString() ?? '';
+      final phone = userMap['phoneNumber']?.toString() ?? userMap['phone']?.toString() ?? phoneNumber;
+
+      final userModel = UserModel(
+        uid: userId,
+        phoneNumber: phone,
+        createdAt: userMap['createdAt'] != null ? DateTime.tryParse(userMap['createdAt'].toString()) : null,
+      );
+
+      await StorageService.setString(AppConstants.keyJwtToken, token);
+      await StorageService.setString(AppConstants.keyUserId, userId);
+      await StorageService.setString(AppConstants.keyUserPhoneNumber, phone);
+
+      debugPrint('✅ OTP verified, user: $userId');
+      return userModel;
+    } on Exception catch (e) {
+      debugPrint('❌ verifyOTP error: $e');
+      rethrow;
+    }
   }
 
-  // Get current user
-  User? getCurrentUser() {
-    return _auth.currentUser;
+  static dynamic _tryDecode(String body) {
+    try {
+      return jsonDecode(body);
+    } catch (_) {
+      return null;
+    }
   }
 
-  // Sign out
+  /// Sign out: clear JWT and user data (no Firebase).
   Future<void> signOut() async {
-    await _auth.signOut();
+    await StorageService.remove(AppConstants.keyJwtToken);
     await StorageService.remove(AppConstants.keyUserId);
     await StorageService.remove(AppConstants.keyUserPhoneNumber);
   }
 
-  // Check if user is authenticated
   bool isAuthenticated() {
-    return _auth.currentUser != null;
+    final token = StorageService.getString(AppConstants.keyJwtToken);
+    final userId = StorageService.getString(AppConstants.keyUserId);
+    return (token != null && token.isNotEmpty) && (userId != null && userId.isNotEmpty);
   }
+
+  String? getStoredUserId() => StorageService.getString(AppConstants.keyUserId);
+  String? getStoredToken() => StorageService.getString(AppConstants.keyJwtToken);
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:kins_app/models/kin_location_model.dart';
 import 'package:kins_app/repositories/location_repository.dart';
@@ -66,13 +66,13 @@ class _NearbyKinsScreenState extends ConsumerState<NearbyKinsScreen> {
       });
 
       // Save location to Firestore
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
+      final uid = currentUserId;
+      if (uid.isNotEmpty) {
         // Get visibility status
-        final isVisible = await _locationRepository.getUserLocationVisibility(user.uid);
+        final isVisible = await _locationRepository.getUserLocationVisibility(uid);
         
         await _locationRepository.saveUserLocation(
-          userId: user.uid,
+          userId: uid,
           latitude: position.latitude,
           longitude: position.longitude,
           isVisible: isVisible,
@@ -100,8 +100,8 @@ class _NearbyKinsScreenState extends ConsumerState<NearbyKinsScreen> {
   void _loadNearbyKins() {
     if (_currentPosition == null) return;
 
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    final uid = currentUserId;
+    if (uid.isEmpty) return;
 
     _locationRepository
         .getNearbyKins(
@@ -122,7 +122,7 @@ class _NearbyKinsScreenState extends ConsumerState<NearbyKinsScreen> {
 
   Set<Marker> _buildMarkers() {
     final markers = <Marker>{};
-    final user = FirebaseAuth.instance.currentUser;
+    final uid = currentUserId;
 
     // Current user marker (blue)
     if (_currentPosition != null) {
@@ -138,7 +138,7 @@ class _NearbyKinsScreenState extends ConsumerState<NearbyKinsScreen> {
 
     // Nearby kins markers (purple with 'k')
     for (var kin in _nearbyKins) {
-      if (kin.userId == user?.uid) continue; // Skip current user
+      if (kin.userId == uid) continue; // Skip current user
 
       markers.add(
         Marker(

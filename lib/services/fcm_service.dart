@@ -1,6 +1,6 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:kins_app/repositories/notification_repository.dart';
 import 'package:kins_app/models/notification_model.dart';
 
@@ -84,10 +84,10 @@ class FCMService {
 
   /// Save FCM token to Firestore
   Future<void> _saveTokenToFirestore(String token) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
+    final uid = currentUserId;
+    if (uid.isNotEmpty) {
       try {
-        await _repository.saveFCMToken(user.uid, token);
+        await _repository.saveFCMToken(uid, token);
       } catch (e) {
         debugPrint('❌ Failed to save FCM token: $e');
       }
@@ -98,9 +98,9 @@ class FCMService {
   void _handleForegroundMessage(RemoteMessage message) {
     debugPrint('📬 Foreground message received: ${message.messageId}');
     
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null && message.data.isNotEmpty) {
-      _saveNotificationFromMessage(user.uid, message);
+    final uid = currentUserId;
+    if (uid.isNotEmpty && message.data.isNotEmpty) {
+      _saveNotificationFromMessage(uid, message);
     }
   }
 

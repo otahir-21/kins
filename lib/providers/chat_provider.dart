@@ -1,4 +1,4 @@
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kins_app/models/chat_model.dart';
 import 'package:kins_app/models/user_model.dart';
@@ -8,8 +8,8 @@ import 'package:kins_app/repositories/chat_repository.dart';
 final chatRepositoryProvider = Provider<ChatRepository>((ref) => ChatRepository());
 
 final myChatsStreamProvider = StreamProvider.autoDispose<List<ChatConversation>>((ref) {
-  final uid = FirebaseAuth.instance.currentUser?.uid;
-  if (uid == null) return Stream.value([]);
+  final uid = currentUserId;
+  if (uid.isEmpty) return Stream.value([]);
   return ref.watch(chatRepositoryProvider).streamChats(uid);
 });
 

@@ -1,10 +1,12 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:intl_phone_field/countries.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
-import 'package:kins_app/core/utils/storage_service.dart';
 import 'package:kins_app/providers/auth_provider.dart';
 
 class PhoneAuthScreen extends ConsumerStatefulWidget {
@@ -19,16 +21,6 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
   final _phoneController = TextEditingController();
   String _completePhoneNumber = '';
   bool _isNavigating = false;
-  bool _isRecaptchaInProgress = false;
-
-  @override
-  void initState() {
-    super.initState();
-    // Check for verification ID when screen becomes visible (after reCAPTCHA)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkForVerificationId();
-    });
-  }
 
   @override
   void dispose() {
@@ -36,321 +28,503 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
     super.dispose();
   }
 
-  void _checkForVerificationId() {
-    // Check storage directly for verification ID
-    final verificationId = StorageService.getString('verification_id');
-    if (verificationId != null && 
-        verificationId.isNotEmpty && 
-        _completePhoneNumber.isNotEmpty &&
-        !_isNavigating &&
-        mounted) {
-      debugPrint('✅ Verification ID found in _checkForVerificationId, navigating...');
-      _isRecaptchaInProgress = false;
-      _isNavigating = true;
-      // Wait to ensure reCAPTCHA is fully done
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted && _isNavigating) {
-          // Double-check verification ID is still there
-          final currentVerificationId = StorageService.getString('verification_id');
-          if (currentVerificationId != null && currentVerificationId.isNotEmpty) {
-            debugPrint('🚀 Navigating to OTP screen from _checkForVerificationId');
-            context.go(
-              '${AppConstants.routeOtpVerification}?phone=${Uri.encodeComponent(_completePhoneNumber)}',
-            );
-          } else {
-            debugPrint('⚠️ Verification ID disappeared, resetting navigation flag');
-            _isNavigating = false;
-          }
-        }
-      });
-    }
-  }
-
-
   Future<void> _sendOTP() async {
-    if (_formKey.currentState!.validate()) {
-      if (_completePhoneNumber.isEmpty) {
-        debugPrint('❌ Validation Error: Phone number is empty');
-        try {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Please enter a valid phone number'),
-              backgroundColor: Colors.black,
-              duration: Duration(seconds: 2),
-            ),
-          );
-        } catch (e) {
-          debugPrint('❌ SnackBar Error: $e');
-        }
-        return;
-      }
-
-      _isNavigating = false;
-      _isRecaptchaInProgress = true;
-      
-      // Start OTP sending - reCAPTCHA will appear on THIS screen
-      await ref.read(authProvider.notifier).sendOTP(_completePhoneNumber);
-
-      if (mounted) {
-        final authState = ref.read(authProvider);
-        if (authState.error != null) {
-          _isRecaptchaInProgress = false;
-          // Log error to console
-          debugPrint('❌ Auth Error: ${authState.error}');
-          try {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(authState.error!),
-                backgroundColor: Colors.black,
-                duration: const Duration(seconds: 3),
-              ),
-            );
-          } catch (e) {
-            debugPrint('❌ SnackBar Error: $e');
-          }
-        } else {
-          // Wait for reCAPTCHA to complete and verification ID to be available
-          // Start polling immediately
-          _pollForVerificationId();
-        }
-      }
+    if (_completePhoneNumber.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid phone number'),
+          backgroundColor: Colors.black,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
     }
-  }
 
-  void _pollForVerificationId() async {
-    debugPrint('🔄 Starting to poll for verification ID...');
-    // Poll for verification ID for up to 20 seconds (reCAPTCHA might take time)
-    // Check both state and storage
-    for (int i = 0; i < 100 && !_isNavigating && mounted; i++) {
-      await Future.delayed(const Duration(milliseconds: 200));
-      
-      if (!mounted || _isNavigating) break;
-      
-      // Check storage directly (more reliable)
-      final verificationId = StorageService.getString('verification_id');
-      if (verificationId != null && verificationId.isNotEmpty) {
-        debugPrint('✅ Verification ID found in storage, navigating...');
-        _isRecaptchaInProgress = false;
-        // Wait a bit to ensure reCAPTCHA dialog is fully closed
-        await Future.delayed(const Duration(milliseconds: 500));
-        if (mounted && !_isNavigating) {
-          _isNavigating = true;
-          debugPrint('🚀 Navigating to OTP screen');
-          context.go(
-            '${AppConstants.routeOtpVerification}?phone=${Uri.encodeComponent(_completePhoneNumber)}',
-          );
-        }
-        return;
-      }
-      
-      // Also check state
-      final authState = ref.read(authProvider);
-      if (authState.verificationId != null && 
-          authState.verificationId!.isNotEmpty) {
-        debugPrint('✅ Verification ID found in state, navigating...');
-        _isRecaptchaInProgress = false;
-        // Wait a bit to ensure reCAPTCHA dialog is fully closed
-        await Future.delayed(const Duration(milliseconds: 500));
-        if (mounted && !_isNavigating) {
-          _isNavigating = true;
-          debugPrint('🚀 Navigating to OTP screen');
-          context.go(
-            '${AppConstants.routeOtpVerification}?phone=${Uri.encodeComponent(_completePhoneNumber)}',
-          );
-        }
-        return;
-      }
-    }
-    
-    // If polling ended without finding verification ID
-    debugPrint('⚠️ Polling ended without finding verification ID');
-    _isRecaptchaInProgress = false;
-    
-    // Final check - maybe it was stored after polling ended
-    if (mounted && !_isNavigating) {
-      final verificationId = StorageService.getString('verification_id');
-      if (verificationId != null && verificationId.isNotEmpty) {
-        debugPrint('✅ Verification ID found in final check, navigating...');
-        _isNavigating = true;
-        context.go(
-          '${AppConstants.routeOtpVerification}?phone=${Uri.encodeComponent(_completePhoneNumber)}',
-        );
-      }
+    ref.read(authProvider.notifier).clearError();
+    _isNavigating = false;
+    await ref.read(authProvider.notifier).sendOTP(_completePhoneNumber);
+
+    if (!mounted) return;
+    final authState = ref.read(authProvider);
+    if (authState.error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authState.error!),
+          backgroundColor: Colors.black,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } else if (!_isNavigating) {
+      _isNavigating = true;
+      context.go(
+        '${AppConstants.routeOtpVerification}?phone=${Uri.encodeComponent(_completePhoneNumber)}',
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
-    
-    // Listen to auth state changes - must be in build method
-    ref.listen<AuthState>(authProvider, (previous, next) {
-      // Navigate when verification ID is received
-      if (!_isNavigating &&
-          previous?.verificationId != next.verificationId &&
-          next.verificationId != null && 
-          next.verificationId!.isNotEmpty &&
-          !next.isLoading &&
-          next.error == null &&
-          _completePhoneNumber.isNotEmpty &&
-          mounted) {
-        debugPrint('✅ Verification ID received in listener, navigating...');
-        _isRecaptchaInProgress = false;
-        _isNavigating = true;
-        // Wait a bit to ensure reCAPTCHA dialog is fully closed
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted && _isNavigating) {
-            // Double-check verification ID is still there
-            final verificationId = StorageService.getString('verification_id');
-            if (verificationId != null && verificationId.isNotEmpty) {
-              debugPrint('🚀 Navigating to OTP screen from listener');
-              context.go(
-                '${AppConstants.routeOtpVerification}?phone=${Uri.encodeComponent(_completePhoneNumber)}',
-              );
-            } else {
-              debugPrint('⚠️ Verification ID disappeared in listener, resetting');
-              _isNavigating = false;
-            }
-          }
-        });
-      }
-    });
-    
-    // Also check storage when widget rebuilds (after reCAPTCHA returns)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_isNavigating && _completePhoneNumber.isNotEmpty && mounted) {
-        _checkForVerificationId();
-      }
-    });
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text(
-          'Enter Phone Number',
-          style: TextStyle(color: Colors.black),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Center(
+              child: Image.asset(
+                'assets/logo/Logo-KINS.png',
+                width: 150,
+                height: 150,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => Text(
+                  'KINS',
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade700,
+                    letterSpacing: 2,
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 48),
+                    const Text(
+                      'Motherhood unmuted.',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 30),
+                    SignInCard(
+                      isLoading: authState.isLoading,
+                      onContinue: (String fullPhone) {
+                        setState(() => _completePhoneNumber = fullPhone);
+                        _sendOTP();
+                      },
+                    ),
+                    const SizedBox(height: 8),
+
+                    SocialLoginDivider(),
+                    const SizedBox(height: 20),
+                    const TermsAndPolicyDisclaimer(),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 48),
-                const Text(
-                  'Welcome to KINS',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Enter your phone number to continue',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey.shade700,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 48),
-                IntlPhoneField(
-                  controller: _phoneController,
-                  decoration: const InputDecoration(
-                    labelText: 'Phone Number',
-                    border: OutlineInputBorder(),
-                  ),
-                  initialCountryCode: 'AE', // UAE (United Arab Emirates)
-                  // Filter to show only GCC countries
-                  countries: const [
-                    Country(
-                      name: 'United Arab Emirates',
-                      code: 'AE',
-                      dialCode: '971', // No + sign, package adds it automatically
-                      flag: '🇦🇪',
-                      nameTranslations: {'en': 'United Arab Emirates'},
-                      minLength: 9,
-                      maxLength: 9,
-                    ),
-                    Country(
-                      name: 'Saudi Arabia',
-                      code: 'SA',
-                      dialCode: '966',
-                      flag: '🇸🇦',
-                      nameTranslations: {'en': 'Saudi Arabia'},
-                      minLength: 9,
-                      maxLength: 9,
-                    ),
-                    Country(
-                      name: 'Kuwait',
-                      code: 'KW',
-                      dialCode: '965',
-                      flag: '🇰🇼',
-                      nameTranslations: {'en': 'Kuwait'},
-                      minLength: 8,
-                      maxLength: 8,
-                    ),
-                    Country(
-                      name: 'Qatar',
-                      code: 'QA',
-                      dialCode: '974',
-                      flag: '🇶🇦',
-                      nameTranslations: {'en': 'Qatar'},
-                      minLength: 8,
-                      maxLength: 8,
-                    ),
-                    Country(
-                      name: 'Bahrain',
-                      code: 'BH',
-                      dialCode: '973',
-                      flag: '🇧🇭',
-                      nameTranslations: {'en': 'Bahrain'},
-                      minLength: 8,
-                      maxLength: 8,
-                    ),
-                    Country(
-                      name: 'Oman',
-                      code: 'OM',
-                      dialCode: '968',
-                      flag: '🇴🇲',
-                      nameTranslations: {'en': 'Oman'},
-                      minLength: 8,
-                      maxLength: 8,
-                    ),
-                  ],
-                  onChanged: (phone) {
-                    _completePhoneNumber = phone.completeNumber;
-                  },
-                  validator: (phone) {
-                    if (phone == null || phone.number.isEmpty) {
-                      return 'Please enter a phone number';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 32),
-                ElevatedButton(
-                  onPressed: authState.isLoading ? null : _sendOTP,
-                  child: authState.isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : const Text('Send OTP'),
-                ),
-              ],
+    );
+  }
+}
+
+/// Terms and policy disclaimer below signup/login. Links open in external browser.
+class TermsAndPolicyDisclaimer extends StatelessWidget {
+  const TermsAndPolicyDisclaimer({super.key});
+
+  static const Color _bodyColor = Colors.grey;
+  static const Color _linkColor = Colors.blue;
+
+  Future<void> _openUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Center(
+        child: RichText(
+          textAlign: TextAlign.center,
+          text: TextSpan(
+            style: DefaultTextStyle.of(context).style.copyWith(
+              fontSize: 12,
+              color: _bodyColor,
             ),
+            children: [
+              const TextSpan(text: 'By signing up, you agree to our '),
+              TextSpan(
+                text: 'Terms of Service',
+                style: const TextStyle(
+                  color: _linkColor,
+                  decoration: TextDecoration.underline,
+                ),
+                recognizer: TapGestureRecognizer()
+                  ..onTap = () => _openUrl('https://example.com/terms'),
+              ),
+              const TextSpan(text: ', '),
+              TextSpan(
+                text: 'Community Guidelines',
+                style: const TextStyle(
+                  color: _linkColor,
+                  decoration: TextDecoration.underline,
+                ),
+                recognizer: TapGestureRecognizer()
+                  ..onTap = () => _openUrl('https://example.com/community-guidelines'),
+              ),
+              const TextSpan(text: ' and '),
+              TextSpan(
+                text: 'Privacy Policy',
+                style: const TextStyle(
+                  color: _linkColor,
+                  decoration: TextDecoration.underline,
+                ),
+                recognizer: TapGestureRecognizer()
+                  ..onTap = () => _openUrl('https://example.com/privacy'),
+              ),
+              const TextSpan(text: '.'),
+            ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class SignInCard extends StatefulWidget {
+  const SignInCard({
+    super.key,
+    required this.onContinue,
+    this.isLoading = false,
+  });
+
+  final void Function(String fullPhone) onContinue;
+  final bool isLoading;
+
+  @override
+  State<SignInCard> createState() => _SignInCardState();
+}
+
+class _SignInCardState extends State<SignInCard> {
+  String selectedCode = "+971";
+  final _phoneController = TextEditingController();
+
+  @override
+  void dispose() {
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  final List<Map<String, String>> gccCountries = [
+    {"name": "UAE", "code": "+971"},
+    {"name": "Saudi Arabia", "code": "+966"},
+    {"name": "Qatar", "code": "+974"},
+    {"name": "Kuwait", "code": "+965"},
+    {"name": "Oman", "code": "+968"},
+    {"name": "Bahrain", "code": "+973"},
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(40),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Sign in",
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 16),
+
+            // Phone input container
+            Container(
+              height: 52,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xffF2F2F2),
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: Row(
+                children: [
+                  // Country code dropdown
+                  DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: selectedCode,
+                      icon: const Icon(Icons.keyboard_arrow_down, size: 20),
+                      items: gccCountries.map((country) {
+                        return DropdownMenuItem(
+                          value: country["code"],
+                          child: Text(
+                            country["code"]!,
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() => selectedCode = value!);
+                      },
+                    ),
+                  ),
+
+                  const SizedBox(width: 10),
+                  Container(
+                    width: 1,
+                    height: 22,
+                    color: Colors.grey.shade400,
+                  ),
+                  const SizedBox(width: 10),
+
+                  // Phone number field (E.164: country code + digits)
+                  Expanded(
+                    child: TextField(
+                      controller: _phoneController,
+                      keyboardType: TextInputType.phone,
+                      enabled: !widget.isLoading,
+                      decoration: const InputDecoration(
+                        hintText: "Mobile Number",
+                        hintStyle: TextStyle(
+                          color: Colors.grey,
+                          fontSize: 16,
+                        ),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        disabledBorder: InputBorder.none,
+                        errorBorder: InputBorder.none,
+                        focusedErrorBorder: InputBorder.none,
+                        fillColor: Colors.transparent,
+                        filled: true,
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Continue button
+            SizedBox(
+              height: 52,
+              width: double.infinity,
+              child: Material(
+                color: widget.isLoading
+                    ? Colors.grey
+                    : const Color(0xffEDEDED),
+                borderRadius: BorderRadius.circular(30),
+                child: InkWell(
+                  onTap: widget.isLoading
+                      ? null
+                      : () {
+                          final digits = _phoneController.text.trim().replaceAll(RegExp(r'\s'), '');
+                          final fullPhone = selectedCode + digits;
+                          if (digits.length < 8) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Please enter a valid phone number'),
+                                backgroundColor: Colors.black,
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                            return;
+                          }
+                          widget.onContinue(fullPhone);
+                        },
+                  borderRadius: BorderRadius.circular(30),
+                  child: Center(
+                    child: widget.isLoading
+                        ? const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Text(
+                            "Continue",
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: Colors.black54,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class SocialLoginDivider extends StatelessWidget {
+  const SocialLoginDivider({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        const SizedBox(height: 24),
+
+        // Divider with text
+        Row(
+          children: const [
+            Expanded(child: Divider(thickness: 1)),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                'Or continue with',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+              ),
+            ),
+            Expanded(child: Divider(thickness: 1)),
+          ],
+        ),
+
+        const SizedBox(height: 20),
+
+        // Social buttons: same height and width, consistent spacing
+        const _SocialButtonHeight(),
+      ],
+    );
+  }
+}
+
+/// Shared height for Apple and Google buttons (UI only).
+const double _kSocialButtonHeight = 44.0;
+
+class _SocialButtonHeight extends StatelessWidget {
+  const _SocialButtonHeight();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 12),
+
+        SizedBox(
+          height: _kSocialButtonHeight,
+          width: double.infinity,
+          child: _GoogleSignInButton(height: _kSocialButtonHeight),
+        ),
+        const SizedBox(height: 30),
+        SizedBox(
+          height: _kSocialButtonHeight,
+          width: double.infinity,
+          child: SignInWithAppleButton(
+            onPressed: () {
+              // Apple login - UI only
+            },
+            height: _kSocialButtonHeight,
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Custom Google button: official G logo on the left + "Sign in with Google" (UI only).
+class _GoogleSignInButton extends StatelessWidget {
+  const _GoogleSignInButton({required this.height});
+
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: () {
+          // Google login - UI only
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          height: height,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Official Google "G" logo (unchanged, no recolor)
+              Image.network(
+                'https://www.gstatic.com/images/branding/product/2x/googleg_48dp.png',
+                height: 24,
+                width: 24,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const SizedBox(width: 24, height: 24),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Sign in with Google',
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Colors.grey.shade800,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SocialButton extends StatelessWidget {
+  final Widget child;
+  final VoidCallback onTap;
+  final Color color;
+
+  const _SocialButton({
+    required this.child,
+    required this.onTap,
+    this.color = Colors.white,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(50),
+      child: Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        alignment: Alignment.center,
+        child: child,
       ),
     );
   }

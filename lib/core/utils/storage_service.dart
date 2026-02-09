@@ -1,3 +1,5 @@
+import 'package:kins_app/core/constants/app_constants.dart';
+import 'package:kins_app/core/utils/secure_storage_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class StorageService {
@@ -8,10 +10,17 @@ class StorageService {
   }
 
   static Future<bool> setString(String key, String value) async {
+    if (key == AppConstants.keyJwtToken) {
+      await SecureStorageService.setJwt(value);
+      return true;
+    }
     return await _prefs?.setString(key, value) ?? false;
   }
 
   static String? getString(String key) {
+    if (key == AppConstants.keyJwtToken) {
+      return SecureStorageService.getJwtTokenSync();
+    }
     return _prefs?.getString(key);
   }
 
@@ -24,6 +33,10 @@ class StorageService {
   }
 
   static Future<bool> remove(String key) async {
+    if (key == AppConstants.keyJwtToken) {
+      await SecureStorageService.deleteJwt();
+      return true;
+    }
     return await _prefs?.remove(key) ?? false;
   }
 

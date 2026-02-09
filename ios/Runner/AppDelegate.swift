@@ -1,7 +1,6 @@
 import Flutter
 import UIKit
 import FirebaseCore
-import FirebaseAuth
 import FirebaseMessaging
 import UserNotifications
 import GoogleMaps
@@ -47,31 +46,6 @@ import GoogleMaps
     Messaging.messaging().apnsToken = deviceToken
   }
   
-  override func application(
-    _ app: UIApplication,
-    open url: URL,
-    options: [UIApplication.OpenURLOptionsKey : Any] = [:]
-  ) -> Bool {
-    // Handle Firebase Auth deep links
-    if Auth.auth().canHandle(url) {
-      return true
-    }
-    return super.application(app, open: url, options: options)
-  }
-  
-  override func application(
-    _ application: UIApplication,
-    continue userActivity: NSUserActivity,
-    restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void
-  ) -> Bool {
-    // Handle universal links for Firebase
-    if let url = userActivity.webpageURL {
-      if Auth.auth().canHandle(url) {
-        return true
-      }
-    }
-    return super.application(application, continue: userActivity, restorationHandler: restorationHandler)
-  }
 }
 
 // FCM Messaging Delegate
