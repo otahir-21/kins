@@ -5,6 +5,7 @@ import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/providers/user_details_provider.dart';
+import 'package:kins_app/widgets/floating_nav_overlay.dart';
 
 /// Single membership screen: shows "Join Our Premium Community" (non-member)
 /// or "Membership" details + Cancel/Renew + promo (member). Status from Firestore.
@@ -16,8 +17,6 @@ class MembershipScreen extends ConsumerStatefulWidget {
 }
 
 class _MembershipScreenState extends ConsumerState<MembershipScreen> {
-  static const int _membershipNavIndex = 3;
-
   bool _isLoading = true;
   bool _isMember = false;
   String? _userName;
@@ -81,10 +80,12 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: _isMember ? _buildMemberView() : _buildNonMemberView(),
+      body: FloatingNavOverlay(
+        currentIndex: 3,
+        child: SafeArea(
+          child: _isMember ? _buildMemberView() : _buildNonMemberView(),
+        ),
       ),
-      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
@@ -365,49 +366,4 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
     );
   }
 
-  Widget _buildBottomNav() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: const BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -2))],
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(0, Icons.home_outlined, Icons.home, AppConstants.routeHome),
-              _buildNavItem(1, Icons.explore_outlined, Icons.explore, AppConstants.routeDiscover),
-              _buildNavItem(2, Icons.chat_bubble_outline, Icons.chat_bubble, AppConstants.routeChat),
-              _buildNavItem(3, Icons.card_membership_outlined, Icons.card_membership, AppConstants.routeMembership),
-              _buildNavItem(4, Icons.shopping_bag_outlined, Icons.shopping_bag, AppConstants.routeMarketplace),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNavItem(int index, IconData icon, IconData activeIcon, String route) {
-    final isActive = index == _membershipNavIndex;
-    return GestureDetector(
-      onTap: () {
-        if (route == AppConstants.routeMembership) return;
-        if (route == AppConstants.routeHome) context.go(route);
-        else context.push(route);
-      },
-      child: Container(
-        width: 50,
-        height: 50,
-        decoration: BoxDecoration(
-          color: isActive ? const Color(0xFF6A1A5D) : Colors.grey.shade200,
-          shape: BoxShape.circle,
-          boxShadow: isActive ? [BoxShadow(color: const Color(0xFF6A1A5D).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))] : null,
-        ),
-        child: Icon(isActive ? activeIcon : icon, color: isActive ? Colors.white : Colors.black87, size: 24),
-      ),
-    );
-  }
 }

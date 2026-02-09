@@ -5,6 +5,7 @@ import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/screens/home/home_screen.dart';
 import 'package:kins_app/repositories/location_repository.dart';
+import 'package:kins_app/widgets/floating_nav_overlay.dart';
 
 class DummyScreen extends StatelessWidget {
   final String title;
@@ -73,7 +74,7 @@ class DummyScreen extends StatelessWidget {
   }
 }
 
-// Marketplace Screen – centered "Coming soon"
+// Marketplace Screen – centered "Coming soon" (uses main bottom nav like other tabs)
 class MarketplaceScreen extends StatelessWidget {
   const MarketplaceScreen({super.key});
 
@@ -93,34 +94,37 @@ class MarketplaceScreen extends StatelessWidget {
           style: TextStyle(color: Colors.black),
         ),
       ),
-      body: SafeArea(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.storefront_outlined,
-                size: 72,
-                color: Colors.grey.shade400,
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'Coming soon',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey.shade700,
+      body: FloatingNavOverlay(
+        currentIndex: 4,
+        child: SafeArea(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.storefront_outlined,
+                  size: 72,
+                  color: Colors.grey.shade400,
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Marketplace is under construction.',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey.shade600,
+                const SizedBox(height: 24),
+                Text(
+                  'Coming soon',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade700,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                Text(
+                  'Marketplace is under construction.',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -75,7 +75,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => context.canPop() ? context.pop() : context.go(AppConstants.routeHome),
+          onPressed: () => context.canPop() ? context.pop() : context.go(AppConstants.routeDiscover),
         ),
         title: const Text('Kins around profile', style: TextStyle(color: Colors.black, fontSize: 16)),
         actions: [

@@ -45,7 +45,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
           }();
 
     if (hasSession) {
-      context.go(AppConstants.routeHome);
+      context.go(AppConstants.routeDiscover);
     } else {
       context.go(AppConstants.routePhoneAuth);
     }

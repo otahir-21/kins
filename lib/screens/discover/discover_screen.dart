@@ -12,6 +12,7 @@ import 'package:kins_app/providers/auth_provider.dart';
 import 'package:kins_app/providers/post_provider.dart';
 import 'package:kins_app/repositories/post_repository.dart';
 import 'package:kins_app/services/account_deletion_service.dart';
+import 'package:kins_app/widgets/floating_nav_overlay.dart';
 
 /// Filter topic chips (match create post topics)
 const List<String> _filterTopics = [
@@ -95,65 +96,68 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       drawer: _buildDrawer(),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            _buildSearchBar(),
-            _buildFilterChips(),
-            Expanded(
-              child: StreamBuilder<List<PostModel>>(
-                stream: postRepo.getFeed(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  final allPosts = snapshot.data ?? (snapshot.hasError ? <PostModel>[] : <PostModel>[]);
-                  final posts = _filterPosts(allPosts);
-                  if (posts.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.explore_outlined, size: 64, color: Colors.grey.shade400),
-                          const SizedBox(height: 16),
-                          Text(
-                            allPosts.isEmpty ? 'No posts yet' : 'No matching posts',
-                            style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            allPosts.isEmpty
-                                ? 'Be the first to share something!'
-                                : 'Try a different search or topic',
-                            style: TextStyle(color: Colors.grey.shade500),
-                          ),
-                        ],
+      body: FloatingNavOverlay(
+        currentIndex: 0,
+        child: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(),
+              _buildSearchBar(),
+              _buildFilterChips(),
+              Expanded(
+                child: StreamBuilder<List<PostModel>>(
+                  stream: postRepo.getFeed(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final allPosts = snapshot.data ?? (snapshot.hasError ? <PostModel>[] : <PostModel>[]);
+                    final posts = _filterPosts(allPosts);
+                    if (posts.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.explore_outlined, size: 64, color: Colors.grey.shade400),
+                            const SizedBox(height: 16),
+                            Text(
+                              allPosts.isEmpty ? 'No posts yet' : 'No matching posts',
+                              style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              allPosts.isEmpty
+                                  ? 'Be the first to share something!'
+                                  : 'Try a different search or topic',
+                              style: TextStyle(color: Colors.grey.shade500),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    return RefreshIndicator(
+                      onRefresh: () async {
+                        await postRepo.getFeedOnce();
+                      },
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(16.0),
+                        itemCount: posts.length,
+                        itemBuilder: (context, index) => _buildPostCardFromModel(posts[index], postRepo),
                       ),
                     );
-                  }
-                  return RefreshIndicator(
-                    onRefresh: () async {
-                      await postRepo.getFeedOnce();
-                    },
-                    child: ListView.builder(
-                      padding: const EdgeInsets.all(16.0),
-                      itemCount: posts.length,
-                      itemBuilder: (context, index) => _buildPostCardFromModel(posts[index], postRepo),
-                    ),
-                  );
-                },
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-      bottomNavigationBar: _buildBottomNavigation(),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.push(AppConstants.routeCreatePost),
         child: const Icon(Icons.add),
         backgroundColor: const Color(0xFF6A1A5D),
       ),
+      floatingActionButtonLocation: const _DiscoverFabLocation(),
     );
   }
 
@@ -434,75 +438,6 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     );
   }
 
-  Widget _buildBottomNavigation() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(30),
-          topRight: Radius.circular(30),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 8.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildBottomNavItem(0, Icons.home_outlined, Icons.home, AppConstants.routeHome),
-              _buildBottomNavItem(1, Icons.explore_outlined, Icons.explore, AppConstants.routeDiscover),
-              _buildBottomNavItem(2, Icons.chat_bubble_outline, Icons.chat_bubble, AppConstants.routeChat),
-              _buildBottomNavItem(3, Icons.card_membership_outlined, Icons.card_membership, AppConstants.routeMembership),
-              _buildBottomNavItem(4, Icons.shopping_bag_outlined, Icons.shopping_bag, AppConstants.routeMarketplace),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBottomNavItem(int index, IconData icon, IconData activeIcon, String route) {
-    const int discoverIndex = 1;
-    final isActive = index == discoverIndex;
-    return GestureDetector(
-      onTap: () {
-        if (route == AppConstants.routeHome) {
-          context.go(AppConstants.routeHome);
-        } else if (route != AppConstants.routeDiscover) {
-          context.push(route);
-        }
-      },
-      child: Container(
-        width: 50,
-        height: 50,
-        decoration: BoxDecoration(
-          color: isActive ? const Color(0xFF6A1A5D) : Colors.grey.shade200,
-          shape: BoxShape.circle,
-          boxShadow: isActive
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFF6A1A5D).withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
-        ),
-        child: Icon(
-          isActive ? activeIcon : icon,
-          color: isActive ? Colors.white : Colors.black87,
-          size: 24,
-        ),
-      ),
-    );
-  }
 
   Widget _buildPostCardFromModel(PostModel post, PostRepository postRepo) {
     if (post.isPoll) return _buildPollCard(post, postRepo);
@@ -1016,5 +951,23 @@ class _PollCardContentState extends ConsumerState<_PollCardContent> {
           }),
       ],
     );
+  }
+}
+
+/// Positions the FAB a bit higher so it aligns better with the floating bottom nav.
+class _DiscoverFabLocation extends FloatingActionButtonLocation {
+  const _DiscoverFabLocation();
+
+  @override
+  Offset getOffset(ScaffoldPrelayoutGeometry geometry) {
+    const double endPadding = 16;
+    const double bottomPadding = 148;
+    final double x = geometry.scaffoldSize.width -
+        geometry.floatingActionButtonSize.width -
+        endPadding;
+    final double y = geometry.contentBottom -
+        geometry.floatingActionButtonSize.height -
+        bottomPadding;
+    return Offset(x, y);
   }
 }

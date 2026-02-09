@@ -191,8 +191,8 @@ class UserDetailsSuccessScreen extends ConsumerWidget {
                       child: InkWell(
                         borderRadius: BorderRadius.circular(28),
                         onTap: () {
-                          // Navigate to Home screen
-                          context.go(AppConstants.routeHome);
+                          // Navigate to Feed (default tab)
+                          context.go(AppConstants.routeDiscover);
                         },
                         child: const Center(
                           child: Icon(

@@ -8,6 +8,7 @@ import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/models/chat_model.dart';
 import 'package:kins_app/providers/chat_provider.dart';
 import 'package:kins_app/providers/user_details_provider.dart';
+import 'package:kins_app/widgets/floating_nav_overlay.dart';
 
 /// Chat screen with Groups / Chats / Marketplace tabs, search, and list UI
 /// matching the design (header, segmented control, search bar, chat list, FAB, bottom nav).
@@ -19,8 +20,6 @@ class ChatScreen extends ConsumerStatefulWidget {
 }
 
 class _ChatScreenState extends ConsumerState<ChatScreen> {
-  static const int _chatNavIndex = 2;
-
   int _selectedSegment = 1; // 0: Groups, 1: Chats, 2: Marketplace
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
@@ -70,21 +69,24 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildHeader(),
-            _buildSegmentedControl(),
-            _buildSearchBar(),
-            Expanded(
-              child: _selectedSegment == 0
-                  ? _buildGroupsList()
-                  : _selectedSegment == 1
-                      ? _buildChatsList()
-                      : _buildMarketplacePlaceholder(),
-            ),
-          ],
+      body: FloatingNavOverlay(
+        currentIndex: 1,
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildHeader(),
+              _buildSegmentedControl(),
+              _buildSearchBar(),
+              Expanded(
+                child: _selectedSegment == 0
+                    ? _buildGroupsList()
+                    : _selectedSegment == 1
+                        ? _buildChatsList()
+                        : _buildMarketplacePlaceholder(),
+              ),
+            ],
+          ),
         ),
       ),
       floatingActionButton: FloatingActionButton(
@@ -94,7 +96,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         elevation: 2,
         child: const Icon(Icons.add, size: 28),
       ),
-      bottomNavigationBar: _buildBottomNavigation(),
     );
   }
 
@@ -321,76 +322,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  Widget _buildBottomNavigation() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(30),
-          topRight: Radius.circular(30),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 8.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildBottomNavItem(0, Icons.home_outlined, Icons.home, AppConstants.routeHome),
-              _buildBottomNavItem(1, Icons.explore_outlined, Icons.explore, AppConstants.routeDiscover),
-              _buildBottomNavItem(2, Icons.chat_bubble_outline, Icons.chat_bubble, AppConstants.routeChat),
-              _buildBottomNavItem(3, Icons.card_membership_outlined, Icons.card_membership, AppConstants.routeMembership),
-              _buildBottomNavItem(4, Icons.shopping_bag_outlined, Icons.shopping_bag, AppConstants.routeMarketplace),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBottomNavItem(int index, IconData icon, IconData activeIcon, String route) {
-    final isActive = index == _chatNavIndex;
-
-    return GestureDetector(
-      onTap: () {
-        if (route == AppConstants.routeChat) return;
-        if (route == AppConstants.routeHome) {
-          context.go(route);
-        } else {
-          context.push(route);
-        }
-      },
-      child: Container(
-        width: 50,
-        height: 50,
-        decoration: BoxDecoration(
-          color: isActive ? const Color(0xFF6A1A5D) : Colors.grey.shade200,
-          shape: BoxShape.circle,
-          boxShadow: isActive
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFF6A1A5D).withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
-        ),
-        child: Icon(
-          isActive ? activeIcon : icon,
-          color: isActive ? Colors.white : Colors.black87,
-          size: 24,
-        ),
-      ),
-    );
-  }
 }
 
 /// Row that loads other user's name/avatar and opens conversation on tap.

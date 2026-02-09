@@ -14,6 +14,8 @@ import 'package:kins_app/providers/notification_provider.dart';
 import 'package:kins_app/services/location_service.dart';
 import 'package:kins_app/repositories/location_repository.dart';
 import 'package:kins_app/services/account_deletion_service.dart';
+import 'package:kins_app/widgets/floating_nav_overlay.dart';
+
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -30,8 +32,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   GoogleMapController? _mapController;
   Position? _currentPosition;
   final LocationService _locationService = LocationService();
-  int _currentBottomNavIndex = 0; // Track active bottom nav item
-  
   final List<String> _statusOptions = [
     'Expecting Mother',
     'New Mother',
@@ -210,44 +210,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       drawer: _buildDrawer(),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Header Section
-            _buildHeader(),
-            
-            // Scrollable Content
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 16),
-                    // Feature Cards Grid (2x2)
-                    _buildFeatureCardsGrid(),
-                    const SizedBox(height: 16),
-                    
-                    // Map Section
-                    _buildMapSection(),
-                    const SizedBox(height: 16),
-                    
-                    // Promotional Ad Card
-                    _buildPromotionalAdCard(),
-                    const SizedBox(height: 16),
-                    
-                    // Kinsights Section
-                    _buildKinsightsSection(),
-                    const SizedBox(height: 24),
-                  ],
+      body: FloatingNavOverlay(
+        currentIndex: 2,
+        child: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 16),
+                      _buildFeatureCardsGrid(),
+                      const SizedBox(height: 16),
+                      _buildMapSection(),
+                      const SizedBox(height: 16),
+                      _buildPromotionalAdCard(),
+                      const SizedBox(height: 16),
+                      _buildKinsightsSection(),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-      // Bottom Navigation
-      bottomNavigationBar: _buildBottomNavigation(),
     );
   }
 
@@ -1057,115 +1048,4 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildBottomNavigation() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100, // Light grey background
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(30),
-          topRight: Radius.circular(30),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 8.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildBottomNavItem(
-                index: 0,
-                icon: Icons.home_outlined,
-                activeIcon: Icons.home,
-                label: 'Home',
-                route: AppConstants.routeHome,
-              ),
-              _buildBottomNavItem(
-                index: 1,
-                icon: Icons.explore_outlined,
-                activeIcon: Icons.explore,
-                label: 'Discover',
-                route: AppConstants.routeDiscover,
-              ),
-              _buildBottomNavItem(
-                index: 2,
-                icon: Icons.chat_bubble_outline,
-                activeIcon: Icons.chat_bubble,
-                label: 'Chat',
-                route: AppConstants.routeChat,
-              ),
-              _buildBottomNavItem(
-                index: 3,
-                icon: Icons.card_membership_outlined,
-                activeIcon: Icons.card_membership,
-                label: 'Membership',
-                route: AppConstants.routeMembership,
-              ),
-              _buildBottomNavItem(
-                index: 4,
-                icon: Icons.shopping_bag_outlined,
-                activeIcon: Icons.shopping_bag,
-                label: 'Marketplace',
-                route: AppConstants.routeMarketplace,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBottomNavItem({
-    required int index,
-    required IconData icon,
-    required IconData activeIcon,
-    required String label,
-    required String route,
-  }) {
-    final isActive = _currentBottomNavIndex == index;
-    
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _currentBottomNavIndex = index;
-        });
-        // Navigate to the route
-        if (route == AppConstants.routeHome) {
-          // If already on home, do nothing
-          return;
-        }
-        context.push(route);
-      },
-      child: Container(
-        width: 50,
-        height: 50,
-        decoration: BoxDecoration(
-          color: isActive 
-              ? const Color(0xFF6A1A5D) // Dark purple for active
-              : Colors.grey.shade200, // Light grey for inactive
-          shape: BoxShape.circle,
-          boxShadow: isActive
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFF6A1A5D).withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
-        ),
-        child: Icon(
-          isActive ? activeIcon : icon,
-          color: isActive ? Colors.white : Colors.black87,
-          size: 24,
-        ),
-      ),
-    );
-  }
 }

@@ -122,9 +122,9 @@ class _OtpVerificationScreenState
         debugPrint('🎯 Navigating to Interest Screen');
         context.go(AppConstants.routeInterests);
       } else if (profileStatus.isComplete) {
-        // Complete profile -> Home Screen
-        debugPrint('🏠 Navigating to Home Screen');
-        context.go(AppConstants.routeHome);
+        // Complete profile -> Feed (default tab)
+        debugPrint('🏠 Navigating to Feed');
+        context.go(AppConstants.routeDiscover);
       } else {
         // Fallback: go to profile details
         debugPrint('⚠️ Unknown status, navigating to Profile Details');

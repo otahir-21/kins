@@ -60,7 +60,7 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
 
     try {
       await ref.read(interestProvider.notifier).saveUserInterests(uid);
-      if (mounted) context.go(AppConstants.routeHome);
+      if (mounted) context.go(AppConstants.routeDiscover);
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
@@ -75,7 +75,7 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
   }
 
   void _handleSkip() {
-    context.go(AppConstants.routeHome);
+    context.go(AppConstants.routeDiscover);
   }
 
   @override
