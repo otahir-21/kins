@@ -278,12 +278,6 @@ class FeedService {
 
       debugPrint('✅ Loaded ${posts.length} of my posts');
       
-      // Debug: Print raw my posts data
-      for (var post in posts) {
-        final p = post as Map<String, dynamic>;
-        debugPrint('  🔍 My Post ID: ${p['_id']}, type: ${p['type']}, media: ${p['media']}');
-      }
-      
       // Parse using _parseFeedPost since /posts/my returns same format as /feed
       final postModels = posts
           .map((json) => _parseFeedPost(json as Map<String, dynamic>))

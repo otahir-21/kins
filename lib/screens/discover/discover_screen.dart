@@ -174,18 +174,6 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
       List<PostModel> allPosts = [...feedPosts, ...myPosts];
       allPosts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-      // Debug: Print all posts
-      debugPrint('📋 ========== ALL POSTS (${allPosts.length}) ==========');
-      for (var post in allPosts) {
-        debugPrint('  📄 ID: ${post.id}');
-        debugPrint('     Type: ${post.type.name}');
-        debugPrint('     Author: ${post.authorName}');
-        debugPrint('     Content: ${post.text?.substring(0, post.text!.length > 50 ? 50 : post.text!.length) ?? "N/A"}');
-        debugPrint('     Media: ${post.mediaUrl ?? "N/A"}');
-        debugPrint('     ---');
-      }
-      debugPrint('📋 ========================================');
-
       if (mounted) {
         setState(() {
           if (isRefresh) {
