@@ -1284,15 +1284,30 @@ class _PostCard extends StatefulWidget {
   State<_PostCard> createState() => _PostCardState();
 }
 
-class _PostCardState extends State<_PostCard> {
+class _PostCardState extends State<_PostCard> with SingleTickerProviderStateMixin {
   bool? _isLiked;
   int? _localLikesCount;
   bool _isLiking = false;
+  late AnimationController _likeAnimationController;
+  late Animation<double> _likeScaleAnimation;
 
   @override
   void initState() {
     super.initState();
+    _likeAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 150),
+    );
+    _likeScaleAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
+      CurvedAnimation(parent: _likeAnimationController, curve: Curves.easeInOut),
+    );
     _checkLikeStatus();
+  }
+
+  @override
+  void dispose() {
+    _likeAnimationController.dispose();
+    super.dispose();
   }
 
   Future<void> _checkLikeStatus() async {
@@ -1310,6 +1325,11 @@ class _PostCardState extends State<_PostCard> {
 
   Future<void> _toggleLike() async {
     if (_isLiking) return;
+
+    // Animate like button
+    _likeAnimationController.forward().then((_) {
+      _likeAnimationController.reverse();
+    });
 
     setState(() => _isLiking = true);
 
@@ -1535,22 +1555,24 @@ class _PostCardState extends State<_PostCard> {
           // Action buttons
           const SizedBox(height: 12),
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _ActionButton(
                 icon: (_isLiked ?? false) ? Icons.favorite : Icons.favorite_border,
-                iconColor: (_isLiked ?? false) ? Colors.red : null,
+                iconColor: (_isLiked ?? false) ? const Color(0xFFE53935) : Colors.black,
                 count: likesCount,
                 onTap: _toggleLike,
+                scaleAnimation: _likeScaleAnimation,
               ),
-              const SizedBox(width: 20),
               _ActionButton(
                 icon: Icons.chat_bubble_outline,
+                iconColor: Colors.black,
                 count: commentsCount,
                 onTap: widget.onComment,
               ),
-              const SizedBox(width: 20),
               _ActionButton(
                 icon: Icons.repeat,
+                iconColor: Colors.black,
                 count: shareCount,
                 onTap: widget.onShare,
               ),
@@ -1563,42 +1585,63 @@ class _PostCardState extends State<_PostCard> {
 }
 
 /// Action button widget for post interactions (like, comment, share)
+/// Matches PostCardText design
 class _ActionButton extends StatelessWidget {
   final IconData icon;
   final Color? iconColor;
   final int count;
   final VoidCallback onTap;
+  final Animation<double>? scaleAnimation;
 
   const _ActionButton({
     required this.icon,
     this.iconColor,
     required this.count,
     required this.onTap,
+    this.scaleAnimation,
   });
 
   @override
   Widget build(BuildContext context) {
-    final defaultColor = Colors.grey.shade600;
-    final color = iconColor ?? defaultColor;
+    final color = iconColor ?? Colors.black;
     
-    return GestureDetector(
+    final button = InkWell(
       onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 20, color: color),
-          const SizedBox(width: 6),
-          Text(
-            '$count',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: defaultColor,
-              fontWeight: FontWeight.w500,
+      splashColor: Colors.transparent,
+      highlightColor: Colors.transparent,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 26,
+              color: color,
             ),
-          ),
-        ],
+            const SizedBox(width: 8),
+            Text(
+              count.toString(),
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF444444),
+              ),
+            ),
+          ],
+        ),
       ),
     );
+
+    // Apply scale animation if provided (for like button)
+    if (scaleAnimation != null) {
+      return ScaleTransition(
+        scale: scaleAnimation!,
+        child: button,
+      );
+    }
+
+    return button;
   }
 }
 
