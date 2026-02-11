@@ -1,8 +1,11 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:kins_app/models/post_model.dart';
 import 'package:kins_app/services/bunny_cdn_service.dart';
+import 'package:kins_app/core/network/backend_api_client.dart';
 
 class PostRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -15,6 +18,10 @@ class PostRepository {
   PostRepository({BunnyCDNService? bunnyCDN}) : _bunnyCDN = bunnyCDN;
 
   /// Create a post (text, image, video, or poll)
+  /// 
+  /// Uses MongoDB backend API
+  /// For image/video posts: sends actual file to backend (backend uploads to Bunny CDN)
+  /// For text/poll posts: uses JSON
   Future<String> createPost({
     required String authorId,
     required String authorName,
@@ -26,41 +33,132 @@ class PostRepository {
     PollData? poll,
     List<String> topics = const [],
   }) async {
-    String? mediaUrl;
-    String? thumbnailUrl;
+    try {
+      debugPrint('🔵 POST /posts (type: ${type.name})');
 
-    if ((type == PostType.image || type == PostType.video) && mediaFile != null && _bunnyCDN != null) {
-      final path = isVideo ? 'posts/videos/' : 'posts/images/';
-      final ext = mediaFile.path.split('.').last;
-      final name = '${authorId}_${DateTime.now().millisecondsSinceEpoch}.$ext';
-      mediaUrl = await _bunnyCDN!.uploadFile(
-        file: mediaFile,
-        fileName: name,
-        path: path,
+      // For image/video posts, use multipart/form-data with actual file
+      if ((type == PostType.image || type == PostType.video) && mediaFile != null) {
+        return await _createMediaPost(
+          type: type,
+          mediaFile: mediaFile,
+          isVideo: isVideo,
+          text: text,
+          topics: topics,
+        );
+      }
+
+      // For text/poll posts, use JSON
+      return await _createJsonPost(
+        type: type,
+        text: text,
+        poll: poll,
+        topics: topics,
       );
-      debugPrint('✅ Media uploaded: $mediaUrl');
+    } catch (e) {
+      debugPrint('❌ PostRepository.createPost error: $e');
+      rethrow;
     }
+  }
 
-    final ref = _firestore.collection(_postsCollection).doc();
-    final postData = {
-      'authorId': authorId,
-      'authorName': authorName,
-      'authorPhotoUrl': authorPhotoUrl,
+  /// Create image/video post using multipart/form-data
+  Future<String> _createMediaPost({
+    required PostType type,
+    required File mediaFile,
+    required bool isVideo,
+    String? text,
+    required List<String> topics,
+  }) async {
+    final fields = <String, String>{
       'type': type.name,
-      'text': text ?? '',
-      'mediaUrl': mediaUrl,
-      'thumbnailUrl': thumbnailUrl,
-      'topics': topics,
-      'likesCount': 0,
-      'commentsCount': 0,
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-      if (poll != null) 'poll': poll.toMap(),
     };
 
-    await ref.set(postData);
-    debugPrint('✅ Post created: ${ref.id}');
-    return ref.id;
+    // Add interests with array indexing (interestIds[0], interestIds[1], etc.)
+    for (int i = 0; i < topics.length; i++) {
+      fields['interestIds[$i]'] = topics[i];
+    }
+
+    // Add content
+    if (text != null && text.isNotEmpty) {
+      fields['content'] = text;
+    }
+
+    // Prepare file for upload
+    final files = <http.MultipartFile>[];
+    final fileName = mediaFile.path.split('/').last;
+    final mimeType = isVideo
+        ? http.MediaType('video', fileName.endsWith('.mov') ? 'quicktime' : 'mp4')
+        : http.MediaType('image', 'jpeg');
+
+    files.add(await http.MultipartFile.fromPath(
+      'media', // Field name must be 'media'
+      mediaFile.path,
+      contentType: mimeType,
+    ));
+
+    debugPrint('📤 POST multipart fields: $fields');
+    debugPrint('📤 Uploading file: $fileName');
+    debugPrint('📤 Interests: $topics');
+
+    final response = await BackendApiClient.postMultipart(
+      '/posts',
+      fields: fields,
+      files: files,
+      useAuth: true,
+    );
+
+    if (response['success'] != true) {
+      final error = response['error'] ?? response['message'] ?? 'Failed to create post';
+      throw Exception(error);
+    }
+
+    final postData = response['post'] as Map<String, dynamic>?;
+    final postId = postData?['_id']?.toString() ?? postData?['id']?.toString() ?? '';
+
+    debugPrint('✅ Media post created: $postId');
+    return postId;
+  }
+
+  /// Create text/poll post using JSON
+  Future<String> _createJsonPost({
+    required PostType type,
+    String? text,
+    PollData? poll,
+    required List<String> topics,
+  }) async {
+    final body = <String, dynamic>{
+      'type': type.name,
+      'interestIds': topics,
+    };
+
+    if (text != null && text.isNotEmpty) {
+      body['content'] = text;
+    }
+
+    if (type == PostType.poll && poll != null) {
+      body['poll'] = {
+        'question': poll.question,
+        'options': poll.options.map((opt) => {'text': opt.text}).toList(),
+      };
+    }
+
+    debugPrint('📤 POST JSON: $body');
+
+    final response = await BackendApiClient.post(
+      '/posts',
+      body: body,
+      useAuth: true,
+    );
+
+    if (response['success'] != true) {
+      final error = response['error'] ?? response['message'] ?? 'Failed to create post';
+      throw Exception(error);
+    }
+
+    final postData = response['post'] as Map<String, dynamic>?;
+    final postId = postData?['_id']?.toString() ?? postData?['id']?.toString() ?? '';
+
+    debugPrint('✅ Text/poll post created: $postId');
+    return postId;
   }
 
   /// Get feed stream (recent posts)
@@ -167,5 +265,30 @@ class PostRepository {
       'likesCount': FieldValue.increment(1),
       'updatedAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  /// Delete a post using backend API
+  /// 
+  /// Endpoint: DELETE /posts/:postId
+  /// Returns: {success: true, message: "Post deleted successfully"}
+  Future<void> deletePost(String postId) async {
+    try {
+      debugPrint('🔵 DELETE /posts/$postId');
+      
+      final response = await BackendApiClient.delete(
+        '/posts/$postId',
+        useAuth: true,
+      );
+
+      if (response['success'] != true) {
+        final error = response['error'] ?? response['message'] ?? 'Failed to delete post';
+        throw Exception(error);
+      }
+
+      debugPrint('✅ Post deleted: $postId');
+    } catch (e) {
+      debugPrint('❌ PostRepository.deletePost error: $e');
+      rethrow;
+    }
   }
 }

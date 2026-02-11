@@ -237,7 +237,7 @@ class _OnboardingPageContent extends StatelessWidget {
                 children: [
                   Center(
                     child: SizedBox(
-                      height: 550,
+                      height: (550.0).clamp(0.0, MediaQuery.sizeOf(context).height * 0.55),
                       width: double.infinity,
                       child: Image.asset(
                         data.imagePath,

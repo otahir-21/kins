@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/core/utils/storage_service.dart';
+import 'package:kins_app/models/auth_result.dart';
 import 'package:kins_app/models/user_model.dart';
 import 'package:kins_app/repositories/auth_repository_interface.dart';
 
@@ -88,6 +89,11 @@ class TwilioAuthRepository implements AuthRepositoryInterface {
     } catch (_) {
       return null;
     }
+  }
+
+  @override
+  Future<GoogleSignInResult?> signInWithGoogle() async {
+    return null;
   }
 
   @override

@@ -1,9 +1,11 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
+import 'package:kins_app/core/utils/secure_storage_service.dart';
 import 'package:kins_app/core/utils/storage_service.dart';
+import 'package:kins_app/services/auth_flow_service.dart';
+import 'package:kins_app/services/backend_auth_service.dart';
 import 'package:kins_app/widgets/kins_logo.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -34,19 +36,27 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       return;
     }
 
-    // 2. Check if user has an active session
-    final hasSession = AppConstants.useFirebaseAuth
-        ? FirebaseAuth.instance.currentUser != null
-        : () {
-            final userId = StorageService.getString(AppConstants.keyUserId);
-            final token = StorageService.getString(AppConstants.keyJwtToken);
-            return (userId != null && userId.isNotEmpty) &&
-                (token != null && token.isNotEmpty);
-          }();
+    // 2. If JWT exists, call GET /me and navigate by backend onboarding state (not local state)
+    final token = SecureStorageService.getJwtTokenSync();
+    if (token == null || token.isEmpty) {
+      context.go(AppConstants.routePhoneAuth);
+      return;
+    }
 
-    if (hasSession) {
-      context.go(AppConstants.routeDiscover);
-    } else {
+    try {
+      final profileStatus = await BackendAuthService.getProfileStatus();
+      if (!mounted) return;
+      if (profileStatus.exists && profileStatus.isComplete) {
+        context.go(AppConstants.routeDiscover);
+        return;
+      }
+      if (profileStatus.exists && profileStatus.needsInterests) {
+        context.go(AppConstants.routeInterests);
+        return;
+      }
+      AuthFlowService.navigateAfterAuth(context, profileStatus: profileStatus);
+    } catch (_) {
+      if (!mounted) return;
       context.go(AppConstants.routePhoneAuth);
     }
   }
@@ -55,7 +65,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: KinsLogo(width: 200, height: 200),
+      body: SafeArea(
+        child: KinsLogo(width: 200, height: 200),
+      ),
     );
   }
 }

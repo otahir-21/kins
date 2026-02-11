@@ -7,7 +7,10 @@ import 'package:intl/intl.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/providers/auth_provider.dart';
 import 'package:kins_app/providers/user_details_provider.dart';
-import 'package:kins_app/widgets/kins_logo.dart';
+import 'package:kins_app/models/google_profile_data.dart';
+import 'package:kins_app/widgets/app_card.dart';
+import 'package:kins_app/widgets/auth_flow_layout.dart';
+import 'package:kins_app/widgets/primary_button.dart';
 
 /// "About you" profile screen.
 ///
@@ -24,7 +27,10 @@ import 'package:kins_app/widgets/kins_logo.dart';
 ///   rounded corners and muted fills. All styling from theme (ColorScheme, textTheme,
 ///   inputDecorationTheme, cardTheme).
 class UserDetailsScreen extends ConsumerStatefulWidget {
-  const UserDetailsScreen({super.key});
+  const UserDetailsScreen({super.key, this.googleProfile});
+
+  /// When set (e.g. from Google Sign-In), these fields are pre-filled and read-only.
+  final GoogleProfileData? googleProfile;
 
   @override
   ConsumerState<UserDetailsScreen> createState() => _UserDetailsScreenState();
@@ -47,6 +53,11 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
   _AvailabilityStatus _emailStatus = _AvailabilityStatus.none;
   _AvailabilityStatus _phoneStatus = _AvailabilityStatus.none;
 
+  bool _nameLockedFromGoogle = false;
+  bool _emailLockedFromGoogle = false;
+  bool _phoneLockedFromGoogle = false;
+  bool _dobLockedFromGoogle = false;
+
   Timer? _usernameDebounce;
   Timer? _emailDebounce;
   Timer? _phoneDebounce;
@@ -57,6 +68,35 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
     _usernameController.addListener(_onUsernameChanged);
     _emailController.addListener(_onEmailChanged);
     _phoneController.addListener(_onPhoneChanged);
+    _applyGoogleProfile();
+  }
+
+  void _applyGoogleProfile() {
+    final g = widget.googleProfile;
+    if (g == null) return;
+    if (g.name != null && g.name!.trim().isNotEmpty) {
+      _nameController.text = g.name!.trim();
+      _nameLockedFromGoogle = true;
+    }
+    if (g.email != null && g.email!.trim().isNotEmpty) {
+      _emailController.text = g.email!.trim();
+      _emailLockedFromGoogle = true;
+    }
+    if (g.phoneNumber != null && g.phoneNumber!.trim().isNotEmpty) {
+      _phoneController.text = g.phoneNumber!.trim();
+      _phoneLockedFromGoogle = true;
+    }
+    if (g.dateOfBirth != null) {
+      _selectedDateOfBirth = g.dateOfBirth;
+      _dobLockedFromGoogle = true;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final notifier = ref.read(userDetailsProvider.notifier);
+      if (_nameController.text.trim().isNotEmpty) notifier.setName(_nameController.text.trim());
+      if (_emailController.text.trim().isNotEmpty) notifier.setEmail(_emailController.text.trim());
+      if (_selectedDateOfBirth != null) notifier.setDateOfBirth(_selectedDateOfBirth!);
+    });
   }
 
   void _onUsernameChanged() {
@@ -209,11 +249,9 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            const KinsLogo(),
-            Expanded(
+      body: AuthFlowLayout(
+        children: [
+          Expanded(
               child: SingleChildScrollView(
                 keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: EdgeInsets.only(
@@ -222,23 +260,18 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
                   top: 16,
                   bottom: MediaQuery.viewPaddingOf(context).bottom + 24,
                 ),
-                child: Container(
-                  width: double.infinity,
+                child: AppCard(
                   constraints: const BoxConstraints(maxWidth: 500),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(40),
-                    border: Border.all(color: Colors.grey.shade200, width: 1),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.06),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                        spreadRadius: 0,
-                      ),
-                    ],
-                  ),
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                  border: Border.all(color: Colors.grey.shade200, width: 1),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                      spreadRadius: 0,
+                    ),
+                  ],
                   child: Form(
                     key: _formKey,
                     child: Column(
@@ -274,7 +307,8 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
                           controller: _nameController,
                           hint: 'Full Name',
                           theme: theme,
-                          onChanged: (v) => ref.read(userDetailsProvider.notifier).setName(v),
+                          readOnly: _nameLockedFromGoogle,
+                          onChanged: _nameLockedFromGoogle ? null : (v) => ref.read(userDetailsProvider.notifier).setName(v),
                           validator: (v) =>
                               (v == null || v.trim().isEmpty) ? 'Please enter your full name' : null,
                         ),
@@ -290,13 +324,16 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
                               selectedDate: value,
                               dateFormat: _dateFormat,
                               errorText: state.errorText,
-                              onTap: () async {
-                                final picked = await _selectDateOfBirth();
-                                if (picked != null) {
-                                  state.didChange(picked);
-                                  setState(() => _selectedDateOfBirth = picked);
-                                }
-                              },
+                              readOnly: _dobLockedFromGoogle,
+                              onTap: _dobLockedFromGoogle
+                                  ? null
+                                  : () async {
+                                      final picked = await _selectDateOfBirth();
+                                      if (picked != null) {
+                                        state.didChange(picked);
+                                        setState(() => _selectedDateOfBirth = picked);
+                                      }
+                                    },
                             );
                           },
                         ),
@@ -306,12 +343,14 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
                           hint: 'Phone',
                           keyboardType: TextInputType.phone,
                           theme: theme,
-                          availabilityStatus: _phoneStatus,
+                          readOnly: _phoneLockedFromGoogle,
+                          availabilityStatus: _phoneLockedFromGoogle ? _AvailabilityStatus.none : _phoneStatus,
                           availabilityLabel: 'Phone number',
+                          onChanged: _phoneLockedFromGoogle ? null : (v) {},
                           validator: (v) {
                             if (v == null || v.trim().isEmpty) return 'Please enter your phone number';
                             if (v.replaceAll(RegExp(r'\s'), '').length < 8) return 'Please enter a valid phone number';
-                            if (_phoneStatus == _AvailabilityStatus.taken) return 'Phone number already taken';
+                            if (!_phoneLockedFromGoogle && _phoneStatus == _AvailabilityStatus.taken) return 'Phone number already taken';
                             return null;
                           },
                         ),
@@ -321,52 +360,23 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
                           hint: 'Email',
                           keyboardType: TextInputType.emailAddress,
                           theme: theme,
-                          onChanged: (v) => ref.read(userDetailsProvider.notifier).setEmail(v),
-                          availabilityStatus: _emailStatus,
+                          readOnly: _emailLockedFromGoogle,
+                          availabilityStatus: _emailLockedFromGoogle ? _AvailabilityStatus.none : _emailStatus,
                           availabilityLabel: 'Email',
+                          onChanged: _emailLockedFromGoogle ? null : (v) => ref.read(userDetailsProvider.notifier).setEmail(v),
                           validator: (v) {
                             if (v == null || v.trim().isEmpty) return 'Please enter your email';
                             if (!v.contains('@') || !v.contains('.')) return 'Please enter a valid email';
-                            if (_emailStatus == _AvailabilityStatus.taken) return 'Email already taken';
+                            if (!_emailLockedFromGoogle && _emailStatus == _AvailabilityStatus.taken) return 'Email already taken';
                             return null;
                           },
                         ),
                         const SizedBox(height: 24),
-                        SizedBox(
-                          height: 52,
-                          child: ElevatedButton(
-                            onPressed: userDetailsState.isSubmitting ? null : _submitForm,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: userDetailsState.isSubmitting
-                                  ? Colors.grey.shade300
-                                  : Colors.black,
-                              foregroundColor: userDetailsState.isSubmitting
-                                  ? Colors.grey.shade600
-                                  : Colors.white,
-                              disabledBackgroundColor: Colors.grey.shade300,
-                              disabledForegroundColor: Colors.grey.shade600,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(26),
-                              ),
-                            ),
-                            child: userDetailsState.isSubmitting
-                                ? SizedBox(
-                                    height: 24,
-                                    width: 24,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  )
-                                : Text(
-                                    'Continue',
-                                    style: textTheme.labelLarge?.copyWith(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                          ),
+                        PrimaryButton(
+                          onPressed: userDetailsState.isSubmitting ? null : _submitForm,
+                          isLoading: userDetailsState.isSubmitting,
+                          label: 'Continue',
+                          loadingColor: Colors.grey.shade600,
                         ),
                       ],
                     ),
@@ -374,8 +384,7 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
                 ),
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -392,6 +401,7 @@ class _ThemedTextField extends StatelessWidget {
     this.validator,
     this.availabilityStatus = _AvailabilityStatus.none,
     this.availabilityLabel,
+    this.readOnly = false,
   });
 
   final TextEditingController controller;
@@ -403,6 +413,7 @@ class _ThemedTextField extends StatelessWidget {
   final String? Function(String?)? validator;
   final _AvailabilityStatus availabilityStatus;
   final String? availabilityLabel;
+  final bool readOnly;
 
   static final _pillRadius = BorderRadius.circular(26);
 
@@ -412,7 +423,7 @@ class _ThemedTextField extends StatelessWidget {
     Widget? suffixIcon;
     String? helperText;
     Color? helperColor;
-    if (availabilityLabel != null) {
+    if (availabilityLabel != null && !readOnly) {
       switch (availabilityStatus) {
         case _AvailabilityStatus.checking:
           suffixIcon = SizedBox(
@@ -449,6 +460,7 @@ class _ThemedTextField extends StatelessWidget {
       children: [
         TextFormField(
           controller: controller,
+          readOnly: readOnly,
           keyboardType: keyboardType,
           textCapitalization: textCapitalization,
           onChanged: onChanged,
@@ -494,26 +506,24 @@ class _DateOfBirthField extends StatelessWidget {
     required this.theme,
     required this.selectedDate,
     required this.dateFormat,
-    required this.onTap,
+    this.onTap,
     this.errorText,
+    this.readOnly = false,
   });
 
   final ThemeData theme;
   final DateTime? selectedDate;
   final DateFormat dateFormat;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final String? errorText;
+  final bool readOnly;
 
   static final _pillRadius = BorderRadius.circular(26);
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = theme.colorScheme;
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: _pillRadius,
-      child: InputDecorator(
+    final decorator = InputDecorator(
         decoration: InputDecoration(
           hintText: 'Date of birth',
           filled: true,
@@ -537,7 +547,14 @@ class _DateOfBirthField extends StatelessWidget {
             color: selectedDate != null ? colorScheme.onSurface : colorScheme.onSurfaceVariant,
           ),
         ),
-      ),
+      );
+    if (readOnly || onTap == null) {
+      return decorator;
+    }
+    return InkWell(
+      onTap: onTap,
+      borderRadius: _pillRadius,
+      child: decorator,
     );
   }
 }

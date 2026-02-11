@@ -1,5 +1,7 @@
 import 'package:go_router/go_router.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
+import 'package:kins_app/core/network/backend_api_client.dart';
+import 'package:kins_app/models/google_profile_data.dart';
 import 'package:kins_app/screens/splash/splash_screen.dart';
 import 'package:kins_app/screens/onboarding/onboarding_screen.dart';
 import 'package:kins_app/screens/auth/phone_auth_screen.dart';
@@ -25,6 +27,13 @@ import 'package:kins_app/screens/profile/following_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: AppConstants.routeSplash,
+  redirect: (context, state) {
+    if (shouldRedirectToLogin) {
+      shouldRedirectToLogin = false;
+      return AppConstants.routePhoneAuth;
+    }
+    return null;
+  },
   errorBuilder: (context, state) {
     // Handle unknown routes (Firebase deep links are handled by catch-all route)
     return const SplashScreen();
@@ -56,7 +65,12 @@ final appRouter = GoRouter(
     GoRoute(
       path: AppConstants.routeUserDetails,
       name: 'user-details',
-      builder: (context, state) => const UserDetailsScreen(),
+      builder: (context, state) {
+        final googleProfile = state.extra is GoogleProfileData
+            ? state.extra as GoogleProfileData
+            : null;
+        return UserDetailsScreen(googleProfile: googleProfile);
+      },
     ),
     GoRoute(
       path: AppConstants.routeUserDetailsSuccess,

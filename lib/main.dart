@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
+import 'package:kins_app/core/network/backend_api_client.dart';
 import 'package:kins_app/core/theme/app_theme.dart';
 import 'package:kins_app/core/utils/secure_storage_service.dart';
 import 'package:kins_app/core/utils/storage_service.dart';
@@ -25,8 +26,8 @@ void main() async {
   await StorageService.init();
   await SecureStorageService.init();
 
-  // When using Firebase Auth, sync current user to storage so app-wide currentUserId works
-  if (AppConstants.useFirebaseAuth) {
+  // When using Firebase Auth and we don't have a backend JWT, sync Firebase user to storage
+  if (AppConstants.useFirebaseAuth && SecureStorageService.getJwtTokenSync() == null) {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       await StorageService.setString(AppConstants.keyUserId, user.uid);
@@ -35,6 +36,9 @@ void main() async {
       }
     }
   }
+
+  // On 401, redirect to login
+  onUnauthorized = () => appRouter.go(AppConstants.routePhoneAuth);
 
   // Initialize FCM for Android/iOS
   try {

@@ -10,6 +10,11 @@ class AppConstants {
     'API_BASE_URL',
     defaultValue: 'https://kins-crm.vercel.app',
   );
+  /// Base URL for v1 REST API (auth, me, interests). All data from MongoDB.
+  static const String apiV1BaseUrl = String.fromEnvironment(
+    'API_V1_BASE_URL',
+    defaultValue: 'https://kins-crm.vercel.app/api/v1',
+  );
   static const String sendOtpPath = '/auth/send-otp';
   static const String verifyOtpPath = '/auth/verify-otp';
 

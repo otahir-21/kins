@@ -4,7 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/providers/interest_provider.dart';
-import 'package:kins_app/widgets/kins_logo.dart';
+import 'package:kins_app/widgets/app_card.dart';
+import 'package:kins_app/widgets/auth_flow_layout.dart';
 import '../../models/interest_model.dart';
 
 /// Minimum number of interests required to enable Next (0 = any, 1+ = at least that many).
@@ -24,7 +25,7 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(interestProvider.notifier).loadInterests();
+      ref.read(interestProvider.notifier).loadInterests(currentUserId);
     });
   }
 
@@ -86,33 +87,23 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
     final interestState = ref.watch(interestProvider);
 
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Top: centered logo + Skip (outside card)
-            const KinsLogo(),
-            // Card expanded to end of screen
-            const SizedBox(height: 120),
-
-            Expanded(
+      body: AuthFlowLayout(
+        children: [
+          const SizedBox(height: 120),
+          Expanded(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                child: Container(
-                  width: double.infinity,
+                child: AppCard(
                   constraints: const BoxConstraints(maxWidth: 500),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(40),
-                    border: Border.all(color: Colors.grey.shade300, width: 1),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.06),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                        spreadRadius: 0,
-                      ),
-                    ],
-                  ),
+                  border: Border.all(color: Colors.grey.shade300, width: 1),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                      spreadRadius: 0,
+                    ),
+                  ],
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -184,8 +175,7 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
                 ),
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }

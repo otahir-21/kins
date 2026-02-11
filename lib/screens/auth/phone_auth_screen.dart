@@ -8,7 +8,10 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/providers/auth_provider.dart';
-import 'package:kins_app/widgets/kins_logo.dart';
+import 'package:kins_app/services/auth_flow_service.dart';
+import 'package:kins_app/services/backend_auth_service.dart';
+import 'package:kins_app/widgets/auth_flow_layout.dart';
+import 'package:kins_app/widgets/app_card.dart';
 
 class PhoneAuthScreen extends ConsumerStatefulWidget {
   const PhoneAuthScreen({super.key});
@@ -27,6 +30,48 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
   void dispose() {
     _phoneController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    if (!AppConstants.useFirebaseAuth) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Google sign-in is only available with Firebase Auth'),
+            backgroundColor: Colors.black,
+          ),
+        );
+      }
+      return;
+    }
+    try {
+      final result = await ref.read(authProvider.notifier).signInWithGoogle();
+      if (!mounted) return;
+      if (result == null) return;
+      final backendResult = await BackendAuthService.login(
+        provider: 'google',
+        providerUserId: result.user.uid,
+        email: result.googleProfile?.email,
+        name: result.googleProfile?.name,
+        profilePictureUrl: null,
+      );
+      if (!mounted) return;
+      AuthFlowService.navigateAfterAuth(
+        context,
+        profileStatus: backendResult.profileStatus,
+        googleProfile: result.googleProfile,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(ref.read(authProvider).error ?? e.toString()),
+            backgroundColor: Colors.black,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _sendOTP() async {
@@ -69,13 +114,11 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            const KinsLogo(),
-            Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Form(
+      body: AuthFlowLayout(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -100,15 +143,14 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
                     ),
                     const SizedBox(height: 8),
 
-                    SocialLoginDivider(),
+                    SocialLoginDivider(onGooglePressed: _handleGoogleSignIn),
                     const SizedBox(height: 20),
                     const TermsAndPolicyDisclaimer(),
                   ],
                 ),
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -216,20 +258,15 @@ class _SignInCardState extends State<SignInCard> {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Container(
-        width: double.infinity,
+      child: AppCard(
         padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(40),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -363,7 +400,9 @@ class _SignInCardState extends State<SignInCard> {
 }
 
 class SocialLoginDivider extends StatelessWidget {
-  const SocialLoginDivider({super.key});
+  const SocialLoginDivider({super.key, this.onGooglePressed});
+
+  final VoidCallback? onGooglePressed;
 
   @override
   Widget build(BuildContext context) {
@@ -391,8 +430,7 @@ class SocialLoginDivider extends StatelessWidget {
 
         const SizedBox(height: 20),
 
-        // Social buttons: same height and width, consistent spacing
-        const _SocialButtonHeight(),
+        _SocialButtonHeight(onGooglePressed: onGooglePressed),
       ],
     );
   }
@@ -402,7 +440,9 @@ class SocialLoginDivider extends StatelessWidget {
 const double _kSocialButtonHeight = 44.0;
 
 class _SocialButtonHeight extends StatelessWidget {
-  const _SocialButtonHeight();
+  const _SocialButtonHeight({this.onGooglePressed});
+
+  final VoidCallback? onGooglePressed;
 
   @override
   Widget build(BuildContext context) {
@@ -414,7 +454,10 @@ class _SocialButtonHeight extends StatelessWidget {
         SizedBox(
           height: _kSocialButtonHeight,
           width: double.infinity,
-          child: _GoogleSignInButton(height: _kSocialButtonHeight),
+          child: _GoogleSignInButton(
+            height: _kSocialButtonHeight,
+            onTap: onGooglePressed,
+          ),
         ),
         const SizedBox(height: 30),
         SizedBox(
@@ -433,11 +476,12 @@ class _SocialButtonHeight extends StatelessWidget {
   }
 }
 
-/// Custom Google button: official G logo on the left + "Sign in with Google" (UI only).
+/// Custom Google button: official G logo on the left + "Sign in with Google".
 class _GoogleSignInButton extends StatelessWidget {
-  const _GoogleSignInButton({required this.height});
+  const _GoogleSignInButton({required this.height, this.onTap});
 
   final double height;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -445,9 +489,7 @@ class _GoogleSignInButton extends StatelessWidget {
       color: Colors.white,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
-        onTap: () {
-          // Google login - UI only
-        },
+        onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
           height: height,

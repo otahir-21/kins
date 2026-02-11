@@ -4,27 +4,23 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kins_app/core/utils/auth_utils.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:kins_app/core/utils/storage_service.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
+import 'package:kins_app/core/network/backend_api_client.dart';
 import 'package:kins_app/models/post_model.dart';
+import 'package:kins_app/models/interest_model.dart';
 import 'package:kins_app/providers/auth_provider.dart';
+import 'package:kins_app/providers/feed_provider.dart';
+import 'package:kins_app/providers/interest_provider.dart';
 import 'package:kins_app/providers/post_provider.dart';
-import 'package:kins_app/repositories/post_repository.dart';
+import 'package:kins_app/repositories/feed_repository.dart';
 import 'package:kins_app/services/account_deletion_service.dart';
+import 'package:kins_app/services/backend_auth_service.dart';
 import 'package:kins_app/widgets/floating_nav_overlay.dart';
+import 'package:kins_app/screens/comments/comments_bottom_sheet.dart';
+import 'package:kins_app/widgets/post_card_text.dart';
 
-/// Filter topic chips (match create post topics)
-const List<String> _filterTopics = [
-  'All',
-  'IVF',
-  'Sleep',
-  'Teething',
-  'Lorem',
-  'Pregnancy',
-  'Newborn',
-  'Toddler',
-];
 
 class DiscoverScreen extends ConsumerStatefulWidget {
   const DiscoverScreen({super.key});
@@ -33,48 +29,213 @@ class DiscoverScreen extends ConsumerStatefulWidget {
   ConsumerState<DiscoverScreen> createState() => _DiscoverScreenState();
 }
 
-class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
+class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBindingObserver {
   final TextEditingController _searchController = TextEditingController();
-  String? _selectedTopic = 'All';
+  final ScrollController _scrollController = ScrollController();
+  
+  String? _selectedInterestId; // null means 'All'
   String? _userName;
   String? _userLocation;
   String? _profilePictureUrl;
+  
+  // Feed state (backend API, no Firebase)
+  List<PostModel> _allPosts = [];
+  bool _isLoading = false;
+  bool _isLoadingMore = false;
+  String? _error;
+  int _currentPage = 1;
+  bool _hasMore = true;
+
+  // Interests from MongoDB
+  List<InterestModel> _allInterests = [];
+  Set<String> _userInterestIds = {};
+  bool _loadingInterests = true;
 
   @override
   void initState() {
     super.initState();
-    _loadUser();
+    WidgetsBinding.instance.addObserver(this);
+    _loadUserProfile();
+    _loadInterests();
+    _loadFeed(isRefresh: true); // Load with refresh to include user's own posts
+    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadUser() async {
-    final uid = currentUserId;
-    if (uid.isEmpty) return;
-    try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-      final data = doc.exists ? doc.data() : null;
-      final location = data?['location']?['city'] ?? 'Dubai, UAE';
-      final profilePicUrl = data?['profilePictureUrl'] ?? data?['profilePicture'];
-      final name = data?['name'] ?? 'User';
-      if (mounted) {
-        setState(() {
-          _userName = name;
-          _userLocation = location;
-          _profilePictureUrl = profilePicUrl;
-        });
-      }
-    } catch (e) {
-      debugPrint('Discover: failed to load user: $e');
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Refresh feed when app comes back to foreground
+    if (state == AppLifecycleState.resumed) {
+      _loadFeed(isRefresh: true);
     }
   }
 
+  /// Load user profile from backend /me API
+  Future<void> _loadUserProfile() async {
+    try {
+      final response = await BackendAuthService.getProfileStatus();
+      if (!mounted || !response.exists) return;
+      
+      // Get full user details from /me API
+      final me = await BackendApiClient.get('/me');
+      final user = me['user'] is Map<String, dynamic> 
+          ? me['user'] as Map<String, dynamic> 
+          : me;
+      
+      if (mounted) {
+        setState(() {
+          _userName = user['name']?.toString() ?? user['username']?.toString() ?? 'User';
+          _userLocation = 'Dubai, UAE'; // Can be extracted from user data if available
+          _profilePictureUrl = user['profilePictureUrl']?.toString();
+        });
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to load user profile: $e');
+    }
+  }
+
+  /// Load all interests and user's interests from MongoDB backend
+  Future<void> _loadInterests() async {
+    try {
+      final uid = currentUserId;
+      final interestRepo = ref.read(interestRepositoryProvider);
+      
+      // Load all interests
+      final interests = await interestRepo.getInterests();
+      
+      // Load user's interests
+      Set<String> userInterests = {};
+      if (uid.isNotEmpty) {
+        final userInterestsList = await interestRepo.getUserInterests(uid);
+        userInterests = userInterestsList.toSet();
+      }
+      
+      if (mounted) {
+        setState(() {
+          _allInterests = interests;
+          _userInterestIds = userInterests;
+          _loadingInterests = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to load interests: $e');
+      if (mounted) {
+        setState(() {
+          _loadingInterests = false;
+        });
+      }
+    }
+  }
+
+  /// Load feed from backend API
+  /// Also loads user's own posts and merges them into the feed
+  Future<void> _loadFeed({bool isRefresh = false}) async {
+    if (_isLoading || _isLoadingMore) return;
+    
+    setState(() {
+      if (isRefresh) {
+        _isLoading = true;
+        _currentPage = 1;
+        _hasMore = true;
+        _error = null;
+      } else {
+        _isLoadingMore = true;
+      }
+    });
+
+    try {
+      final feedRepo = ref.read(feedRepositoryProvider);
+      
+      // Fetch both main feed and user's own posts
+      final feedPosts = await feedRepo.getFeed(
+        page: isRefresh ? 1 : _currentPage,
+        limit: 20,
+      );
+      
+      // On refresh or initial load, also get user's own posts (first page only)
+      List<PostModel> myPosts = [];
+      if (isRefresh || _currentPage == 1) {
+        try {
+          myPosts = await feedRepo.getMyPosts(page: 1, limit: 20);
+          debugPrint('✅ Loaded ${myPosts.length} of my posts to merge with feed');
+        } catch (e) {
+          debugPrint('⚠️ Failed to load my posts: $e');
+        }
+      }
+      
+      // Merge and sort by date (most recent first)
+      List<PostModel> allPosts = [...feedPosts, ...myPosts];
+      allPosts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      // Debug: Print all posts
+      debugPrint('📋 ========== ALL POSTS (${allPosts.length}) ==========');
+      for (var post in allPosts) {
+        debugPrint('  📄 ID: ${post.id}');
+        debugPrint('     Type: ${post.type.name}');
+        debugPrint('     Author: ${post.authorName}');
+        debugPrint('     Content: ${post.text?.substring(0, post.text!.length > 50 ? 50 : post.text!.length) ?? "N/A"}');
+        debugPrint('     Media: ${post.mediaUrl ?? "N/A"}');
+        debugPrint('     ---');
+      }
+      debugPrint('📋 ========================================');
+
+      if (mounted) {
+        setState(() {
+          if (isRefresh) {
+            _allPosts = allPosts;
+            _currentPage = 1;
+          } else {
+            _allPosts.addAll(feedPosts);
+          }
+          _hasMore = feedPosts.length >= 20;
+          _isLoading = false;
+          _isLoadingMore = false;
+          _error = null;
+        });
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to load feed: $e');
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+          _isLoadingMore = false;
+        });
+      }
+    }
+  }
+
+  /// Load more posts (pagination)
+  Future<void> _loadMore() async {
+    if (!_hasMore || _isLoadingMore) return;
+    
+    setState(() {
+      _currentPage++;
+    });
+    
+    await _loadFeed();
+  }
+
+  /// Handle scroll for pagination
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      _loadMore();
+    }
+  }
+
+  /// Filter posts by search and interest
   List<PostModel> _filterPosts(List<PostModel> posts) {
     var list = posts;
+    
+    // Filter by search query
     final query = _searchController.text.trim().toLowerCase();
     if (query.isNotEmpty) {
       list = list.where((p) {
@@ -83,15 +244,18 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
         return text.contains(query) || author.contains(query);
       }).toList();
     }
-    if (_selectedTopic != null && _selectedTopic != 'All') {
-      list = list.where((p) => p.topics.contains(_selectedTopic)).toList();
+    
+    // Filter by selected interest
+    if (_selectedInterestId != null) {
+      list = list.where((p) => p.topics.contains(_selectedInterestId)).toList();
     }
+    
     return list;
   }
 
   @override
   Widget build(BuildContext context) {
-    final postRepo = ref.watch(postRepositoryProvider);
+    final feedRepo = ref.watch(feedRepositoryProvider);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -105,175 +269,326 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
               _buildSearchBar(),
               _buildFilterChips(),
               Expanded(
-                child: StreamBuilder<List<PostModel>>(
-                  stream: postRepo.getFeed(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    final allPosts = snapshot.data ?? (snapshot.hasError ? <PostModel>[] : <PostModel>[]);
-                    final posts = _filterPosts(allPosts);
-                    if (posts.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.explore_outlined, size: 64, color: Colors.grey.shade400),
-                            const SizedBox(height: 16),
-                            Text(
-                              allPosts.isEmpty ? 'No posts yet' : 'No matching posts',
-                              style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              allPosts.isEmpty
-                                  ? 'Be the first to share something!'
-                                  : 'Try a different search or topic',
-                              style: TextStyle(color: Colors.grey.shade500),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                    return RefreshIndicator(
-                      onRefresh: () async {
-                        await postRepo.getFeedOnce();
-                      },
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(16.0),
-                        itemCount: posts.length,
-                        itemBuilder: (context, index) => _buildPostCardFromModel(posts[index], postRepo),
-                      ),
-                    );
-                  },
-                ),
+                child: _buildFeedContent(feedRepo),
               ),
             ],
           ),
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push(AppConstants.routeCreatePost),
-        child: const Icon(Icons.add),
+        onPressed: () async {
+          final result = await context.push(AppConstants.routeCreatePost);
+          // Refresh feed if post was created successfully
+          if (result == true && mounted) {
+            _loadFeed(isRefresh: true);
+          }
+        },
         backgroundColor: const Color(0xFF6A1A5D),
+        child: const Icon(Icons.add),
       ),
       floatingActionButtonLocation: const _DiscoverFabLocation(),
     );
   }
 
+  /// Build feed content with loading, error, and empty states
+  Widget _buildFeedContent(FeedRepository feedRepo) {
+    // Show loading on first load
+    if (_isLoading && _allPosts.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    // Show error state
+    if (_error != null && _allPosts.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text(
+              'Failed to load feed',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: Colors.grey.shade600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _error!.length > 100 ? 'Please try again' : _error!,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Colors.grey.shade500,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => _loadFeed(isRefresh: true),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final posts = _filterPosts(_allPosts);
+
+    // Show empty state
+    if (posts.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.explore_outlined, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text(
+              _allPosts.isEmpty ? 'No posts yet' : 'No matching posts',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: Colors.grey.shade600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _allPosts.isEmpty
+                  ? 'Be the first to share something!'
+                  : 'Try a different search or topic',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Colors.grey.shade500,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Show feed with pull-to-refresh and pagination
+    return RefreshIndicator(
+      onRefresh: () => _loadFeed(isRefresh: true),
+      child: ListView.builder(
+        controller: _scrollController,
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        itemCount: posts.length + (_hasMore ? 1 : 0),
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemBuilder: (context, index) {
+          if (index >= posts.length) {
+            // Loading indicator at bottom
+            return _isLoadingMore
+                ? const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                : const SizedBox.shrink();
+          }
+          return _buildPostCardFromModel(posts[index], feedRepo);
+        },
+        cacheExtent: 1000, // Optimize scroll performance
+      ),
+    );
+  }
+
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 12.0),
-      child: Row(
-        children: [
-          Builder(
-            builder: (context) => IconButton(
-              icon: const Icon(Icons.menu, color: Colors.black),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      color: Colors.white,
+      child: Builder(
+        builder: (context) => Row(
+          children: [
+            // Drawer/Menu Button
+            IconButton(
+              icon: Icon(Icons.menu, color: Colors.grey.shade700, size: 24),
               onPressed: () => Scaffold.of(context).openDrawer(),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
             ),
+            const SizedBox(width: 12),
+          CircleAvatar(
+            radius: 20,
+            backgroundColor: Colors.grey.shade200,
+            backgroundImage: _profilePictureUrl != null
+                ? NetworkImage(_profilePictureUrl!)
+                : null,
+            child: _profilePictureUrl == null
+                ? Icon(Icons.person, size: 20, color: Colors.grey.shade400)
+                : null,
           ),
+          const SizedBox(width: 12),
           Expanded(
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                CircleAvatar(
-                    radius: 22,
-                    backgroundColor: Colors.grey.shade300,
-                    backgroundImage: _profilePictureUrl != null
-                        ? NetworkImage(_profilePictureUrl!)
-                        : null,
-                    child: _profilePictureUrl == null
-                        ? const Icon(Icons.person, color: Colors.grey)
-                        : null,
+                Text(
+                  _userName ?? 'Discover',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                    height: 1.3,
                   ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _userName ?? 'Discover',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        _userLocation ?? 'Dubai, UAE',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  _userLocation ?? 'Dubai, UAE',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.grey.shade500,
+                    height: 1.3,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
-          const Text(
+          const Spacer(),
+          Text(
             'kins',
-            style: TextStyle(
-              fontSize: 18,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w600,
-              color: Color(0xFF6A1A5D),
+              color: const Color(0xFF6A1A5D),
+              letterSpacing: 0.5,
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 12),
           IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Colors.black87),
+            icon: Icon(Icons.notifications_outlined, color: Colors.grey.shade700, size: 24),
             onPressed: () => context.push(AppConstants.routeNotifications),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
           ),
         ],
+        ),
       ),
     );
   }
 
   Widget _buildSearchBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
       child: TextField(
         controller: _searchController,
         onChanged: (_) => setState(() {}),
+        style: Theme.of(context).textTheme.bodyLarge,
         decoration: InputDecoration(
           hintText: 'Search',
-          prefixIcon: const Icon(Icons.search, color: Colors.grey),
+          hintStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            color: Colors.grey.shade400,
+          ),
+          prefixIcon: Icon(Icons.search, color: Colors.grey.shade400, size: 20),
           filled: true,
-          fillColor: Colors.grey.shade100,
+          fillColor: const Color(0xFFF5F5F7),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,
           ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          isDense: true,
         ),
       ),
     );
   }
 
   Widget _buildFilterChips() {
-    return SizedBox(
-      height: 44,
+    if (_loadingInterests) {
+      return Container(
+        height: 40,
+        margin: const EdgeInsets.only(bottom: 8),
+        child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+
+    // Sort interests: user's interests first, then alphabetically
+    final sortedInterests = [..._allInterests];
+    sortedInterests.sort((a, b) {
+      final aIsUserInterest = _userInterestIds.contains(a.id);
+      final bIsUserInterest = _userInterestIds.contains(b.id);
+      
+      if (aIsUserInterest && !bIsUserInterest) return -1;
+      if (!aIsUserInterest && bIsUserInterest) return 1;
+      return a.name.compareTo(b.name);
+    });
+
+    return Container(
+      height: 40,
+      margin: const EdgeInsets.only(bottom: 8),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        itemCount: _filterTopics.length,
+        itemCount: sortedInterests.length + 1, // +1 for "All"
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
-          final topic = _filterTopics[index];
-          final selected = (_selectedTopic ?? 'All') == topic;
-          return FilterChip(
-            label: Text(topic),
-            selected: selected,
-            onSelected: (v) {
-              if (v == true) {
-                setState(() => _selectedTopic = topic);
-              }
-            },
-            selectedColor: const Color(0xFF6A1A5D).withOpacity(0.3),
-            checkmarkColor: const Color(0xFF6A1A5D),
+          if (index == 0) {
+            // "All" filter chip
+            final selected = _selectedInterestId == null;
+            return GestureDetector(
+              onTap: () => setState(() => _selectedInterestId = null),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: selected ? const Color(0xFF6A1A5D).withOpacity(0.08) : Colors.white,
+                  border: Border.all(
+                    color: selected ? const Color(0xFF6A1A5D).withOpacity(0.3) : Colors.grey.shade200,
+                    width: 1,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Center(
+                  child:                   Text(
+                    'All',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                      color: selected ? const Color(0xFF6A1A5D) : Colors.grey.shade700,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }
+
+          final interest = sortedInterests[index - 1];
+          final selected = _selectedInterestId == interest.id;
+          final isUserInterest = _userInterestIds.contains(interest.id);
+
+          return GestureDetector(
+            onTap: () => setState(() => _selectedInterestId = interest.id),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: selected 
+                    ? const Color(0xFF6A1A5D).withOpacity(0.08)
+                    : (isUserInterest ? const Color(0xFF6A1A5D).withOpacity(0.02) : Colors.white),
+                border: Border.all(
+                  color: selected 
+                      ? const Color(0xFF6A1A5D).withOpacity(0.3)
+                      : (isUserInterest ? const Color(0xFF6A1A5D).withOpacity(0.15) : Colors.grey.shade200),
+                  width: 1,
+                ),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isUserInterest) ...[
+                    Icon(
+                      Icons.star,
+                      size: 14,
+                      color: selected ? const Color(0xFF6A1A5D) : Colors.grey.shade600,
+                    ),
+                    const SizedBox(width: 4),
+                  ],
+                  Text(
+                    interest.name,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                      color: selected ? const Color(0xFF6A1A5D) : Colors.grey.shade700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           );
         },
       ),
@@ -424,11 +739,10 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   }) {
     final useRed = isLogout || isDestructive;
     return ListTile(
-      title: Text(
+      title:       Text(
         title,
-        style: TextStyle(
+        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
           color: useRed ? Colors.red : Colors.black87,
-          fontSize: 16,
           fontWeight: FontWeight.w500,
         ),
       ),
@@ -439,244 +753,55 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   }
 
 
-  Widget _buildPostCardFromModel(PostModel post, PostRepository postRepo) {
-    if (post.isPoll) return _buildPollCard(post, postRepo);
-
-    final rawMediaUrl = post.mediaUrl;
-    final isPdfOrDocument = rawMediaUrl != null &&
-        (rawMediaUrl.toLowerCase().endsWith('.pdf') || rawMediaUrl.contains('/documents/'));
-    final mediaUrl = (rawMediaUrl != null && rawMediaUrl.isNotEmpty && !isPdfOrDocument)
-        ? rawMediaUrl
-        : null;
-    final hasImage = post.type == PostType.image && mediaUrl != null;
-    final hasVideo = post.type == PostType.video && mediaUrl != null;
-    final hasMedia = hasImage || hasVideo;
-
-    final rawAvatar = post.authorPhotoUrl;
-    final authorAvatar = (rawAvatar != null &&
-            rawAvatar.isNotEmpty &&
-            !rawAvatar.toLowerCase().endsWith('.pdf') &&
-            !rawAvatar.contains('/documents/'))
-        ? rawAvatar
-        : null;
-    final authorName = post.authorName;
-    final text = post.text ?? '';
-    final likesCount = post.likesCount;
-    final commentsCount = post.commentsCount;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16.0),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (hasMedia)
-            Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    topRight: Radius.circular(16),
-                  ),
-                  child: Container(
-                    height: 300,
-                    width: double.infinity,
-                    color: Colors.grey.shade200,
-                    child: mediaUrl != null && mediaUrl.isNotEmpty
-                        ? (mediaUrl.startsWith('assets/')
-                            ? Image.asset(
-                                mediaUrl,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const Center(
-                                    child: Icon(Icons.image, size: 64, color: Colors.grey)),
-                              )
-                            : Image.network(
-                                mediaUrl,
-                                fit: BoxFit.cover,
-                                loadingBuilder: (_, child, progress) {
-                                  if (progress == null) return child;
-                                  return const Center(
-                                    child: Padding(
-                                      padding: EdgeInsets.all(32),
-                                      child: CircularProgressIndicator(),
-                                    ),
-                                  );
-                                },
-                                errorBuilder: (_, error, __) {
-                                  debugPrint('❌ Feed image load failed: $mediaUrl — $error');
-                                  return const Center(
-                                    child: Icon(Icons.broken_image, size: 64, color: Colors.grey),
-                                  );
-                                },
-                              ))
-                        : (hasVideo
-                            ? const Center(child: Icon(Icons.videocam, size: 64, color: Colors.grey))
-                            : const Center(child: Icon(Icons.image, size: 64, color: Colors.grey))),
-                  ),
-                ),
-                if (hasVideo)
-                  const Positioned.fill(
-                    child: Center(
-                      child: Icon(Icons.play_circle_fill, size: 64, color: Colors.white70),
-                    ),
-                  ),
-                Positioned(
-                  right: 12,
-                  top: 12,
-                  child: Column(
-                    children: [
-                      _buildInteractionButton(
-                        Icons.favorite_border,
-                        () => _onLikePost(context, post, postRepo),
-                      ),
-                      const SizedBox(height: 8),
-                      _buildInteractionButton(
-                        Icons.chat_bubble_outline,
-                        () => _onCommentPost(context, post),
-                      ),
-                      const SizedBox(height: 8),
-                      _buildInteractionButton(
-                        Icons.share_outlined,
-                        () => _onSharePost(context, post),
-                      ),
-                      const SizedBox(height: 8),
-                      _buildInteractionButton(
-                        Icons.more_vert,
-                        () => _showPostMoreMenu(context, post, postRepo),
-                      ),
-                    ],
-                  ),
-                ),
-                if (text.isNotEmpty)
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(12.0),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
-                        ),
-                      ),
-                      child: Text(
-                        text,
-                        style: const TextStyle(color: Colors.white, fontSize: 14),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor: Colors.grey.shade300,
-                      backgroundImage: authorAvatar != null ? NetworkImage(authorAvatar) : null,
-                      child: authorAvatar == null
-                          ? const Icon(Icons.person, color: Colors.grey)
-                          : null,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        authorName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                if (text.isNotEmpty && !hasMedia) ...[
-                  const SizedBox(height: 8),
-                  Text(text, style: const TextStyle(fontSize: 14)),
-                ],
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () => _onLikePost(context, post, postRepo),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.favorite_border, size: 20, color: Colors.grey.shade600),
-                          const SizedBox(width: 4),
-                          Text('$likesCount', style: TextStyle(color: Colors.grey.shade600)),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    GestureDetector(
-                      onTap: () => _onCommentPost(context, post),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.chat_bubble_outline, size: 20, color: Colors.grey.shade600),
-                          const SizedBox(width: 4),
-                          Text('$commentsCount', style: TextStyle(color: Colors.grey.shade600)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+  Widget _buildPostCardFromModel(PostModel post, FeedRepository feedRepo) {
+    Widget postWidget;
+    
+    if (post.isPoll) {
+      postWidget = _buildPollCard(post, feedRepo);
+    } else {
+      postWidget = _PostCardWrapper(
+        key: ValueKey(post.id),
+        post: post,
+        feedRepo: feedRepo,
+        onComment: () => _onCommentPost(context, post, feedRepo),
+        onShare: () => _onSharePost(context, post, feedRepo),
+        onMore: () => _showPostMoreMenu(context, post, feedRepo),
+      );
+    }
+    
+    // Add divider after each post
+    return Column(
+      children: [
+        postWidget,
+        Divider(
+          height: 1,
+          thickness: 1,
+          color: Colors.grey.shade200,
+        ),
+      ],
     );
   }
 
-  Widget _buildPollCard(PostModel post, PostRepository postRepo) {
+  Widget _buildPollCard(PostModel post, FeedRepository feedRepo) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16.0),
-      decoration: BoxDecoration(
+      padding: const EdgeInsets.all(16.0),
+      decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: _PollCardContent(post: post, postRepo: postRepo),
-      ),
+      child: _PollCardContent(post: post, feedRepo: feedRepo),
     );
   }
 
-  Future<void> _onLikePost(BuildContext context, PostModel post, PostRepository postRepo) async {
+  Future<void> _onLikePost(BuildContext context, PostModel post, FeedRepository feedRepo) async {
     try {
-      await postRepo.incrementLikes(post.id);
+      await feedRepo.likePost(post.id);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Liked'), duration: Duration(seconds: 1)),
         );
       }
+      // Refresh feed to show updated like count
+      _loadFeed(isRefresh: true);
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -686,103 +811,246 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     }
   }
 
-  void _onCommentPost(BuildContext context, PostModel post) {
+  void _onCommentPost(BuildContext context, PostModel post, FeedRepository feedRepo) {
     showModalBottomSheet<void>(
       context: context,
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Comments',
-                style: Theme.of(ctx).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Comments are coming soon. You\'ll be able to reply to this post here.',
-                style: TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 24),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Close'),
-              ),
-            ],
-          ),
-        ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => CommentsBottomSheet(
+        post: post,
+        feedRepository: feedRepo,
       ),
-    );
+    ).then((_) {
+      // Refresh feed to show updated comment counts
+      _loadFeed(isRefresh: true);
+    });
   }
 
-  Future<void> _onSharePost(BuildContext context, PostModel post) async {
-    final text = post.text?.isNotEmpty == true
-        ? post.text!
-        : 'Check out this post on Kins!';
-    final shareText = '${post.authorName}: $text';
-    try {
-      await Share.share(
-        shareText,
-        subject: 'Post from Kins',
-      );
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Share failed: $e'),
-            action: SnackBarAction(
-              label: 'Copy',
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: shareText));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Copied to clipboard')),
-                );
-              },
-            ),
-          ),
-        );
-      }
-    }
-  }
-
-  void _showPostMoreMenu(BuildContext context, PostModel post, PostRepository postRepo) {
-    showModalBottomSheet<void>(
+  Future<void> _onSharePost(BuildContext context, PostModel post, FeedRepository feedRepo) async {
+    // Show share options dialog
+    final shareType = await showModalBottomSheet<String>(
       context: context,
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.flag_outlined),
-              title: const Text('Report'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _onReportPost(context, post);
-              },
+              leading: const Icon(Icons.repeat),
+              title: const Text('Repost to Kins'),
+              onTap: () => Navigator.pop(ctx, 'repost'),
             ),
             ListTile(
-              leading: const Icon(Icons.share_outlined),
-              title: const Text('Share'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _onSharePost(context, post);
-              },
+              leading: const Icon(Icons.share),
+              title: const Text('Share externally'),
+              onTap: () => Navigator.pop(ctx, 'external'),
             ),
             ListTile(
-              leading: const Icon(Icons.bookmark_outline),
-              title: const Text('Save'),
-              onTap: () {
-                Navigator.pop(ctx);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Saved to your saved posts')),
-                  );
-                }
-              },
+              leading: const Icon(Icons.link),
+              title: const Text('Copy link'),
+              onTap: () => Navigator.pop(ctx, 'copy'),
             ),
           ],
+        ),
+      ),
+    );
+
+    if (shareType == null || !context.mounted) return;
+
+    try {
+      if (shareType == 'copy') {
+        // Just copy to clipboard (no API call)
+        final text = post.text?.isNotEmpty == true
+            ? post.text!
+            : 'Check out this post on Kins!';
+        final shareText = '${post.authorName}: $text';
+        await Clipboard.setData(ClipboardData(text: shareText));
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Copied to clipboard')),
+          );
+        }
+      } else if (shareType == 'external') {
+        // Track share in backend
+        await feedRepo.sharePost(postId: post.id, shareType: 'external');
+        
+        // Use share_plus to share externally
+        final text = post.text?.isNotEmpty == true
+            ? post.text!
+            : 'Check out this post on Kins!';
+        final shareText = '${post.authorName}: $text';
+        await Share.share(shareText, subject: 'Post from Kins');
+        
+        // Refresh feed to show updated share count
+        _loadFeed(isRefresh: true);
+      } else if (shareType == 'repost') {
+        // Track repost in backend
+        await feedRepo.sharePost(postId: post.id, shareType: 'repost');
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Reposted to your feed')),
+          );
+        }
+        
+        // Refresh feed to show updated share count
+        _loadFeed(isRefresh: true);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Share failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showMyPosts() async {
+    try {
+      final feedRepo = ref.read(feedRepositoryProvider);
+      final myPosts = await feedRepo.getMyPosts(page: 1, limit: 20);
+      
+      if (!mounted) return;
+      
+      if (myPosts.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('You haven\'t created any posts yet')),
+        );
+        return;
+      }
+      
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => Container(
+          height: MediaQuery.of(context).size.height * 0.9,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+                ),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'My Posts',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '${myPosts.length} posts',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Posts list
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  itemCount: myPosts.length,
+                  itemBuilder: (context, index) {
+                    return _buildPostCardFromModel(myPosts[index], feedRepo);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load posts: $e')),
+        );
+      }
+    }
+  }
+
+  void _showPostMoreMenu(BuildContext context, PostModel post, FeedRepository feedRepo) {
+    final uid = currentUserId;
+    final isOwnPost = post.authorId == uid;
+    
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        margin: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Drag indicator
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 8),
+              
+              // Delete option (only for own posts)
+              if (isOwnPost)
+                ListTile(
+                  leading: const Icon(Icons.delete_outline, color: Colors.black),
+                  title: const Text('Delete', style: TextStyle(color: Colors.black)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _onDeletePost(context, post);
+                  },
+                ),
+              
+              // Save option
+              ListTile(
+                leading: const Icon(Icons.bookmark_outline, color: Colors.black),
+                title: const Text('Save', style: TextStyle(color: Colors.black)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Saved to your saved posts')),
+                    );
+                  }
+                },
+              ),
+              
+              // Report option
+              ListTile(
+                leading: Icon(Icons.outlined_flag, color: Colors.red.shade600),
+                title: Text('Report', style: TextStyle(color: Colors.red.shade600)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _onReportPost(context, post);
+                },
+              ),
+              
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
@@ -817,17 +1085,518 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     }
   }
 
-  Widget _buildInteractionButton(IconData icon, VoidCallback onTap) {
-    return Material(
-      color: Colors.black54,
-      shape: const CircleBorder(),
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const CircleBorder(),
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Icon(icon, color: Colors.white, size: 24),
+  Future<void> _onDeletePost(BuildContext context, PostModel post) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete post?'),
+        content: const Text('This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    
+    if (confirm != true || !context.mounted) return;
+    
+    try {
+      final postRepo = ref.read(postRepositoryProvider);
+      await postRepo.deletePost(post.id);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Post deleted')),
+        );
+        // Remove from local list and refresh feed
+        setState(() {
+          _allPosts.removeWhere((p) => p.id == post.id);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete: $e')),
+        );
+      }
+    }
+  }
+
+}
+
+/// Wrapper for PostCardText that manages like state
+class _PostCardWrapper extends StatefulWidget {
+  final PostModel post;
+  final FeedRepository feedRepo;
+  final VoidCallback onComment;
+  final VoidCallback onShare;
+  final VoidCallback onMore;
+
+  const _PostCardWrapper({
+    super.key,
+    required this.post,
+    required this.feedRepo,
+    required this.onComment,
+    required this.onShare,
+    required this.onMore,
+  });
+
+  @override
+  State<_PostCardWrapper> createState() => _PostCardWrapperState();
+}
+
+class _PostCardWrapperState extends State<_PostCardWrapper> {
+  bool _isLiked = false;
+  bool _isCheckingLike = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLikeStatus();
+  }
+
+  Future<void> _checkLikeStatus() async {
+    try {
+      final isLiked = await widget.feedRepo.getLikeStatus(widget.post.id);
+      if (mounted) {
+        setState(() {
+          _isLiked = isLiked;
+          _isCheckingLike = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to check like status: $e');
+      if (mounted) {
+        setState(() => _isCheckingLike = false);
+      }
+    }
+  }
+
+  Future<void> _handleLike() async {
+    final wasLiked = _isLiked;
+
+    // Optimistic update
+    setState(() => _isLiked = !wasLiked);
+
+    try {
+      if (wasLiked) {
+        await widget.feedRepo.unlikePost(widget.post.id);
+      } else {
+        await widget.feedRepo.likePost(widget.post.id);
+      }
+    } catch (e) {
+      // Revert on error
+      if (mounted) {
+        setState(() => _isLiked = wasLiked);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to ${wasLiked ? 'unlike' : 'like'} post'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isCheckingLike) {
+      // Show placeholder while checking like status
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        height: 200,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 20,
+              spreadRadius: 0,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
+        child: const Center(
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+
+    // Use PostCardText for text-only posts, _PostCard for image/video posts
+    final hasMedia = widget.post.type == PostType.image || widget.post.type == PostType.video;
+    
+    if (hasMedia) {
+      // Use the old _PostCard widget which has image/video support
+      return _PostCard(
+        post: widget.post,
+        feedRepo: widget.feedRepo,
+        onLike: _handleLike,
+        onComment: widget.onComment,
+        onShare: widget.onShare,
+        onMore: widget.onMore,
+      );
+    }
+
+    // Use PostCardText for text posts (matches Figma design)
+    return PostCardText(
+      post: widget.post,
+      isLiked: _isLiked,
+      onLike: _handleLike,
+      onComment: widget.onComment,
+      onRepost: widget.onShare,
+      onMore: widget.onMore,
+    );
+  }
+}
+
+/// Old post card widget - DEPRECATED, kept for reference
+class _PostCard extends StatefulWidget {
+  final PostModel post;
+  final FeedRepository feedRepo;
+  final VoidCallback onLike;
+  final VoidCallback onComment;
+  final VoidCallback onShare;
+  final VoidCallback onMore;
+
+  const _PostCard({
+    super.key,
+    required this.post,
+    required this.feedRepo,
+    required this.onLike,
+    required this.onComment,
+    required this.onShare,
+    required this.onMore,
+  });
+
+  @override
+  State<_PostCard> createState() => _PostCardState();
+}
+
+class _PostCardState extends State<_PostCard> {
+  bool? _isLiked;
+  int? _localLikesCount;
+  bool _isLiking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLikeStatus();
+  }
+
+  Future<void> _checkLikeStatus() async {
+    try {
+      final isLiked = await widget.feedRepo.getLikeStatus(widget.post.id);
+      if (mounted) {
+        setState(() {
+          _isLiked = isLiked;
+        });
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to check like status: $e');
+    }
+  }
+
+  Future<void> _toggleLike() async {
+    if (_isLiking) return;
+
+    setState(() => _isLiking = true);
+
+    final wasLiked = _isLiked ?? false;
+    final currentCount = _localLikesCount ?? widget.post.likesCount;
+
+    // Optimistic update
+    setState(() {
+      _isLiked = !wasLiked;
+      _localLikesCount = wasLiked ? currentCount - 1 : currentCount + 1;
+    });
+
+    try {
+      if (wasLiked) {
+        await widget.feedRepo.unlikePost(widget.post.id);
+      } else {
+        await widget.feedRepo.likePost(widget.post.id);
+      }
+      
+      if (mounted) {
+        setState(() => _isLiking = false);
+      }
+    } catch (e) {
+      // Revert on error
+      if (mounted) {
+        setState(() {
+          _isLiked = wasLiked;
+          _localLikesCount = currentCount;
+          _isLiking = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to ${wasLiked ? 'unlike' : 'like'} post'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  String _getTimeAgo() {
+    final now = DateTime.now();
+    final postTime = widget.post.createdAt;
+    final diff = now.difference(postTime);
+    
+    if (diff.inDays > 0) return '${diff.inDays}d';
+    if (diff.inHours > 0) return '${diff.inHours}h';
+    if (diff.inMinutes > 0) return '${diff.inMinutes}m';
+    return 'now';
+  }
+
+  String _extractUsername() {
+    // Extract username from author name (e.g., "Jawaher @jawaherabdelhamid")
+    final name = widget.post.authorName;
+    final atIndex = name.indexOf('@');
+    if (atIndex != -1 && atIndex < name.length - 1) {
+      return name.substring(atIndex);
+    }
+    return '@${name.toLowerCase().replaceAll(' ', '')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final rawMediaUrl = widget.post.mediaUrl;
+    final isPdfOrDocument = rawMediaUrl != null &&
+        (rawMediaUrl.toLowerCase().endsWith('.pdf') || rawMediaUrl.contains('/documents/'));
+    final mediaUrl = (rawMediaUrl != null && rawMediaUrl.isNotEmpty && !isPdfOrDocument)
+        ? rawMediaUrl
+        : null;
+    final hasImage = widget.post.type == PostType.image && mediaUrl != null;
+    final hasVideo = widget.post.type == PostType.video && mediaUrl != null;
+    final hasMedia = hasImage || hasVideo;
+
+    final rawAvatar = widget.post.authorPhotoUrl;
+    final authorAvatar = (rawAvatar != null &&
+            rawAvatar.isNotEmpty &&
+            !rawAvatar.toLowerCase().endsWith('.pdf') &&
+            !rawAvatar.contains('/documents/'))
+        ? rawAvatar
+        : null;
+    final authorName = widget.post.authorName;
+    final text = widget.post.text ?? '';
+    final likesCount = _localLikesCount ?? widget.post.likesCount;
+    final commentsCount = widget.post.commentsCount;
+    final shareCount = widget.post.sharesCount;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20.0),
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(0),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Author info row
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: Colors.grey.shade200,
+                backgroundImage: authorAvatar != null ? NetworkImage(authorAvatar) : null,
+                child: authorAvatar == null
+                    ? Icon(Icons.person, size: 20, color: Colors.grey.shade400)
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            authorName,
+                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black87,
+                              height: 1.3,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          _getTimeAgo(),
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.grey.shade500,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _extractUsername(),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.grey.shade500,
+                        height: 1.3,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.more_horiz, color: Colors.grey.shade600, size: 20),
+                onPressed: widget.onMore,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          ),
+          
+          // Post text
+          if (text.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              text,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: Colors.grey.shade800,
+                height: 1.5,
+              ),
+            ),
+          ],
+          
+          // Media (image/video)
+          if (hasMedia) ...[
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                constraints: const BoxConstraints(maxHeight: 400),
+                width: double.infinity,
+                color: Colors.grey.shade100,
+                child: mediaUrl != null && mediaUrl.isNotEmpty
+                    ? (mediaUrl.startsWith('assets/')
+                        ? Image.asset(
+                            mediaUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const Center(
+                                child: Icon(Icons.image, size: 48, color: Colors.grey)),
+                          )
+                        : Image.network(
+                            mediaUrl,
+                            fit: BoxFit.cover,
+                            cacheWidth: 800, // Optimize memory usage
+                            loadingBuilder: (_, child, progress) {
+                              if (progress == null) return child;
+                              return const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(32),
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              );
+                            },
+                            errorBuilder: (_, error, __) {
+                              debugPrint('❌ Feed image load failed: $mediaUrl — $error');
+                              return Center(
+                                child: Icon(Icons.broken_image, size: 48, color: Colors.grey.shade300),
+                              );
+                            },
+                          ))
+                    : (hasVideo
+                        ? Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Container(
+                                height: 300,
+                                color: Colors.grey.shade200,
+                              ),
+                              Icon(Icons.play_circle_outline, size: 64, color: Colors.grey.shade600),
+                            ],
+                          )
+                        : Center(child: Icon(Icons.image, size: 48, color: Colors.grey.shade300))),
+              ),
+            ),
+          ],
+          
+          // Action buttons
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _ActionButton(
+                icon: (_isLiked ?? false) ? Icons.favorite : Icons.favorite_border,
+                iconColor: (_isLiked ?? false) ? Colors.red : null,
+                count: likesCount,
+                onTap: _toggleLike,
+              ),
+              const SizedBox(width: 20),
+              _ActionButton(
+                icon: Icons.chat_bubble_outline,
+                count: commentsCount,
+                onTap: widget.onComment,
+              ),
+              const SizedBox(width: 20),
+              _ActionButton(
+                icon: Icons.repeat,
+                count: shareCount,
+                onTap: widget.onShare,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Action button widget for post interactions (like, comment, share)
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final Color? iconColor;
+  final int count;
+  final VoidCallback onTap;
+
+  const _ActionButton({
+    required this.icon,
+    this.iconColor,
+    required this.count,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final defaultColor = Colors.grey.shade600;
+    final color = iconColor ?? defaultColor;
+    
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 20, color: color),
+          const SizedBox(width: 6),
+          Text(
+            '$count',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: defaultColor,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -835,120 +1604,399 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
 
 class _PollCardContent extends ConsumerStatefulWidget {
   final PostModel post;
-  final PostRepository postRepo;
+  final FeedRepository feedRepo;
 
-  const _PollCardContent({required this.post, required this.postRepo});
+  const _PollCardContent({required this.post, required this.feedRepo});
 
   @override
   ConsumerState<_PollCardContent> createState() => _PollCardContentState();
 }
 
 class _PollCardContentState extends ConsumerState<_PollCardContent> {
-  int? _votedOptionIndex;
+  bool _hasVoted = false;
   bool _isVoting = false;
+  bool _isLoadingResults = true;
+  PollData? _updatedPollData;
 
   @override
   void initState() {
     super.initState();
-    _loadVote();
+    _loadPollResults();
   }
 
-  Future<void> _loadVote() async {
-    final userId = currentUserId;
-    if (userId.isEmpty) return;
-    final option = await widget.postRepo.getUserVote(widget.post.id, userId);
-    if (mounted) setState(() => _votedOptionIndex = option);
+  Future<void> _loadPollResults() async {
+    try {
+      setState(() => _isLoadingResults = true);
+      
+      // First, check locally from poll data if available
+      final poll = widget.post.poll;
+      if (poll != null && poll.votedUsers.isNotEmpty) {
+        // Get current user ID from storage
+        final userId = await StorageService.getString(AppConstants.keyUserId);
+        final hasVoted = userId != null && poll.votedUsers.contains(userId);
+        
+        if (mounted) {
+          setState(() {
+            _hasVoted = hasVoted;
+            _isLoadingResults = false;
+          });
+        }
+        return;
+      }
+      
+      // Fallback: Try to get from backend if votedUsers is empty
+      // (This will fail if backend endpoint is not implemented, which is OK)
+      try {
+        final pollData = await widget.feedRepo.getPollResults(widget.post.id);
+        
+        if (mounted && pollData != null) {
+          final userVoted = pollData['userVoted'] == true;
+          
+          // Parse updated poll data if available
+          if (userVoted) {
+            final options = (pollData['options'] as List<dynamic>?)?.asMap().entries.map((entry) {
+              final opt = entry.value as Map<String, dynamic>;
+              return PollOption(
+                text: opt['text']?.toString() ?? '',
+                index: entry.key,
+                count: (opt['votes'] ?? 0) as int,
+              );
+            }).toList() ?? [];
+            
+            _updatedPollData = PollData(
+              question: pollData['question']?.toString() ?? widget.post.poll?.question ?? '',
+              options: options,
+              totalVotes: (pollData['totalVotes'] ?? 0) as int,
+            );
+          }
+          
+          setState(() {
+            _hasVoted = userVoted;
+            _isLoadingResults = false;
+          });
+        } else if (mounted) {
+          setState(() => _isLoadingResults = false);
+        }
+      } catch (e) {
+        // Backend endpoint not available - just use local data
+        debugPrint('⚠️ Poll results endpoint not available, using local data');
+        if (mounted) setState(() => _isLoadingResults = false);
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to load poll results: $e');
+      if (mounted) setState(() => _isLoadingResults = false);
+    }
   }
 
   Future<void> _vote(int optionIndex) async {
-    if (_isVoting || _votedOptionIndex != null) return;
-    final userId = currentUserId;
-    if (userId.isEmpty) return;
+    if (_isVoting || _hasVoted) return;
+    
     setState(() => _isVoting = true);
+    
     try {
-      await widget.postRepo.votePoll(
+      final response = await widget.feedRepo.votePoll(
         postId: widget.post.id,
-        userId: userId,
         optionIndex: optionIndex,
       );
-      if (mounted) setState(() => _votedOptionIndex = optionIndex);
+      
+      // Parse updated poll data from response
+      final pollDataFromResponse = response['poll'] as Map<String, dynamic>?;
+      if (pollDataFromResponse != null) {
+        final options = (pollDataFromResponse['options'] as List<dynamic>?)?.asMap().entries.map((entry) {
+          final opt = entry.value as Map<String, dynamic>;
+          return PollOption(
+            text: opt['text']?.toString() ?? '',
+            index: (opt['index'] ?? entry.key) as int,
+            count: (opt['votes'] ?? 0) as int,
+          );
+        }).toList() ?? [];
+        
+        _updatedPollData = PollData(
+          question: pollDataFromResponse['question']?.toString() ?? widget.post.poll?.question ?? '',
+          options: options,
+          totalVotes: (pollDataFromResponse['totalVotes'] ?? 0) as int,
+        );
+      }
+      
+      if (mounted) {
+        setState(() {
+          _hasVoted = true;
+          _isVoting = false;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Vote recorded!'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     } catch (e) {
-      debugPrint('Poll vote error: $e');
-      if (mounted) setState(() => _isVoting = false);
+      debugPrint('❌ Poll vote error: $e');
+      if (mounted) {
+        setState(() => _isVoting = false);
+        
+        String errorMessage = 'Failed to vote';
+        if (e.toString().contains('Already voted')) {
+          errorMessage = 'You have already voted on this poll';
+        }
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
+  }
+
+  String _getTimeAgo() {
+    final now = DateTime.now();
+    final postTime = widget.post.createdAt;
+    final diff = now.difference(postTime);
+    
+    if (diff.inDays > 0) return '${diff.inDays}d';
+    if (diff.inHours > 0) return '${diff.inHours}h';
+    if (diff.inMinutes > 0) return '${diff.inMinutes}m';
+    return 'now';
+  }
+
+  String _extractUsername() {
+    final name = widget.post.authorName;
+    final atIndex = name.indexOf('@');
+    if (atIndex != -1 && atIndex < name.length - 1) {
+      return name.substring(atIndex);
+    }
+    return '@${name.toLowerCase().replaceAll(' ', '')}';
   }
 
   @override
   Widget build(BuildContext context) {
     final post = widget.post;
-    final poll = post.poll;
+    final poll = _updatedPollData ?? post.poll;
     if (poll == null) return const SizedBox.shrink();
 
     final totalVotes = poll.totalVotes;
-    final hasVoted = _votedOptionIndex != null;
+    final hasVoted = _hasVoted;
+    final rawAvatar = post.authorPhotoUrl;
+    final authorAvatar = (rawAvatar != null &&
+            rawAvatar.isNotEmpty &&
+            !rawAvatar.toLowerCase().endsWith('.pdf') &&
+            !rawAvatar.contains('/documents/'))
+        ? rawAvatar
+        : null;
+
+    // Show loading while checking poll status
+    if (_isLoadingResults) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Author row
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: Colors.grey.shade200,
+                backgroundImage: authorAvatar != null ? NetworkImage(authorAvatar) : null,
+                child: authorAvatar == null
+                    ? Icon(Icons.person, size: 20, color: Colors.grey.shade400)
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      post.authorName,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    Text(
+                      _extractUsername(),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        const SizedBox(height: 12),
+        Text(
+          poll.question,
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            color: Colors.grey.shade800,
+            height: 1.5,
+          ),
+        ),
+          const SizedBox(height: 16),
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(20.0),
+              child: CircularProgressIndicator(),
+            ),
+          ),
+        ],
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Author row
         Row(
           children: [
             CircleAvatar(
-              radius: 16,
-              backgroundColor: Colors.grey.shade300,
-              child: const Icon(Icons.person, size: 20, color: Colors.grey),
+              radius: 20,
+              backgroundColor: Colors.grey.shade200,
+              backgroundImage: authorAvatar != null ? NetworkImage(authorAvatar) : null,
+              child: authorAvatar == null
+                  ? Icon(Icons.person, size: 20, color: Colors.grey.shade400)
+                  : null,
             ),
-            const SizedBox(width: 8),
-            Text(
-              post.authorName,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Text(
-          poll.question,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-        ),
-        const SizedBox(height: 12),
-        if (hasVoted)
-          ...poll.options.asMap().entries.map((e) {
-            final count = e.value.count;
-            final pct = totalVotes > 0 ? (count / totalVotes) : 0.0;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
+            const SizedBox(width: 12),
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(e.value.text, style: const TextStyle(fontSize: 14)),
-                      Text('$count', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                      Flexible(
+                        child: Text(
+                          post.authorName,
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black87,
+                            height: 1.3,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _getTimeAgo(),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.grey.shade500,
+                          height: 1.3,
+                        ),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  LinearProgressIndicator(
-                    value: pct,
-                    backgroundColor: Colors.grey.shade200,
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF6A1A5D)),
+                  const SizedBox(height: 2),
+                  Text(
+                    _extractUsername(),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.grey.shade500,
+                      height: 1.3,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
-            );
-          }),
-        if (!hasVoted)
-          ...poll.options.asMap().entries.map((e) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
-              child: SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: _isVoting ? null : () => _vote(e.key),
-                  child: Text(e.value.text),
-                ),
-              ),
-            );
-          }),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        
+        // Poll question
+        Text(
+          poll.question,
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            color: Colors.grey.shade800,
+            height: 1.5,
+          ),
+        ),
+        const SizedBox(height: 16),
+        
+        // Poll options
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF5F5F7),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: [
+              if (hasVoted)
+                ...poll.options.asMap().entries.map((e) {
+                  final count = e.value.count;
+                  final pct = totalVotes > 0 ? (count / totalVotes) : 0.0;
+                  final pctText = '${(pct * 100).round()}%';
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                e.value.text,
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: Colors.grey.shade700,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              pctText,
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Colors.grey.shade600,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: pct,
+                            backgroundColor: Colors.white,
+                            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF6A1A5D)),
+                            minHeight: 6,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              if (!hasVoted)
+                ...poll.options.asMap().entries.map((e) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: _isVoting ? null : () => _vote(e.key),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                          side: BorderSide(color: Colors.grey.shade300),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          backgroundColor: Colors.white,
+                        ),
+                        child: Text(
+                          e.value.text,
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.grey.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+            ],
+          ),
+        ),
       ],
     );
   }

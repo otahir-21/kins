@@ -47,17 +47,22 @@ class InterestState {
 class InterestNotifier extends StateNotifier<InterestState> {
   final InterestRepository _repository;
 
-  InterestNotifier(this._repository) : super(InterestState()) {
-    loadInterests();
-  }
+  InterestNotifier(this._repository) : super(InterestState());
 
-  Future<void> loadInterests() async {
+  /// Load master list from GET /interests and, when [userId] is set, user's selection from GET /me/interests.
+  Future<void> loadInterests([String? userId]) async {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
       final interests = await _repository.getInterests();
+      Set<String> selected = state.selectedInterestIds;
+      if (userId != null && userId.isNotEmpty) {
+        final ids = await _repository.getUserInterests(userId);
+        selected = ids.toSet();
+      }
       state = state.copyWith(
         interests: interests,
+        selectedInterestIds: selected,
         isLoading: false,
       );
     } catch (e) {

@@ -4,11 +4,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
-import 'package:kins_app/core/constants/app_constants.dart';
+import 'package:kins_app/core/network/backend_api_client.dart';
 import 'package:kins_app/providers/auth_provider.dart';
-import 'package:kins_app/repositories/user_details_repository.dart';
+import 'package:kins_app/services/auth_flow_service.dart';
+import 'package:kins_app/services/backend_auth_service.dart';
 
-import '../../widgets/kins_logo.dart';
+import '../../widgets/app_card.dart';
+import '../../widgets/auth_flow_layout.dart';
+import '../../widgets/primary_button.dart';
+
+bool _isServerUnavailable(String message) {
+  final lower = message.toLowerCase();
+  return lower.contains('timed out') ||
+      lower.contains('buffering') ||
+      lower.contains('econnrefused') ||
+      lower.contains('connection');
+}
 
 class OtpVerificationScreen extends ConsumerStatefulWidget {
   final String phoneNumber;
@@ -26,7 +37,6 @@ class OtpVerificationScreen extends ConsumerStatefulWidget {
 class _OtpVerificationScreenState
     extends ConsumerState<OtpVerificationScreen> {
   final _otpController = TextEditingController();
-  final _userDetailsRepository = UserDetailsRepository();
   bool _isDisposed = false;
   bool _isCheckingUser = false;
   int _resendCooldownSeconds = 60;
@@ -89,55 +99,31 @@ class _OtpVerificationScreenState
     debugPrint('✅ OTP verified, user: ${authState.user!.uid}');
 
     try {
-      await _userDetailsRepository.savePhoneNumber(
-        userId: authState.user!.uid,
+      final result = await BackendAuthService.login(
+        provider: 'phone',
+        providerUserId: authState.user!.uid,
         phoneNumber: widget.phoneNumber,
       );
-    } catch (e) {
-      debugPrint('⚠️ Failed to save phone number: $e');
-    }
-
-    await _checkUserAndNavigate(widget.phoneNumber);
-  }
-
-  Future<void> _checkUserAndNavigate(String phoneNumber) async {
-    try {
-      debugPrint('🔍 Checking user status for: $phoneNumber');
-      
-      final profileStatus = await _userDetailsRepository.checkUserByPhoneNumber(phoneNumber);
-      
       if (!mounted || _isDisposed) return;
-
-      setState(() {
-        _isCheckingUser = false;
-      });
-
-      // Navigate based on profile status
-      if (!profileStatus.exists || profileStatus.needsProfile) {
-        // New user or missing profile details -> Profile Details Screen
-        debugPrint('📝 Navigating to Profile Details Screen');
-        context.go(AppConstants.routeUserDetails);
-      } else if (profileStatus.needsInterests) {
-        // Has profile but missing interests -> Interest Screen
-        debugPrint('🎯 Navigating to Interest Screen');
-        context.go(AppConstants.routeInterests);
-      } else if (profileStatus.isComplete) {
-        // Complete profile -> Feed (default tab)
-        debugPrint('🏠 Navigating to Feed');
-        context.go(AppConstants.routeDiscover);
-      } else {
-        // Fallback: go to profile details
-        debugPrint('⚠️ Unknown status, navigating to Profile Details');
-        context.go(AppConstants.routeUserDetails);
-      }
+      setState(() => _isCheckingUser = false);
+      AuthFlowService.navigateAfterAuth(context, profileStatus: result.profileStatus);
     } catch (e) {
-      debugPrint('❌ Error checking user status: $e');
+      debugPrint('❌ Backend login failed: $e');
       if (mounted && !_isDisposed) {
-        setState(() {
-          _isCheckingUser = false;
-        });
-        // On error, navigate to profile details as fallback
-        context.go(AppConstants.routeUserDetails);
+        setState(() => _isCheckingUser = false);
+        final msg = e is BackendApiException
+            ? e.message
+            : (e is Exception ? e.toString().replaceFirst('Exception: ', '') : e.toString());
+        final friendly = _isServerUnavailable(msg)
+            ? 'Server is temporarily unavailable. Please try again in a moment.'
+            : msg;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(friendly),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
       }
     }
   }
@@ -211,29 +197,22 @@ class _OtpVerificationScreenState
           onPressed: () => context.pop(),
         ),
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            const KinsLogo(),
-            Expanded(
+      body: AuthFlowLayout(
+        children: [
+          Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                child: Container(
-                  width: double.infinity,
-                  constraints: const BoxConstraints(maxWidth: 400),
+                child: AppCard(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(40),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.06),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                        spreadRadius: 0,
-                      ),
-                    ],
-                  ),
+                  constraints: const BoxConstraints(maxWidth: 400),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                      spreadRadius: 0,
+                    ),
+                  ],
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -302,39 +281,21 @@ class _OtpVerificationScreenState
                           ),
                         )
                       else
-                        SizedBox(
-                          height: 52,
-                          child: ElevatedButton(
-                            onPressed: (_isDisposed || !mounted)
-                                ? null
-                                : canContinue
-                                ? () {
-                              if (mounted && !_isDisposed) {
-                                try {
-                                  final otp = _otpController.text;
-                                  if (otp.length == 6) _verifyOTP(otp);
-                                } catch (e) { /* controller disposed */ }
-                              }
-                            }
-                                : null,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: canContinue ? Colors.black : Colors.grey.shade300,
-                              foregroundColor: canContinue ? Colors.white : Colors.grey.shade600,
-                              disabledBackgroundColor: Colors.grey.shade300,
-                              disabledForegroundColor: Colors.grey.shade600,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(26),
-                              ),
-                            ),
-                            child: Text(
-                              'Continue',
-                              style: textTheme.labelLarge?.copyWith(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: canContinue ? Colors.white : Colors.grey.shade600,
-                              ),
-                            ),
-                          ),
+                        PrimaryButton(
+                          onPressed: (_isDisposed || !mounted)
+                              ? null
+                              : canContinue
+                                  ? () {
+                                      if (mounted && !_isDisposed) {
+                                        try {
+                                          final otp = _otpController.text;
+                                          if (otp.length == 6) _verifyOTP(otp);
+                                        } catch (e) { /* controller disposed */ }
+                                      }
+                                    }
+                                  : null,
+                          isLoading: authState.isLoading || _isCheckingUser,
+                          label: 'Continue',
                         ),
                       const SizedBox(height: 20),
                       Align(
@@ -376,9 +337,8 @@ class _OtpVerificationScreenState
                   ),
                 ),
               ),
-            )
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }

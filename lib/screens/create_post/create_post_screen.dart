@@ -3,11 +3,13 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
+import 'package:kins_app/core/network/backend_api_client.dart';
 import 'package:kins_app/models/post_model.dart';
+import 'package:kins_app/models/interest_model.dart';
 import 'package:kins_app/providers/post_provider.dart';
+import 'package:kins_app/providers/interest_provider.dart';
 import 'package:kins_app/repositories/user_details_repository.dart';
 
 class CreatePostScreen extends ConsumerStatefulWidget {
@@ -30,13 +32,18 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   bool _isPosting = false;
   String? _userName;
   String? _userPhotoUrl;
-  final List<String> _topics = ['IVF', 'Sleep', 'Teething', 'Lorem', 'Pregnancy', 'Newborn', 'Toddler'];
-  final Set<String> _selectedTopics = {};
+  
+  // Interests from MongoDB backend
+  List<InterestModel> _allInterests = [];
+  Set<String> _userInterestIds = {};
+  final Set<String> _selectedInterestIds = {};
+  bool _loadingInterests = true;
 
   @override
   void initState() {
     super.initState();
     _loadUser();
+    _loadInterests();
   }
 
   @override
@@ -52,15 +59,62 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   Future<void> _loadUser() async {
     final uid = currentUserId;
     if (uid.isEmpty) return;
-    final repo = UserDetailsRepository();
-    final details = await repo.getUserDetails(uid);
-    final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-    final data = doc.exists ? doc.data() : null;
-    if (mounted) {
-      setState(() {
-        _userName = details?.name ?? 'User';
-        _userPhotoUrl = data?['profilePictureUrl'] ?? data?['profilePicture'];
-      });
+    
+    try {
+      // Get user details from backend /me API
+      final response = await BackendApiClient.get('/me', useAuth: true);
+      
+      if (response['success'] == true) {
+        final user = response['user'] as Map<String, dynamic>?;
+        if (mounted && user != null) {
+          setState(() {
+            _userName = user['name']?.toString() ?? 'User';
+            _userPhotoUrl = user['profilePictureUrl']?.toString();
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to load user: $e');
+      // Use fallback values
+      if (mounted) {
+        setState(() {
+          _userName = 'User';
+          _userPhotoUrl = null;
+        });
+      }
+    }
+  }
+
+  /// Load all interests and user's interests from MongoDB backend
+  Future<void> _loadInterests() async {
+    try {
+      final uid = currentUserId;
+      final interestRepo = ref.read(interestRepositoryProvider);
+      
+      // Load all interests
+      final interests = await interestRepo.getInterests();
+      
+      // Load user's interests
+      Set<String> userInterests = {};
+      if (uid.isNotEmpty) {
+        final userInterestsList = await interestRepo.getUserInterests(uid);
+        userInterests = userInterestsList.toSet();
+      }
+      
+      if (mounted) {
+        setState(() {
+          _allInterests = interests;
+          _userInterestIds = userInterests;
+          _loadingInterests = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to load interests: $e');
+      if (mounted) {
+        setState(() {
+          _loadingInterests = false;
+        });
+      }
     }
   }
 
@@ -133,6 +187,12 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         return;
       }
     }
+    
+    // Validate at least one interest is selected (required by backend)
+    if (_selectedInterestIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select at least one interest for your post')));
+      return;
+    }
 
     setState(() => _isPosting = true);
 
@@ -159,12 +219,13 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         mediaFile: _mediaFile,
         isVideo: _isVideo,
         poll: pollData,
-        topics: _selectedTopics.toList(),
+        topics: _selectedInterestIds.toList(),
       );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Post created')));
-        context.go(AppConstants.routeDiscover);
+        // Pop back to discover screen so it can refresh
+        context.pop(true); // Return true to indicate success
       }
     } catch (e) {
       if (mounted) {
@@ -322,26 +383,94 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
             const SizedBox(height: 24),
             const Text('Topics (optional)', style: TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _topics.map((t) {
-                final selected = _selectedTopics.contains(t);
-                return FilterChip(
-                  label: Text(t),
-                  selected: selected,
-                  onSelected: (v) {
-                    setState(() {
-                      if (v == true) _selectedTopics.add(t);
-                      else _selectedTopics.remove(t);
-                    });
-                  },
-                );
-              }).toList(),
-            ),
+            _loadingInterests
+                ? const Center(child: CircularProgressIndicator())
+                : _buildInterestsSection(),
           ],
         ),
       ),
+    );
+  }
+
+  /// Build interests section with user's interests first
+  Widget _buildInterestsSection() {
+    if (_allInterests.isEmpty) {
+      return const Text(
+        'No interests available. Please add interests from your profile.',
+        style: TextStyle(color: Colors.grey),
+      );
+    }
+
+    // Sort interests: user's interests first, then others alphabetically
+    final sortedInterests = [..._allInterests];
+    sortedInterests.sort((a, b) {
+      final aIsUserInterest = _userInterestIds.contains(a.id);
+      final bIsUserInterest = _userInterestIds.contains(b.id);
+      
+      if (aIsUserInterest && !bIsUserInterest) return -1;
+      if (!aIsUserInterest && bIsUserInterest) return 1;
+      return a.name.compareTo(b.name);
+    });
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Show user's interests count if any
+        if (_userInterestIds.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8.0),
+            child: Text(
+              'Your interests (${_userInterestIds.length})',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        
+        // Interest chips
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: sortedInterests.map((interest) {
+            final selected = _selectedInterestIds.contains(interest.id);
+            final isUserInterest = _userInterestIds.contains(interest.id);
+            
+            return FilterChip(
+              label: Text(interest.name),
+              selected: selected,
+              avatar: isUserInterest 
+                  ? Icon(
+                      Icons.star,
+                      size: 16,
+                      color: selected ? Colors.white : const Color(0xFF6A1A5D),
+                    )
+                  : null,
+              selectedColor: const Color(0xFF6A1A5D).withOpacity(0.3),
+              checkmarkColor: const Color(0xFF6A1A5D),
+              backgroundColor: isUserInterest 
+                  ? const Color(0xFF6A1A5D).withOpacity(0.05)
+                  : null,
+              side: isUserInterest
+                  ? BorderSide(
+                      color: const Color(0xFF6A1A5D).withOpacity(0.2),
+                      width: 1,
+                    )
+                  : null,
+              onSelected: (v) {
+                setState(() {
+                  if (v == true) {
+                    _selectedInterestIds.add(interest.id);
+                  } else {
+                    _selectedInterestIds.remove(interest.id);
+                  }
+                });
+              },
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 
