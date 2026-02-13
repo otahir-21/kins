@@ -1,31 +1,24 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:kins_app/repositories/follow_repository.dart';
+import 'package:kins_app/services/follow_service.dart';
+
+export 'package:kins_app/services/follow_service.dart' show FollowUserInfo, FollowStatusResponse, FollowListResponse;
 
 final followRepositoryProvider = Provider<FollowRepository>((ref) {
   return FollowRepository();
 });
 
-/// Stream follower count for current user (for profile).
-final myFollowerCountStreamProvider = StreamProvider<int>((ref) {
-  final uid = currentUserId;
-  if (uid.isEmpty) return Stream.value(0);
-  return ref.watch(followRepositoryProvider).streamFollowerCount(uid);
+/// Follower count for current user (from GET /me, not a separate call).
+/// Use Profile screen's _fetchUser which gets counts from /me.
+
+/// Followers list for a user (paginated). Param: userId.
+final followersListProvider = FutureProvider.autoDispose.family<FollowListResponse, String>((ref, userId) async {
+  final repo = ref.watch(followRepositoryProvider);
+  return repo.getFollowers(userId, page: 1, limit: 50);
 });
 
-/// Stream following count for current user (for profile).
-final myFollowingCountStreamProvider = StreamProvider<int>((ref) {
-  final uid = currentUserId;
-  if (uid.isEmpty) return Stream.value(0);
-  return ref.watch(followRepositoryProvider).streamFollowingCount(uid);
-});
-
-/// Stream followers list for a user (param: userId).
-final followersListStreamProvider = StreamProvider.autoDispose.family<List<FollowUserInfo>, String>((ref, userId) {
-  return ref.watch(followRepositoryProvider).streamFollowers(userId);
-});
-
-/// Stream following list for a user (param: userId).
-final followingListStreamProvider = StreamProvider.autoDispose.family<List<FollowUserInfo>, String>((ref, userId) {
-  return ref.watch(followRepositoryProvider).streamFollowing(userId);
+/// Following list for a user (paginated). Param: userId.
+final followingListProvider = FutureProvider.autoDispose.family<FollowListResponse, String>((ref, userId) async {
+  final repo = ref.watch(followRepositoryProvider);
+  return repo.getFollowing(userId, page: 1, limit: 50);
 });

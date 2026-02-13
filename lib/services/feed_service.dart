@@ -129,7 +129,7 @@ class FeedService {
     PollData? pollData;
     final pollJson = json['poll'] as Map<String, dynamic>?;
     if (pollJson != null) {
-      final question = pollJson['question']?.toString() ?? '';
+      final question = pollJson['question']?.toString() ?? pollJson['content']?.toString() ?? '';
       final optionsList = pollJson['options'] as List<dynamic>? ?? [];
       final options = optionsList.asMap().entries.map((entry) {
         final opt = entry.value as Map<String, dynamic>;
@@ -247,6 +247,62 @@ class FeedService {
     // Return -1 to indicate user voted but we don't know which option
     // Backend doesn't track specific option per user (limitation)
     return -1;
+  }
+
+  /// Get posts by user ID (user's original posts)
+  /// 
+  /// Endpoint: GET /posts?userId=userId
+  static Future<List<PostModel>> getPostsByUserId({
+    required String userId,
+    int page = 1,
+    int limit = 50,
+  }) async {
+    try {
+      debugPrint('🔵 GET /posts?userId=$userId&page=$page&limit=$limit');
+      final response = await BackendApiClient.get(
+        '/posts?userId=$userId&page=$page&limit=$limit',
+        useAuth: true,
+      );
+      if (response['success'] != true) {
+        return [];
+      }
+      final posts = response['posts'] as List<dynamic>?;
+      if (posts == null || posts.isEmpty) return [];
+      return posts
+          .map((json) => _parseFeedPost(json as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      debugPrint('❌ FeedService.getPostsByUserId error: $e');
+      return [];
+    }
+  }
+
+  /// Get posts reposted by user
+  /// 
+  /// Endpoint: GET /posts?repostedBy=userId
+  static Future<List<PostModel>> getRepostsByUserId({
+    required String userId,
+    int page = 1,
+    int limit = 50,
+  }) async {
+    try {
+      debugPrint('🔵 GET /posts?repostedBy=$userId&page=$page&limit=$limit');
+      final response = await BackendApiClient.get(
+        '/posts?repostedBy=$userId&page=$page&limit=$limit',
+        useAuth: true,
+      );
+      if (response['success'] != true) {
+        return [];
+      }
+      final posts = response['posts'] as List<dynamic>?;
+      if (posts == null || posts.isEmpty) return [];
+      return posts
+          .map((json) => _parseFeedPost(json as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      debugPrint('❌ FeedService.getRepostsByUserId error: $e');
+      return [];
+    }
   }
 
   /// Get user's own posts

@@ -15,6 +15,7 @@ import 'package:kins_app/services/location_service.dart';
 import 'package:kins_app/repositories/location_repository.dart';
 import 'package:kins_app/services/account_deletion_service.dart';
 import 'package:kins_app/widgets/floating_nav_overlay.dart';
+import 'package:kins_app/widgets/skeleton/skeleton_loaders.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -203,7 +204,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: SafeArea(child: SkeletonHome()),
       );
     }
 

@@ -26,6 +26,7 @@ class SettingsMenuScreen extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         children: [
           _buildItem(context, 'Account Settings', Icons.person_outline, () => context.push(AppConstants.routeAccountSettings)),
+          _buildItem(context, 'Edit Profile', Icons.edit_outlined, () => context.push(AppConstants.routeEditProfile)),
           _buildItem(context, 'Edit tags', Icons.label_outline, () => context.push(AppConstants.routeEditTags)),
           _buildItem(context, 'Favourite', Icons.favorite_border, () => _showComingSoon(context)),
           _buildItem(context, 'FAQ\'s', Icons.help_outline, () => _showComingSoon(context)),

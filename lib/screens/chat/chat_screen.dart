@@ -9,6 +9,7 @@ import 'package:kins_app/models/chat_model.dart';
 import 'package:kins_app/providers/chat_provider.dart';
 import 'package:kins_app/providers/user_details_provider.dart';
 import 'package:kins_app/widgets/floating_nav_overlay.dart';
+import 'package:kins_app/widgets/skeleton/skeleton_loaders.dart';
 
 /// Chat screen with Groups / Chats / Marketplace tabs, search, and list UI
 /// matching the design (header, segmented control, search bar, chat list, FAB, bottom nav).
@@ -208,7 +209,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           },
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const SkeletonChatList(),
       error: (e, st) {
         debugPrint('Chat list error: $e');
         debugPrint('Stack: $st');
@@ -734,14 +735,7 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
                     ),
                   ),
                   child: _isLoading
-                      ? const SizedBox(
-                          height: 24,
-                          width: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
+                      ? const SkeletonInline(size: 24)
                       : const Text('Start chat'),
                 ),
               ),

@@ -98,6 +98,31 @@ class UserDetailsRepository {
     }
   }
 
+  /// Get raw /me response for edit profile. Returns user map or empty.
+  Future<Map<String, dynamic>> getMeRaw() async {
+    try {
+      final me = await BackendApiClient.get('/me');
+      final user = me['user'];
+      if (user is! Map<String, dynamic>) return <String, dynamic>{};
+      return Map<String, dynamic>.from(user);
+    } catch (e) {
+      debugPrint('❌ Failed to get /me: $e');
+      rethrow;
+    }
+  }
+
+  /// Partial update via PUT /me/about. Sends only the fields provided in [body].
+  Future<void> updateProfilePartial(Map<String, dynamic> body) async {
+    if (body.isEmpty) return;
+    try {
+      await BackendApiClient.put('/me/about', body: body);
+      debugPrint('✅ Profile updated via PUT /me/about');
+    } catch (e) {
+      debugPrint('❌ Failed to update profile: $e');
+      rethrow;
+    }
+  }
+
   static UserModel? _userModelFromMe(Map<String, dynamic>? me) {
     if (me == null) return null;
     final id = me['id'] ?? me['_id'];

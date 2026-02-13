@@ -5,6 +5,7 @@ import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:kins_app/models/notification_model.dart';
 import 'package:kins_app/providers/notification_provider.dart';
 import 'package:intl/intl.dart';
+import 'package:kins_app/widgets/skeleton/skeleton_loaders.dart';
 
 class NotificationsScreen extends ConsumerWidget {
   const NotificationsScreen({super.key});
@@ -44,7 +45,7 @@ class NotificationsScreen extends ConsumerWidget {
         ),
       ),
       body: notificationsState.isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const SkeletonNotificationList()
           : groupedNotifications.isEmpty
               ? _buildEmptyState()
               : _buildNotificationsList(context, ref, uid, groupedNotifications),

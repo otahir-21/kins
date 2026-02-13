@@ -7,6 +7,7 @@ import 'package:kins_app/providers/chat_provider.dart';
 import 'package:kins_app/repositories/chat_repository.dart';
 import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:intl/intl.dart';
+import 'package:kins_app/widgets/skeleton/skeleton_loaders.dart';
 
 /// WhatsApp-like conversation screen: bubbles, time, delivery/seen ticks.
 class ConversationScreen extends ConsumerStatefulWidget {
@@ -139,7 +140,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
               stream: _chatRepo.streamMessages(widget.chatId),
               builder: (context, msgSnap) {
                 if (!msgSnap.hasData) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const SkeletonCommentList(itemCount: 4);
                 }
                 final messages = msgSnap.data!;
                 if (messages.isEmpty) {
@@ -248,11 +249,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
                 shape: BoxShape.circle,
               ),
               child: _isSending
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
+                  ? const SkeletonInline(size: 24)
                   : const Icon(Icons.send_rounded, color: Colors.white, size: 24),
             ),
           ),

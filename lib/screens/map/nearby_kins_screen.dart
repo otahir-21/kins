@@ -7,6 +7,7 @@ import 'package:kins_app/models/kin_location_model.dart';
 import 'package:kins_app/repositories/location_repository.dart';
 import 'package:kins_app/services/location_service.dart';
 import 'package:kins_app/providers/user_details_provider.dart';
+import 'package:kins_app/widgets/skeleton/skeleton_loaders.dart';
 import 'dart:async';
 
 class NearbyKinsScreen extends ConsumerStatefulWidget {
@@ -175,7 +176,7 @@ class _NearbyKinsScreenState extends ConsumerState<NearbyKinsScreen> {
         children: [
           // Map
           if (_isLoading)
-            const Center(child: CircularProgressIndicator())
+            const SkeletonMapList()
           else if (_locationError != null)
             Center(
               child: Padding(

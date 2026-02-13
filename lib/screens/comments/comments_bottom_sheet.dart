@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kins_app/models/comment_model.dart';
+import 'package:kins_app/widgets/skeleton/skeleton_loaders.dart';
 import 'package:kins_app/models/post_model.dart';
 import 'package:kins_app/repositories/feed_repository.dart';
 
@@ -251,11 +252,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                   const SizedBox(width: 8),
                   IconButton(
                     icon: _isSubmitting
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
+                        ? const SkeletonInline(size: 20)
                         : const Icon(Icons.send),
                     onPressed: _isSubmitting ? null : _submitComment,
                     color: const Color(0xFF7C3AED),
@@ -271,7 +268,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
 
   Widget _buildCommentsList() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonCommentList();
     }
 
     if (_error != null) {
@@ -557,11 +554,7 @@ class _CommentItemState extends State<_CommentItem> {
         if (_loadingReplies)
           const Padding(
             padding: EdgeInsets.only(left: 48, bottom: 12),
-            child: SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
+            child: const SkeletonInline(size: 20),
           ),
       ],
     );

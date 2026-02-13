@@ -42,6 +42,7 @@ class AppConstants {
   /// Path for 1:1 conversation; use [chatConversationPath(chatId)] to build.
   static String chatConversationPath(String chatId) => '/chat/$chatId';
   static const String routeProfile = '/profile';
+  static const String routeEditProfile = '/edit-profile';
   static const String routeSettings = '/settings';
   static const String routeAccountSettings = '/account-settings';
   static const String routeEditTags = '/edit-tags';

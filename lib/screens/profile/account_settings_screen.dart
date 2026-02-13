@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:kins_app/repositories/location_repository.dart';
+import 'package:kins_app/widgets/skeleton/skeleton_loaders.dart';
 
 /// Account settings: location visibility toggle (and more later).
 class AccountSettingsScreen extends ConsumerStatefulWidget {
@@ -56,7 +57,7 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
         title: const Text('Account Settings', style: TextStyle(color: Colors.black)),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const SkeletonSettings()
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [

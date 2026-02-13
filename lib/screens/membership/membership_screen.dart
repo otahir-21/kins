@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/providers/user_details_provider.dart';
 import 'package:kins_app/widgets/floating_nav_overlay.dart';
+import 'package:kins_app/widgets/skeleton/skeleton_loaders.dart';
 
 /// Single membership screen: shows "Join Our Premium Community" (non-member)
 /// or "Membership" details + Cancel/Renew + promo (member). Status from Firestore.
@@ -74,7 +75,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
     if (_isLoading) {
       return Scaffold(
         backgroundColor: Colors.white,
-        body: SafeArea(child: Center(child: CircularProgressIndicator(color: Color(0xFF6B4C93)))),
+        body: SafeArea(child: SkeletonSettings()),
       );
     }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kins_app/core/theme/app_design_tokens.dart';
+import 'package:kins_app/widgets/skeleton/skeleton_loaders.dart';
 
 /// Primary action button matching OTP and About you screens: height 52,
 /// radius 26, black when enabled, grey when disabled, optional loading state.
@@ -21,7 +22,6 @@ class PrimaryButton extends StatelessWidget {
   static const double _height = AppDesignTokens.primaryButtonHeight;
   static const double _borderRadius = AppDesignTokens.primaryButtonBorderRadius;
   static const double _loaderSize = AppDesignTokens.primaryButtonLoaderSize;
-  static const double _loaderStrokeWidth = AppDesignTokens.primaryButtonLoaderStrokeWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -43,14 +43,7 @@ class PrimaryButton extends StatelessWidget {
           ),
         ),
         child: isLoading
-            ? SizedBox(
-                height: _loaderSize,
-                width: _loaderSize,
-                child: CircularProgressIndicator(
-                  strokeWidth: _loaderStrokeWidth,
-                  color: loadingColor ?? Colors.black,
-                ),
-              )
+            ? SkeletonInline(size: _loaderSize)
             : Text(
                 label,
                 style: textTheme.labelLarge?.copyWith(

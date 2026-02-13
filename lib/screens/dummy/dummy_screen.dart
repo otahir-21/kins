@@ -6,6 +6,7 @@ import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/screens/home/home_screen.dart';
 import 'package:kins_app/repositories/location_repository.dart';
 import 'package:kins_app/widgets/floating_nav_overlay.dart';
+import 'package:kins_app/widgets/skeleton/skeleton_loaders.dart';
 
 class DummyScreen extends StatelessWidget {
   final String title;
@@ -455,7 +456,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const SkeletonSettings()
           : ListView(
               padding: const EdgeInsets.all(16.0),
               children: [

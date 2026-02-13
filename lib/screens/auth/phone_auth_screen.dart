@@ -12,6 +12,7 @@ import 'package:kins_app/services/auth_flow_service.dart';
 import 'package:kins_app/services/backend_auth_service.dart';
 import 'package:kins_app/widgets/auth_flow_layout.dart';
 import 'package:kins_app/widgets/app_card.dart';
+import 'package:kins_app/widgets/skeleton/skeleton_loaders.dart';
 
 class PhoneAuthScreen extends ConsumerStatefulWidget {
   const PhoneAuthScreen({super.key});
@@ -375,11 +376,7 @@ class _SignInCardState extends State<SignInCard> {
                   borderRadius: BorderRadius.circular(30),
                   child: Center(
                     child: widget.isLoading
-                        ? const SizedBox(
-                            height: 24,
-                            width: 24,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          )
+                        ? const SkeletonInline(size: 24)
                         : const Text(
                             "Continue",
                             style: TextStyle(

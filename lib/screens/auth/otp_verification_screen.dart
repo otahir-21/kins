@@ -12,6 +12,7 @@ import 'package:kins_app/services/backend_auth_service.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/auth_flow_layout.dart';
 import '../../widgets/primary_button.dart';
+import '../../widgets/skeleton/skeleton_loaders.dart';
 
 bool _isServerUnavailable(String message) {
   final lower = message.toLowerCase();
@@ -273,11 +274,7 @@ class _OtpVerificationScreenState
                         const Center(
                           child: Padding(
                             padding: EdgeInsets.symmetric(vertical: 12),
-                            child: SizedBox(
-                              height: 24,
-                              width: 24,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
-                            ),
+                            child: SkeletonInline(size: 24),
                           ),
                         )
                       else

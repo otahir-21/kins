@@ -21,6 +21,7 @@ import 'package:kins_app/screens/membership/membership_screen.dart';
 import 'package:kins_app/screens/profile/profile_screen.dart';
 import 'package:kins_app/screens/profile/settings_menu_screen.dart';
 import 'package:kins_app/screens/profile/account_settings_screen.dart';
+import 'package:kins_app/screens/profile/edit_profile_screen.dart';
 import 'package:kins_app/screens/profile/edit_tags_screen.dart';
 import 'package:kins_app/screens/profile/followers_screen.dart';
 import 'package:kins_app/screens/profile/following_screen.dart';
@@ -134,6 +135,11 @@ final appRouter = GoRouter(
       path: AppConstants.routeSettings,
       name: 'settings',
       builder: (context, state) => const SettingsMenuScreen(),
+    ),
+    GoRoute(
+      path: AppConstants.routeEditProfile,
+      name: 'edit-profile',
+      builder: (context, state) => const EditProfileScreen(),
     ),
     GoRoute(
       path: AppConstants.routeAccountSettings,

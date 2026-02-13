@@ -19,9 +19,8 @@ class InterestRepository {
           .where((e) => e is Map)
           .map((e) {
             final m = Map<String, dynamic>.from(e as Map);
-            if (!m.containsKey('id') && m.containsKey('_id')) {
-              m['id'] = m['_id'];
-            }
+            final id = m['_id'] ?? m['id'];
+            m['id'] = id != null ? id.toString() : '';
             return InterestModel.fromMap(m);
           })
           .toList();
@@ -52,12 +51,19 @@ class InterestRepository {
   }
 
   /// Get current user's selected interest IDs from GET /me/interests.
+  /// API may return interests: [{ _id, name }, ...] or interestIds: ["id1", ...].
   Future<List<String>> getUserInterests(String userId) async {
     try {
       final raw = await BackendApiClient.get('/me/interests');
       final list = raw['interests'] ?? raw['interestIds'];
-      if (list is List) return list.map((e) => e.toString()).toList();
-      return [];
+      if (list is! List || list.isEmpty) return [];
+      return list.map((e) {
+        if (e is Map) {
+          final m = Map<String, dynamic>.from(e as Map);
+          return (m['_id'] ?? m['id'])?.toString() ?? '';
+        }
+        return e.toString();
+      }).where((s) => s.isNotEmpty).toList();
     } catch (e) {
       debugPrint('❌ Failed to get user interests: $e');
       return [];

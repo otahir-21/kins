@@ -11,6 +11,7 @@ import 'package:kins_app/models/google_profile_data.dart';
 import 'package:kins_app/widgets/app_card.dart';
 import 'package:kins_app/widgets/auth_flow_layout.dart';
 import 'package:kins_app/widgets/primary_button.dart';
+import 'package:kins_app/widgets/skeleton/skeleton_loaders.dart';
 
 /// "About you" profile screen.
 ///
@@ -426,11 +427,7 @@ class _ThemedTextField extends StatelessWidget {
     if (availabilityLabel != null && !readOnly) {
       switch (availabilityStatus) {
         case _AvailabilityStatus.checking:
-          suffixIcon = SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2, color: colorScheme.primary),
-          );
+          suffixIcon = const SkeletonInline(size: 20);
           helperText = 'Checking...';
           helperColor = colorScheme.onSurfaceVariant;
           break;

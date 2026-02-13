@@ -5,6 +5,7 @@ import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/providers/interest_provider.dart';
 import 'package:kins_app/widgets/app_card.dart';
+import 'package:kins_app/widgets/skeleton/skeleton_loaders.dart';
 import 'package:kins_app/widgets/auth_flow_layout.dart';
 import '../../models/interest_model.dart';
 
@@ -123,7 +124,10 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
                       Expanded(
                         child: interestState.isLoading
                             ? const Center(
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: Padding(
+                                  padding: EdgeInsets.all(24),
+                                  child: SkeletonInterestChips(),
+                                ),
                               )
                             : interestState.error != null
                                 ? Padding(
@@ -342,14 +346,7 @@ class _NextButton extends StatelessWidget {
           ),
           child: Center(
             child: isLoading
-                ? SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.grey.shade600,
-                    ),
-                  )
+                ? const SkeletonInline(size: 24)
                 : Icon(
                     Icons.arrow_forward,
                     size: 24,

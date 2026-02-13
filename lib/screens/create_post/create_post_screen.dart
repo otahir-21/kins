@@ -11,6 +11,7 @@ import 'package:kins_app/models/interest_model.dart';
 import 'package:kins_app/providers/post_provider.dart';
 import 'package:kins_app/providers/interest_provider.dart';
 import 'package:kins_app/repositories/user_details_repository.dart';
+import 'package:kins_app/widgets/skeleton/skeleton_loaders.dart';
 
 class CreatePostScreen extends ConsumerStatefulWidget {
   const CreatePostScreen({super.key});
@@ -236,157 +237,446 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     }
   }
 
+  bool get _canPost {
+    if (_isPosting) return false;
+    
+    // Poll mode: need question and at least 2 options
+    if (_postType == PostType.poll) {
+      if (_pollQuestionController.text.trim().isEmpty) return false;
+      final options = _pollOptionControllers
+          .map((c) => c.text.trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
+      return options.length >= 2;
+    }
+    
+    // Image/Video mode: need media file
+    if (_postType == PostType.image || _postType == PostType.video) {
+      return _mediaFile != null;
+    }
+    
+    // Text mode: need text
+    return _textController.text.trim().isNotEmpty;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Create Post'),
-        actions: [
-          TextButton(
-            onPressed: _isPosting ? null : _submitPost,
-            child: _isPosting ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Post'),
+      backgroundColor: Colors.white,
+      resizeToAvoidBottomInset: true,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Custom Header
+            _buildHeader(),
+            
+            // Content (scrollable)
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 20),
+                    
+                    // Text input or Poll UI
+                    if (_postType == PostType.poll)
+                      _buildPollMode()
+                    else
+                      _buildTextInput(),
+                    
+                    // Media preview
+                    if (_mediaFile != null) ...[
+                      const SizedBox(height: 16),
+                      _buildMediaPreview(),
+                    ],
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Interests section
+                    if (_loadingInterests)
+                      const SkeletonInterestChips()
+                    else
+                      _buildInterestsSection(),
+                    
+                    const SizedBox(height: 80), // Space for bottom buttons
+                  ],
+                ),
+              ),
+            ),
+            
+            // Bottom action buttons
+            _buildBottomActions(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          // Close button
+          IconButton(
+            icon: const Icon(Icons.close, size: 22, color: Colors.black),
+            onPressed: () => Navigator.pop(context),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+          const SizedBox(width: 16),
+          
+          // User profile image
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.grey.shade200,
+            ),
+            child: _userPhotoUrl != null && _userPhotoUrl!.isNotEmpty
+                ? ClipOval(
+                    child: Image.network(
+                      _userPhotoUrl!,
+                      width: 36,
+                      height: 36,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Icon(
+                        Icons.person,
+                        size: 18,
+                        color: Colors.grey.shade400,
+                      ),
+                    ),
+                  )
+                : Icon(
+                    Icons.person,
+                    size: 18,
+                    color: Colors.grey.shade400,
+                  ),
+          ),
+          
+          const Spacer(),
+          
+          // Post button
+          ElevatedButton(
+            onPressed: _canPost ? _submitPost : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.black,
+              disabledBackgroundColor: Colors.grey.shade300,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              elevation: 0,
+            ),
+            child: _isPosting
+                ? const SkeletonInline(size: 16)
+                : const Text(
+                    'Post',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Type selection
-            const Text('Type', style: TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            Row(
+    );
+  }
+
+  Widget _buildTextInput() {
+    return TextField(
+      controller: _textController,
+      maxLines: null,
+      style: const TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.w400,
+        color: Colors.black,
+      ),
+      decoration: const InputDecoration(
+        hintText: 'Share your thoughts...',
+        hintStyle: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w400,
+          color: Colors.grey,
+        ),
+        border: InputBorder.none,
+        enabledBorder: InputBorder.none,
+        focusedBorder: InputBorder.none,
+        contentPadding: EdgeInsets.zero,
+      ),
+    );
+  }
+
+  Widget _buildPollMode() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Question label
+        Text(
+          'Question:',
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey.shade600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        
+        // Question input
+        TextField(
+          controller: _pollQuestionController,
+          style: const TextStyle(fontSize: 18),
+          decoration: const InputDecoration(
+            hintText: 'Ask a question...',
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
+        
+        const SizedBox(height: 24),
+        
+        // Answer options label
+        Text(
+          'Answer Options:',
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey.shade600,
+          ),
+        ),
+        const SizedBox(height: 12),
+        
+        // Options
+        ...List.generate(_pollOptionControllers.length, (i) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Row(
               children: [
-                _typeChip(PostType.text, Icons.text_fields),
-                const SizedBox(width: 8),
-                _typeChip(PostType.image, Icons.image),
-                const SizedBox(width: 8),
-                _typeChip(PostType.video, Icons.videocam),
-                const SizedBox(width: 8),
-                _typeChip(PostType.poll, Icons.poll),
+                Expanded(
+                  child: TextField(
+                    controller: _pollOptionControllers[i],
+                    style: const TextStyle(fontSize: 16),
+                    decoration: InputDecoration(
+                      hintText: 'Option ${i + 1}',
+                      enabledBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: const UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.black),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                  ),
+                ),
+                if (_pollOptionControllers.length > 2)
+                  IconButton(
+                    icon: Icon(Icons.close, size: 18, color: Colors.grey.shade600),
+                    onPressed: () => _removePollOption(i),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
               ],
             ),
-            const SizedBox(height: 24),
-
-            if (_postType == PostType.text) ...[
-              TextField(
-                controller: _textController,
-                maxLines: 5,
-                decoration: const InputDecoration(
-                  labelText: 'What\'s on your mind?',
-                  border: OutlineInputBorder(),
+          );
+        }),
+        
+        // Add option button
+        if (_pollOptionControllers.length < 6)
+          InkWell(
+            onTap: _addPollOption,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '+ Add option',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade700,
                 ),
               ),
-            ],
+            ),
+          ),
+      ],
+    );
+  }
 
-            if (_postType == PostType.image) ...[
-              if (_mediaFile != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
+  Widget _buildMediaPreview() {
+    if (_mediaFile == null) return const SizedBox.shrink();
+    
+    return Stack(
+      children: [
+        Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(maxHeight: 250),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            color: Colors.grey.shade100,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: _isVideo
+                ? Stack(
+                    alignment: Alignment.center,
                     children: [
-                      const Icon(Icons.check_circle, color: Colors.green),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text(_mediaFile!.path.split('/').last, overflow: TextOverflow.ellipsis)),
-                      IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() => _mediaFile = null)),
-                    ],
-                  ),
-                ),
-              OutlinedButton.icon(
-                onPressed: _pickImage,
-                icon: const Icon(Icons.image),
-                label: const Text('Pick Image'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _textController,
-                maxLines: 2,
-                decoration: const InputDecoration(labelText: 'Caption (optional)', border: OutlineInputBorder()),
-              ),
-            ],
-
-            if (_postType == PostType.video) ...[
-              if (_mediaFile != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.check_circle, color: Colors.green),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text(_mediaFile!.path.split('/').last, overflow: TextOverflow.ellipsis)),
-                      IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() => _mediaFile = null)),
-                    ],
-                  ),
-                ),
-              OutlinedButton.icon(
-                onPressed: _pickVideo,
-                icon: const Icon(Icons.videocam),
-                label: const Text('Pick Video'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _textController,
-                maxLines: 2,
-                decoration: const InputDecoration(labelText: 'Caption (optional)', border: OutlineInputBorder()),
-              ),
-            ],
-
-            if (_postType == PostType.poll) ...[
-              TextField(
-                controller: _pollQuestionController,
-                decoration: const InputDecoration(
-                  labelText: 'Poll question',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text('Options', style: TextStyle(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              ...List.generate(_pollOptionControllers.length, (i) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _pollOptionControllers[i],
-                          decoration: InputDecoration(
-                            hintText: 'Option ${i + 1}',
-                            border: const OutlineInputBorder(),
-                          ),
+                      Container(
+                        color: Colors.black12,
+                        child: const Center(
+                          child: Icon(Icons.videocam, size: 48, color: Colors.grey),
                         ),
                       ),
-                      if (_pollOptionControllers.length > 2)
-                        IconButton(
-                          icon: const Icon(Icons.remove_circle_outline),
-                          onPressed: () => _removePollOption(i),
-                        ),
+                      const Icon(
+                        Icons.play_circle_outline,
+                        size: 64,
+                        color: Colors.white,
+                      ),
+                    ],
+                  )
+                : Image.file(
+                    _mediaFile!,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+          ),
+        ),
+        // Remove button
+        Positioned(
+          top: 8,
+          right: 8,
+          child: InkWell(
+            onTap: () => setState(() {
+              _mediaFile = null;
+              _postType = PostType.text;
+            }),
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.6),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.close,
+                size: 18,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBottomActions() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          top: BorderSide(color: Colors.grey.shade200, width: 1),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Poll button
+          _buildActionButton(
+            icon: Icons.poll_outlined,
+            onTap: () {
+              setState(() {
+                if (_postType == PostType.poll) {
+                  _postType = PostType.text;
+                } else {
+                  _postType = PostType.poll;
+                  _mediaFile = null;
+                }
+              });
+            },
+            isActive: _postType == PostType.poll,
+          ),
+          const SizedBox(width: 16),
+          
+          // Photo button
+          _buildActionButton(
+            icon: Icons.photo_outlined,
+            onTap: () async {
+              // Show picker for image or video
+              final result = await showModalBottomSheet<String>(
+                context: context,
+                builder: (ctx) => SafeArea(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ListTile(
+                        leading: const Icon(Icons.image),
+                        title: const Text('Photo'),
+                        onTap: () => Navigator.pop(ctx, 'image'),
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.videocam),
+                        title: const Text('Video'),
+                        onTap: () => Navigator.pop(ctx, 'video'),
+                      ),
                     ],
                   ),
-                );
-              }),
-              if (_pollOptionControllers.length < 6)
-                TextButton.icon(
-                  onPressed: _addPollOption,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add option'),
                 ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _textController,
-                maxLines: 2,
-                decoration: const InputDecoration(labelText: 'Caption (optional)', border: OutlineInputBorder()),
-              ),
-            ],
+              );
+              
+              if (result == 'image') {
+                await _pickImage();
+                if (_mediaFile != null) {
+                  setState(() {
+                    _postType = PostType.image;
+                  });
+                }
+              } else if (result == 'video') {
+                await _pickVideo();
+                if (_mediaFile != null) {
+                  setState(() {
+                    _postType = PostType.video;
+                  });
+                }
+              }
+            },
+            isActive: _mediaFile != null,
+          ),
+          const SizedBox(width: 16),
+          
+          // More button
+          _buildActionButton(
+            icon: Icons.add,
+            onTap: () {
+              // TODO: Implement later
+            },
+            isActive: false,
+          ),
+        ],
+      ),
+    );
+  }
 
-            const SizedBox(height: 24),
-            const Text('Topics (optional)', style: TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            _loadingInterests
-                ? const Center(child: CircularProgressIndicator())
-                : _buildInterestsSection(),
-          ],
+  Widget _buildActionButton({
+    required IconData icon,
+    required VoidCallback onTap,
+    required bool isActive,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: isActive ? Colors.black.withOpacity(0.1) : const Color(0xFFF1F1F1),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          icon,
+          size: 20,
+          color: isActive ? Colors.black : Colors.grey.shade700,
         ),
       ),
     );
@@ -395,10 +685,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   /// Build interests section with user's interests first
   Widget _buildInterestsSection() {
     if (_allInterests.isEmpty) {
-      return const Text(
-        'No interests available. Please add interests from your profile.',
-        style: TextStyle(color: Colors.grey),
-      );
+      return const SizedBox.shrink();
     }
 
     // Sort interests: user's interests first, then others alphabetically
@@ -415,19 +702,16 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Show user's interests count if any
-        if (_userInterestIds.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8.0),
-            child: Text(
-              'Your interests (${_userInterestIds.length})',
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey.shade600,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+        // Topics label
+        Text(
+          'Topics (optional)',
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey.shade600,
+            fontWeight: FontWeight.w500,
           ),
+        ),
+        const SizedBox(height: 12),
         
         // Interest chips
         Wrap(
@@ -438,26 +722,22 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
             final isUserInterest = _userInterestIds.contains(interest.id);
             
             return FilterChip(
-              label: Text(interest.name),
+              label: Text(
+                interest.name,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: selected ? Colors.white : Colors.black,
+                ),
+              ),
               selected: selected,
-              avatar: isUserInterest 
-                  ? Icon(
-                      Icons.star,
-                      size: 16,
-                      color: selected ? Colors.white : const Color(0xFF6A1A5D),
-                    )
-                  : null,
-              selectedColor: const Color(0xFF6A1A5D).withOpacity(0.3),
-              checkmarkColor: const Color(0xFF6A1A5D),
-              backgroundColor: isUserInterest 
-                  ? const Color(0xFF6A1A5D).withOpacity(0.05)
-                  : null,
-              side: isUserInterest
-                  ? BorderSide(
-                      color: const Color(0xFF6A1A5D).withOpacity(0.2),
-                      width: 1,
-                    )
-                  : null,
+              selectedColor: Colors.black,
+              checkmarkColor: Colors.white,
+              backgroundColor: Colors.grey.shade100,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              side: BorderSide.none,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               onSelected: (v) {
                 setState(() {
                   if (v == true) {
@@ -471,15 +751,6 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
           }).toList(),
         ),
       ],
-    );
-  }
-
-  Widget _typeChip(PostType type, IconData icon) {
-    final selected = _postType == type;
-    return ChoiceChip(
-      label: Icon(icon, size: 20),
-      selected: selected,
-      onSelected: (_) => setState(() => _postType = type),
     );
   }
 }

@@ -229,6 +229,44 @@ class FeedRepository {
 
   // ========== MY POSTS ==========
 
+  /// Get posts by user ID (user's original posts)
+  /// Endpoint: GET /posts?userId=userId
+  Future<List<PostModel>> getPostsByUserId({
+    required String userId,
+    int page = 1,
+    int limit = 50,
+  }) async {
+    try {
+      return await FeedService.getPostsByUserId(
+        userId: userId,
+        page: page,
+        limit: limit,
+      );
+    } catch (e) {
+      debugPrint('❌ FeedRepository.getPostsByUserId error: $e');
+      return [];
+    }
+  }
+
+  /// Get posts reposted by user
+  /// Endpoint: GET /posts?repostedBy=userId
+  Future<List<PostModel>> getRepostsByUserId({
+    required String userId,
+    int page = 1,
+    int limit = 50,
+  }) async {
+    try {
+      return await FeedService.getRepostsByUserId(
+        userId: userId,
+        page: page,
+        limit: limit,
+      );
+    } catch (e) {
+      debugPrint('❌ FeedRepository.getRepostsByUserId error: $e');
+      return [];
+    }
+  }
+
   /// Get user's own posts with pagination
   /// 
   /// Note: Your own posts don't appear in the main feed by design.
