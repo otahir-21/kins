@@ -68,7 +68,27 @@ class PollData {
   }
 }
 
+/// Poll result option (from backend pollResults - includes vote count)
+class PollResultOption {
+  final String text;
+  final int index;
+  final int votes;
+
+  PollResultOption({
+    required this.text,
+    required this.index,
+    this.votes = 0,
+  });
+
+  factory PollResultOption.fromJson(Map<String, dynamic> json) => PollResultOption(
+        text: json['text']?.toString() ?? '',
+        index: (json['index'] ?? 0) as int,
+        votes: (json['votes'] ?? json['count'] ?? 0) as int,
+      );
+}
+
 /// Post model for feed (text, image, video, poll)
+/// All engagement data (isLiked, likesCount, userVote, pollResults) comes from /feed API - no N+1 calls.
 class PostModel {
   final String id;
   final String authorId;
@@ -79,6 +99,7 @@ class PostModel {
   final String? mediaUrl;
   final String? thumbnailUrl;
   final List<String> topics;
+  final bool isLiked;
   final int likesCount;
   final int commentsCount;
   final int sharesCount;
@@ -86,6 +107,10 @@ class PostModel {
   final DateTime createdAt;
   final DateTime? updatedAt;
   final PollData? poll;
+  /// User's vote option index (null if not voted). From /feed API.
+  final int? userVote;
+  /// Poll results with vote counts. From /feed API. Used instead of fetching poll separately.
+  final List<PollResultOption>? pollResults;
 
   PostModel({
     required this.id,
@@ -97,6 +122,7 @@ class PostModel {
     this.mediaUrl,
     this.thumbnailUrl,
     this.topics = const [],
+    this.isLiked = false,
     this.likesCount = 0,
     this.commentsCount = 0,
     this.sharesCount = 0,
@@ -104,9 +130,40 @@ class PostModel {
     required this.createdAt,
     this.updatedAt,
     this.poll,
+    this.userVote,
+    this.pollResults,
   });
 
   bool get isPoll => type == PostType.poll;
+
+  PostModel copyWith({
+    bool? isLiked,
+    int? likesCount,
+    int? commentsCount,
+    int? sharesCount,
+  }) {
+    return PostModel(
+      id: id,
+      authorId: authorId,
+      authorName: authorName,
+      authorPhotoUrl: authorPhotoUrl,
+      type: type,
+      text: text,
+      mediaUrl: mediaUrl,
+      thumbnailUrl: thumbnailUrl,
+      topics: topics,
+      isLiked: isLiked ?? this.isLiked,
+      likesCount: likesCount ?? this.likesCount,
+      commentsCount: commentsCount ?? this.commentsCount,
+      sharesCount: sharesCount ?? this.sharesCount,
+      viewsCount: viewsCount,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      poll: poll,
+      userVote: userVote,
+      pollResults: pollResults,
+    );
+  }
   bool get hasMedia => mediaUrl != null && mediaUrl!.isNotEmpty;
 
   Map<String, dynamic> toMap() {
@@ -119,6 +176,7 @@ class PostModel {
       'mediaUrl': mediaUrl,
       'thumbnailUrl': thumbnailUrl,
       'topics': topics,
+      'isLiked': isLiked,
       'likesCount': likesCount,
       'commentsCount': commentsCount,
       'sharesCount': sharesCount,
@@ -126,6 +184,8 @@ class PostModel {
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
       if (poll != null) 'poll': poll!.toMap(),
+      'userVote': userVote,
+      if (pollResults != null) 'pollResults': pollResults!.map((o) => {'text': o.text, 'index': o.index, 'votes': o.votes}).toList(),
     };
   }
 
@@ -165,6 +225,13 @@ class PostModel {
       updatedAt = null;
     }
 
+    List<PollResultOption>? pollResults;
+    if (json['pollResults'] is List) {
+      pollResults = (json['pollResults'] as List)
+          .map((e) => PollResultOption.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+    }
+
     return PostModel(
       id: json['id']?.toString() ?? json['_id']?.toString() ?? '',
       authorId: json['authorId']?.toString() ?? '',
@@ -177,6 +244,7 @@ class PostModel {
       topics: json['topics'] is List 
           ? List<String>.from((json['topics'] as List).map((e) => e.toString()))
           : [],
+      isLiked: json['isLiked'] == true,
       likesCount: (json['likesCount'] ?? 0) as int,
       commentsCount: (json['commentsCount'] ?? 0) as int,
       sharesCount: (json['sharesCount'] ?? 0) as int,
@@ -184,6 +252,8 @@ class PostModel {
       createdAt: createdAt,
       updatedAt: updatedAt,
       poll: pollData,
+      userVote: json['userVote'] != null ? (json['userVote'] as num).toInt() : null,
+      pollResults: pollResults,
     );
   }
 
@@ -222,6 +292,7 @@ class PostModel {
       mediaUrl: data['mediaUrl'],
       thumbnailUrl: data['thumbnailUrl'],
       topics: List<String>.from(data['topics'] ?? []),
+      isLiked: data['isLiked'] == true,
       likesCount: (data['likesCount'] ?? 0) as int,
       commentsCount: (data['commentsCount'] ?? 0) as int,
       sharesCount: (data['sharesCount'] ?? 0) as int,
@@ -237,6 +308,8 @@ class PostModel {
               : null)
           : null,
       poll: pollData,
+      userVote: data['userVote'] != null ? (data['userVote'] as num).toInt() : null,
+      pollResults: null,
     );
   }
 }

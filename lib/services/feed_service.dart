@@ -7,7 +7,8 @@ import 'package:kins_app/services/interaction_service.dart';
 class FeedService {
   FeedService._();
 
-  /// Get feed from backend API with pagination
+  /// Get all posts from backend API with pagination
+  /// Endpoint: GET /posts?page=&limit= (returns posts from all users)
   /// 
   /// Parameters:
   /// - page: Page number (default: 1)
@@ -22,22 +23,22 @@ class FeedService {
       if (limit > 100) limit = 100;
       if (page < 1) page = 1;
 
-      debugPrint('🔵 GET /feed?page=$page&limit=$limit');
+      debugPrint('🔵 GET /posts?page=$page&limit=$limit');
       
       final response = await BackendApiClient.get(
-        '/feed?page=$page&limit=$limit',
+        '/posts?page=$page&limit=$limit',
         useAuth: true,
       );
       
-      debugPrint('🔵 GET /feed response: $response');
+      debugPrint('🔵 GET /posts response: $response');
       
       if (response['success'] != true) {
         final error = response['error'] ?? response['message'] ?? 'Failed to load feed';
         throw Exception(error);
       }
       
-      // Backend returns 'feed' field, not 'posts'
-      final feedData = response['feed'] as List<dynamic>?;
+      // Backend may return 'feed', 'posts', or 'data'
+      final feedData = (response['feed'] ?? response['posts'] ?? response['data']) as List<dynamic>?;
       if (feedData == null || feedData.isEmpty) {
         debugPrint('⚠️ No feed data in response');
         return [];
@@ -65,11 +66,6 @@ class FeedService {
     await InteractionService.unlikePost(postId);
   }
 
-  /// Check if current user liked a post
-  static Future<bool> getLikeStatus(String postId) async {
-    return await InteractionService.getLikeStatus(postId);
-  }
-  
   /// Vote on a poll
   /// Vote on a poll
   /// 
@@ -127,6 +123,8 @@ class FeedService {
     
     // Parse poll data if exists
     PollData? pollData;
+    List<PollResultOption>? pollResults;
+    int? userVote;
     final pollJson = json['poll'] as Map<String, dynamic>?;
     if (pollJson != null) {
       final question = pollJson['question']?.toString() ?? pollJson['content']?.toString() ?? '';
@@ -136,7 +134,7 @@ class FeedService {
         return PollOption(
           text: opt['text']?.toString() ?? '',
           index: entry.key,
-          count: (opt['votes'] ?? 0) as int,
+          count: (opt['votes'] ?? opt['count'] ?? 0) as int,
         );
       }).toList();
       
@@ -150,6 +148,15 @@ class FeedService {
         totalVotes: (pollJson['totalVotes'] ?? 0) as int,
         votedUsers: votedUsers,
       );
+    }
+    // Poll results and user vote from /feed API (no separate API call)
+    if (json['pollResults'] is List) {
+      pollResults = (json['pollResults'] as List)
+          .map((e) => PollResultOption.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+    }
+    if (json['userVote'] != null) {
+      userVote = (json['userVote'] as num).toInt();
     }
     
     // Parse media URL
@@ -197,56 +204,16 @@ class FeedService {
       mediaUrl: mediaUrl,
       thumbnailUrl: null,
       topics: topics,
+      isLiked: json['isLiked'] == true,
       likesCount: (json['likesCount'] ?? 0) as int,
       commentsCount: (json['commentsCount'] ?? 0) as int,
+      sharesCount: (json['sharesCount'] ?? 0) as int,
       createdAt: createdAt,
       updatedAt: null,
       poll: pollData,
+      userVote: userVote,
+      pollResults: pollResults,
     );
-  }
-  
-  /// Get poll results and check if user voted
-  /// 
-  /// Returns poll data including userVoted status.
-  /// Note: userVotedOption is -1 because backend doesn't track which specific option user voted for.
-  static Future<Map<String, dynamic>?> getPollResults(String postId) async {
-    try {
-      debugPrint('🔵 GET /posts/$postId/poll');
-      
-      final response = await BackendApiClient.get(
-        '/posts/$postId/poll',
-        useAuth: true,
-      );
-      
-      if (response['success'] != true) {
-        debugPrint('⚠️ Poll results not found or error');
-        return null;
-      }
-      
-      final pollData = response['poll'] as Map<String, dynamic>?;
-      final userVoted = pollData?['userVoted'] == true;
-      final totalVotes = pollData?['totalVotes'] ?? 0;
-      debugPrint('✅ Poll results: userVoted=$userVoted, totalVotes=$totalVotes');
-      
-      return pollData;
-    } catch (e) {
-      debugPrint('❌ FeedService.getPollResults error: $e');
-      return null;
-    }
-  }
-  
-  /// Legacy method - kept for backward compatibility
-  /// Use getPollResults() instead for better poll information
-  static Future<int?> getUserVote(String postId) async {
-    final pollData = await getPollResults(postId);
-    if (pollData == null) return null;
-    
-    final userVoted = pollData['userVoted'] == true;
-    if (!userVoted) return null;
-    
-    // Return -1 to indicate user voted but we don't know which option
-    // Backend doesn't track specific option per user (limitation)
-    return -1;
   }
 
   /// Get posts by user ID (user's original posts)
@@ -300,7 +267,7 @@ class FeedService {
           .map((json) => _parseFeedPost(json as Map<String, dynamic>))
           .toList();
     } catch (e) {
-      debugPrint('❌ FeedService.getRepostsByUserId error: $e');
+      debugPrint('⚠️ Reposts endpoint not available (backend may not support it): $e');
       return [];
     }
   }
@@ -326,9 +293,10 @@ class FeedService {
         return [];
       }
 
-      final posts = response['posts'] as List<dynamic>?;
+      // Backend may return 'posts', 'feed', or 'data'
+      final posts = (response['posts'] ?? response['feed'] ?? response['data']) as List<dynamic>?;
       if (posts == null || posts.isEmpty) {
-        debugPrint('✅ No posts found');
+        debugPrint('✅ No posts found (user may have no posts yet)');
         return [];
       }
 

@@ -3,10 +3,10 @@ import 'package:kins_app/core/theme/app_theme.dart';
 import 'package:kins_app/models/post_model.dart';
 
 /// Shared interaction bar for all post types (text, image, video, poll).
+/// Reads post.isLiked and post.likesCount from API - no per-post HTTP calls.
 /// Uses asset icons from assets/InteractionButton/.
-class PostInteractionBar extends StatefulWidget {
+class PostInteractionBar extends StatelessWidget {
   final PostModel post;
-  final bool initialIsLiked;
   final void Function(PostModel post) onLike;
   final void Function(PostModel post) onComment;
   final void Function(PostModel post) onShare;
@@ -14,48 +14,14 @@ class PostInteractionBar extends StatefulWidget {
   const PostInteractionBar({
     super.key,
     required this.post,
-    required this.initialIsLiked,
     required this.onLike,
     required this.onComment,
     required this.onShare,
   });
 
-  @override
-  State<PostInteractionBar> createState() => _PostInteractionBarState();
-}
-
-class _PostInteractionBarState extends State<PostInteractionBar> {
   static const String _likeIcon = 'assets/InteractionButton/likeIcon.png';
   static const String _commentIcon = 'assets/InteractionButton/commendIcon.png';
   static const String _shareIcon = 'assets/InteractionButton/shareIcon.png';
-
-  late bool _isLiked;
-  late int _likesCount;
-
-  @override
-  void initState() {
-    super.initState();
-    _isLiked = widget.initialIsLiked;
-    _likesCount = widget.post.likesCount;
-  }
-
-  @override
-  void didUpdateWidget(covariant PostInteractionBar oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.post.id != widget.post.id ||
-        oldWidget.initialIsLiked != widget.initialIsLiked) {
-      _isLiked = widget.initialIsLiked;
-      _likesCount = widget.post.likesCount;
-    }
-  }
-
-  void _handleLike() {
-    setState(() {
-      _isLiked = !_isLiked;
-      _likesCount += _isLiked ? 1 : -1;
-    });
-    widget.onLike(widget.post);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -63,27 +29,31 @@ class _PostInteractionBarState extends State<PostInteractionBar> {
       mainAxisAlignment: MainAxisAlignment.start,
       children: [
         _buildButton(
-          onTap: _handleLike,
+          context: context,
+          onTap: () => onLike(post),
           iconPath: _likeIcon,
-          count: _likesCount,
+          count: post.likesCount,
         ),
-        const SizedBox(width: 40),
+        const SizedBox(width: 25),
         _buildButton(
-          onTap: () => widget.onComment(widget.post),
+          context: context,
+          onTap: () => onComment(post),
           iconPath: _commentIcon,
-          count: widget.post.commentsCount,
+          count: post.commentsCount,
         ),
-        const SizedBox(width: 40),
+        const SizedBox(width: 25),
         _buildButton(
-          onTap: () => widget.onShare(widget.post),
+          context: context,
+          onTap: () => onShare(post),
           iconPath: _shareIcon,
-          count: widget.post.sharesCount,
+          count: post.sharesCount,
         ),
       ],
     );
   }
 
-  Widget _buildButton({
+  static Widget _buildButton({
+    required BuildContext context,
     required VoidCallback onTap,
     required String iconPath,
     required int count,
@@ -95,12 +65,12 @@ class _PostInteractionBarState extends State<PostInteractionBar> {
         children: [
           Image.asset(
             iconPath,
-            width: 26,
-            height: 26,
+            width: 18,
+            height: 18,
             fit: BoxFit.contain,
             errorBuilder: (_, __, ___) => Container(
-              width: 26,
-              height: 26,
+              width: 18,
+              height: 18,
               color: Colors.grey.shade300,
             ),
           ),
@@ -108,7 +78,7 @@ class _PostInteractionBarState extends State<PostInteractionBar> {
           Text(
             count.toString(),
             style: Theme.of(context).extension<AppPostTypography>()?.interactionCount ??
-                const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.black),
+                const TextStyle(fontSize: 20, fontWeight: FontWeight.w500, color: Colors.black),
           ),
         ],
       ),

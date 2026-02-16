@@ -118,8 +118,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _fetchPosts(String uid) async {
     try {
       final feedRepo = ref.read(feedRepositoryProvider);
+      // Fetch user posts first; reposts may fail if backend doesn't support the endpoint
       final userPosts = await feedRepo.getMyPosts(page: 1, limit: 50);
-      final reposts = await feedRepo.getRepostsByUserId(userId: uid, page: 1, limit: 50);
+      List<PostModel> reposts = [];
+      try {
+        reposts = await feedRepo.getRepostsByUserId(userId: uid, page: 1, limit: 50);
+      } catch (_) {
+        debugPrint('⚠️ Skipping reposts (endpoint may not exist)');
+      }
       final merged = [
         ...userPosts.map((p) => _MergedPost(post: p, isRepost: false)),
         ...reposts.map((p) => _MergedPost(post: p, isRepost: true)),
@@ -130,7 +136,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           _repostsCount = reposts.length;
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Profile _fetchPosts error: $e');
+      if (mounted) setState(() => _mergedPosts = []);
+    }
   }
 
   static const Color _bgGrey = Color(0xFFF5F5F5);

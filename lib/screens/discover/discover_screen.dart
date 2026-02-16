@@ -161,25 +161,14 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
     try {
       final feedRepo = ref.read(feedRepositoryProvider);
       
-      // Fetch both main feed and user's own posts
+      // Fetch all posts from GET /posts?page=&limit= (posts from all users)
       final feedPosts = await feedRepo.getFeed(
         page: isRefresh ? 1 : _currentPage,
         limit: 20,
       );
       
-      // On refresh or initial load, also get user's own posts (first page only)
-      List<PostModel> myPosts = [];
-      if (isRefresh || _currentPage == 1) {
-        try {
-          myPosts = await feedRepo.getMyPosts(page: 1, limit: 20);
-          debugPrint('✅ Loaded ${myPosts.length} of my posts to merge with feed');
-        } catch (e) {
-          debugPrint('⚠️ Failed to load my posts: $e');
-        }
-      }
-      
-      // Merge and sort by date (most recent first)
-      List<PostModel> allPosts = [...feedPosts, ...myPosts];
+      // Use posts as-is (already sorted by backend or we sort)
+      List<PostModel> allPosts = List.from(feedPosts);
       allPosts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
       if (mounted) {
@@ -360,7 +349,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
       onRefresh: () => _loadFeed(isRefresh: true),
       child: ListView.builder(
         controller: _scrollController,
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 1),
         itemCount: posts.length + (_hasMore ? 1 : 0),
         physics: const AlwaysScrollableScrollPhysics(),
         itemBuilder: (context, index) {
@@ -513,10 +502,10 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
           // 2) Search Bar
           Container(
-            height: 56,
+            height: 45,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(28),
@@ -560,7 +549,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
               ],
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 10),
         ],
       ),
     );
@@ -581,9 +570,9 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
 
     return Container(
       color: _headerBg,
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 1),
       child: SizedBox(
-        height: 44,
+        height: 30,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           itemCount: chipsList.length + 1,

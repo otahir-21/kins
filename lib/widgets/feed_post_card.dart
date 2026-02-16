@@ -1,14 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:kins_app/core/theme/app_theme.dart';
-import 'package:kins_app/core/constants/app_constants.dart';
-import 'package:kins_app/core/utils/storage_service.dart';
 import 'package:kins_app/models/post_model.dart';
 import 'package:kins_app/repositories/feed_repository.dart';
 import 'package:kins_app/widgets/post_card_text.dart';
 import 'package:kins_app/widgets/post_header.dart';
 import 'package:kins_app/widgets/post_interaction_bar.dart';
-import 'package:kins_app/widgets/skeleton/skeleton_loaders.dart';
-
 /// Reusable feed post card - text, image/video, or poll.
 /// Used by Discover and Profile screens.
 class FeedPostCard extends StatefulWidget {
@@ -32,32 +28,34 @@ class FeedPostCard extends StatefulWidget {
 }
 
 class _FeedPostCardState extends State<FeedPostCard> {
-  bool _isLiked = false;
-  bool _isCheckingLike = true;
+  late bool _isLiked;
+  late int _likesCount;
 
   @override
   void initState() {
     super.initState();
-    _checkLikeStatus();
+    _isLiked = widget.post.isLiked;
+    _likesCount = widget.post.likesCount;
   }
 
-  Future<void> _checkLikeStatus() async {
-    try {
-      final isLiked = await widget.feedRepo.getLikeStatus(widget.post.id);
-      if (mounted) {
-        setState(() {
-          _isLiked = isLiked;
-          _isCheckingLike = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) setState(() => _isCheckingLike = false);
+  @override
+  void didUpdateWidget(covariant FeedPostCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.post.id != widget.post.id) {
+      _isLiked = widget.post.isLiked;
+      _likesCount = widget.post.likesCount;
     }
   }
 
+  PostModel get _displayPost =>
+      widget.post.copyWith(isLiked: _isLiked, likesCount: _likesCount);
+
   Future<void> _handleLike() async {
     final wasLiked = _isLiked;
-    setState(() => _isLiked = !wasLiked);
+    setState(() {
+      _isLiked = !wasLiked;
+      _likesCount += _isLiked ? 1 : -1;
+    });
     try {
       if (wasLiked) {
         await widget.feedRepo.unlikePost(widget.post.id);
@@ -66,7 +64,10 @@ class _FeedPostCardState extends State<FeedPostCard> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isLiked = wasLiked);
+        setState(() {
+          _isLiked = wasLiked;
+          _likesCount = widget.post.likesCount;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to ${wasLiked ? 'unlike' : 'like'} post'), backgroundColor: Colors.red),
         );
@@ -76,13 +77,10 @@ class _FeedPostCardState extends State<FeedPostCard> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isCheckingLike) return const SkeletonPostCardPlaceholder();
-
     if (widget.post.isPoll) {
       return _PollPostCard(
-        post: widget.post,
+        post: _displayPost,
         feedRepo: widget.feedRepo,
-        isLiked: _isLiked,
         onLike: _handleLike,
         onComment: widget.onComment,
         onShare: widget.onShare,
@@ -93,7 +91,7 @@ class _FeedPostCardState extends State<FeedPostCard> {
     final hasMedia = widget.post.type == PostType.image || widget.post.type == PostType.video;
     if (hasMedia) {
       return _MediaPostCard(
-        post: widget.post,
+        post: _displayPost,
         feedRepo: widget.feedRepo,
         onLike: _handleLike,
         onComment: widget.onComment,
@@ -103,8 +101,7 @@ class _FeedPostCardState extends State<FeedPostCard> {
     }
 
     return PostCardText(
-      post: widget.post,
-      isLiked: _isLiked,
+      post: _displayPost,
       onLike: _handleLike,
       onComment: widget.onComment,
       onShare: widget.onShare,
@@ -113,7 +110,7 @@ class _FeedPostCardState extends State<FeedPostCard> {
   }
 }
 
-class _MediaPostCard extends StatefulWidget {
+class _MediaPostCard extends StatelessWidget {
   final PostModel post;
   final FeedRepository feedRepo;
   final VoidCallback onLike;
@@ -130,101 +127,52 @@ class _MediaPostCard extends StatefulWidget {
     required this.onMore,
   });
 
-  @override
-  State<_MediaPostCard> createState() => _MediaPostCardState();
-}
-
-class _MediaPostCardState extends State<_MediaPostCard> {
-  bool? _isLiked;
-  int? _localLikesCount;
-  bool _isLiking = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkLikeStatus();
-  }
-
-  Future<void> _checkLikeStatus() async {
-    try {
-      final isLiked = await widget.feedRepo.getLikeStatus(widget.post.id);
-      if (mounted) setState(() => _isLiked = isLiked);
-    } catch (_) {}
-  }
-
-  Future<void> _toggleLike() async {
-    if (_isLiking) return;
-    setState(() => _isLiking = true);
-    final wasLiked = _isLiked ?? false;
-    final currentCount = _localLikesCount ?? widget.post.likesCount;
-    setState(() {
-      _isLiked = !wasLiked;
-      _localLikesCount = wasLiked ? currentCount - 1 : currentCount + 1;
-    });
-    try {
-      if (wasLiked) {
-        await widget.feedRepo.unlikePost(widget.post.id);
-      } else {
-        await widget.feedRepo.likePost(widget.post.id);
-      }
-      if (mounted) setState(() => _isLiking = false);
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLiked = wasLiked;
-          _localLikesCount = currentCount;
-          _isLiking = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to ${wasLiked ? 'unlike' : 'like'} post'), backgroundColor: Colors.red));
-      }
-    }
-  }
-
-  String _getTimeAgo() {
-    final diff = DateTime.now().difference(widget.post.createdAt);
+  static String _getTimeAgo(DateTime createdAt) {
+    final diff = DateTime.now().difference(createdAt);
     if (diff.inDays > 0) return '${diff.inDays}d';
     if (diff.inHours > 0) return '${diff.inHours}h';
     if (diff.inMinutes > 0) return '${diff.inMinutes}m';
     return 'now';
   }
 
-  String _extractUsername() {
-    final name = widget.post.authorName;
-    final atIndex = name.indexOf('@');
-    if (atIndex != -1 && atIndex < name.length - 1) return name.substring(atIndex);
-    return '@${name.toLowerCase().replaceAll(' ', '')}';
+  static String _extractUsername(String authorName) {
+    final atIndex = authorName.indexOf('@');
+    if (atIndex != -1 && atIndex < authorName.length - 1) return authorName.substring(atIndex);
+    return '@${authorName.toLowerCase().replaceAll(' ', '')}';
   }
 
   @override
   Widget build(BuildContext context) {
-    final rawMediaUrl = widget.post.mediaUrl;
+    final rawMediaUrl = post.mediaUrl;
     final isPdfOrDocument = rawMediaUrl != null && (rawMediaUrl.toLowerCase().endsWith('.pdf') || rawMediaUrl.contains('/documents/'));
     final mediaUrl = (rawMediaUrl != null && rawMediaUrl.isNotEmpty && !isPdfOrDocument) ? rawMediaUrl : null;
-    final hasImage = widget.post.type == PostType.image && mediaUrl != null;
-    final text = widget.post.text ?? '';
+    final hasImage = post.type == PostType.image && mediaUrl != null;
+    final text = post.text ?? '';
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 14),
+      padding: const EdgeInsets.symmetric(vertical: 7),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           PostHeader(
-            authorName: widget.post.authorName,
-            username: _extractUsername(),
-            timeAgo: _getTimeAgo(),
-            avatarUrl: widget.post.authorPhotoUrl,
-            onMore: widget.onMore,
+            authorName: post.authorName,
+            username: _extractUsername(post.authorName),
+            timeAgo: _getTimeAgo(post.createdAt),
+            avatarUrl: post.authorPhotoUrl,
+            onMore: onMore,
           ),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(width: 52),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Text
-                if (text.isNotEmpty) ...[
+          Transform.translate(
+            offset: const Offset(0, -12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(width: 52),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Text
+                  if (text.isNotEmpty) ...[
                   Text(
                     text,
                     style: Theme.of(context).extension<AppPostTypography>()?.postBodySmall ??
@@ -232,7 +180,7 @@ class _MediaPostCardState extends State<_MediaPostCard> {
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 6),
                 ],
                 // Image
                 if (hasImage) ...[
@@ -262,20 +210,19 @@ class _MediaPostCardState extends State<_MediaPostCard> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 6),
                 ],
                 // InteractionBar
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
+                  padding: const EdgeInsets.only(bottom: 2),
                   child: PostInteractionBar(
-                    post: widget.post,
-                    initialIsLiked: _isLiked ?? false,
-                    onLike: (_) => _toggleLike(),
-                    onComment: widget.onComment,
-                    onShare: widget.onShare,
+                    post: post,
+                    onLike: (_) => onLike(),
+                    onComment: onComment,
+                    onShare: onShare,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 6),
                 const Divider(
                   height: 1,
                   thickness: 0.8,
@@ -287,9 +234,10 @@ class _MediaPostCardState extends State<_MediaPostCard> {
           ),
         ],
       ),
-    ],
-  ),
-);
+    ),
+  ],
+      ),
+    );
   }
 }
 
@@ -297,10 +245,9 @@ class _MediaPostCardState extends State<_MediaPostCard> {
 
 const Color _pollOptionBg = Color(0xFFE9E9E9);
 
-class _PollPostCard extends StatefulWidget {
+class _PollPostCard extends StatelessWidget {
   final PostModel post;
   final FeedRepository feedRepo;
-  final bool isLiked;
   final VoidCallback onLike;
   final void Function(PostModel post) onComment;
   final void Function(PostModel post) onShare;
@@ -309,108 +256,89 @@ class _PollPostCard extends StatefulWidget {
   const _PollPostCard({
     required this.post,
     required this.feedRepo,
-    required this.isLiked,
     required this.onLike,
     required this.onComment,
     required this.onShare,
     required this.onMore,
   });
 
-  @override
-  State<_PollPostCard> createState() => _PollPostCardState();
-}
-
-class _PollPostCardState extends State<_PollPostCard> {
-  String _getTimeAgo() {
-    final diff = DateTime.now().difference(widget.post.createdAt);
+  static String _getTimeAgo(DateTime createdAt) {
+    final diff = DateTime.now().difference(createdAt);
     if (diff.inDays > 0) return '${diff.inDays}d';
     if (diff.inHours > 0) return '${diff.inHours}h';
     if (diff.inMinutes > 0) return '${diff.inMinutes}m';
     return 'now';
   }
 
-  String _extractUsername() {
-    final name = widget.post.authorName;
-    final atIndex = name.indexOf('@');
-    if (atIndex != -1 && atIndex < name.length - 1) return name.substring(atIndex);
-    return '@${name.toLowerCase().replaceAll(' ', '')}';
+  static String _extractUsername(String authorName) {
+    final atIndex = authorName.indexOf('@');
+    if (atIndex != -1 && atIndex < authorName.length - 1) return authorName.substring(atIndex);
+    return '@${authorName.toLowerCase().replaceAll(' ', '')}';
   }
-
-  void _handleLike() => widget.onLike();
 
   @override
   Widget build(BuildContext context) {
-    final text = widget.post.text ?? '';
+    final text = post.text ?? '';
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 14),
+      padding: const EdgeInsets.symmetric(vertical: 7),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           PostHeader(
-          authorName: widget.post.authorName,
-          username: _extractUsername(),
-          timeAgo: _getTimeAgo(),
-          avatarUrl: widget.post.authorPhotoUrl,
-          onMore: widget.onMore,
-        ),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(width: 52),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  /// POST TEXT
-              if (text.isNotEmpty) ...[
-                Text(
-                  text,
-                  style: Theme.of(context).extension<AppPostTypography>()?.pollQuestion ??
-                      const TextStyle(fontSize: 16, fontWeight: FontWeight.w400, height: 1.4, color: Colors.black),
+            authorName: post.authorName,
+            username: _extractUsername(post.authorName),
+            timeAgo: _getTimeAgo(post.createdAt),
+            avatarUrl: post.authorPhotoUrl,
+            onMore: onMore,
+          ),
+          Transform.translate(
+            offset: const Offset(0, -12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(width: 52),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (text.isNotEmpty) ...[
+                      Text(
+                        text,
+                        style: Theme.of(context).extension<AppPostTypography>()?.pollQuestion ??
+                            const TextStyle(fontSize: 16, fontWeight: FontWeight.w400, height: 1.4, color: Colors.black),
+                      ),
+                      const SizedBox(height: 9),
+                    ],
+                    _PollOptionsContent(
+                      post: post,
+                      feedRepo: feedRepo,
+                    ),
+                    const SizedBox(height: 4),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: PostInteractionBar(
+                        post: post,
+                        onLike: (_) => onLike(),
+                        onComment: onComment,
+                        onShare: onShare,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    const Divider(
+                      height: 1,
+                      thickness: 0.8,
+                      color: Color(0xFFE5E5E5),
+                    ),
+                    const SizedBox(height: 6),
+                  ],
                 ),
-                const SizedBox(height: 18),
-              ],
-
-              /// POLL
-              _PollOptionsContent(
-                post: widget.post,
-                feedRepo: widget.feedRepo,
               ),
-
-              const SizedBox(height: 8),
-
-
-
-              /// ENGAGEMENT
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: PostInteractionBar(
-                  post: widget.post,
-                  initialIsLiked: widget.isLiked,
-                  onLike: (_) => _handleLike(),
-                  onComment: widget.onComment,
-                  onShare: widget.onShare,
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              /// DIVIDER
-              const Divider(
-                height: 1,
-                thickness: 0.8,
-                color: Color(0xFFE5E5E5),
-              ),
-              const SizedBox(height: 12),
-
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ],
-    ),
+        ],
+      ),
     );
   }
 }
@@ -426,50 +354,32 @@ class _PollOptionsContent extends StatefulWidget {
 }
 
 class _PollOptionsContentState extends State<_PollOptionsContent> {
-  bool _hasVoted = false;
   bool _isVoting = false;
-  bool _isLoadingResults = true;
-  PollData? _updatedPollData;
+  PollData? _updatedPollData; // After user votes, hold response poll data
   int? _selectedOptionIndex; // Which option user voted for (for check icon)
 
-  @override
-  void initState() {
-    super.initState();
-    _loadPollResults();
-  }
+  /// Read from post.userVote and post.pollResults - no API call.
+  bool get _hasVoted => _selectedOptionIndex != null || widget.post.userVote != null;
 
-  Future<void> _loadPollResults() async {
-    try {
-      setState(() => _isLoadingResults = true);
-      final poll = widget.post.poll;
-      if (poll != null && poll.votedUsers.isNotEmpty) {
-        final userId = StorageService.getString(AppConstants.keyUserId);
-        final hasVoted = userId != null && poll.votedUsers.contains(userId);
-        if (mounted) setState(() { _hasVoted = hasVoted; _isLoadingResults = false; });
-        return;
-      }
-      try {
-        final pollData = await widget.feedRepo.getPollResults(widget.post.id);
-        if (mounted && pollData != null) {
-          final userVoted = pollData['userVoted'] == true;
-          if (userVoted) {
-            final optionsList = (pollData['options'] as List<dynamic>?) ?? [];
-            final options = optionsList.asMap().entries.map((entry) {
-              final opt = entry.value as Map<String, dynamic>;
-              return PollOption(text: opt['text']?.toString() ?? '', index: entry.key, count: (opt['votes'] ?? 0) as int);
-            }).toList();
-            _updatedPollData = PollData(question: pollData['question']?.toString() ?? widget.post.poll?.question ?? '', options: options, totalVotes: (pollData['totalVotes'] ?? 0) as int);
-          }
-          setState(() { _hasVoted = userVoted; _isLoadingResults = false; });
-        } else if (mounted) {
-          setState(() => _isLoadingResults = false);
-        }
-      } catch (_) {
-        if (mounted) setState(() => _isLoadingResults = false);
-      }
-    } catch (_) {
-      if (mounted) setState(() => _isLoadingResults = false);
+  int? get _effectiveSelectedIndex => _selectedOptionIndex ?? widget.post.userVote;
+
+  /// Effective poll data: from API response after vote, or built from post.pollResults / post.poll
+  PollData get _effectivePoll {
+    if (_updatedPollData != null) return _updatedPollData!;
+    final post = widget.post;
+    final poll = post.poll;
+    if (post.pollResults != null && post.pollResults!.isNotEmpty) {
+      final options = post.pollResults!
+          .map((r) => PollOption(text: r.text, index: r.index, count: r.votes))
+          .toList();
+      final totalVotes = options.fold<int>(0, (s, o) => s + o.count);
+      return PollData(
+        question: poll?.question ?? '',
+        options: options,
+        totalVotes: totalVotes,
+      );
     }
+    return poll ?? PollData(question: '', options: [], totalVotes: 0);
   }
 
   Future<void> _vote(int optionIndex) async {
@@ -487,7 +397,7 @@ class _PollOptionsContentState extends State<_PollOptionsContent> {
         _updatedPollData = PollData(question: pollDataFromResponse['question']?.toString() ?? widget.post.poll?.question ?? '', options: options, totalVotes: (pollDataFromResponse['totalVotes'] ?? 0) as int);
       }
       if (mounted) {
-        setState(() { _hasVoted = true; _selectedOptionIndex = optionIndex; _isVoting = false; });
+        setState(() { _selectedOptionIndex = optionIndex; _isVoting = false; });
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vote recorded!'), duration: Duration(seconds: 2)));
       }
     } catch (e) {
@@ -500,16 +410,9 @@ class _PollOptionsContentState extends State<_PollOptionsContent> {
 
   @override
   Widget build(BuildContext context) {
-    final poll = _updatedPollData ?? widget.post.poll;
-    if (poll == null) return const SizedBox.shrink();
+    final poll = _effectivePoll;
+    if (poll.options.isEmpty) return const SizedBox.shrink();
     final total = (poll.totalVotes > 0 ? poll.totalVotes : 1).toDouble();
-
-    if (_isLoadingResults) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 24),
-        child: Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))),
-      );
-    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -526,7 +429,7 @@ class _PollOptionsContentState extends State<_PollOptionsContent> {
               option: entry.value,
               total: total,
               hasVoted: _hasVoted,
-              isSelected: _selectedOptionIndex == entry.key,
+              isSelected: _effectiveSelectedIndex == entry.key,
               onTap: _hasVoted ? null : () => _vote(entry.key),
             )),
       ],

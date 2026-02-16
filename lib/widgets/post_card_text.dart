@@ -8,7 +8,6 @@ import 'package:kins_app/widgets/post_interaction_bar.dart';
 /// Uses shared PostHeader and PostInteractionBar.
 class PostCardText extends StatefulWidget {
   final PostModel post;
-  final bool isLiked;
   final VoidCallback onLike;
   final void Function(PostModel post) onComment;
   final void Function(PostModel post) onShare;
@@ -17,7 +16,6 @@ class PostCardText extends StatefulWidget {
   const PostCardText({
     super.key,
     required this.post,
-    required this.isLiked,
     required this.onLike,
     required this.onComment,
     required this.onShare,
@@ -51,7 +49,7 @@ class _PostCardTextState extends State<PostCardText> {
     final text = widget.post.text ?? '';
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 14),
+      padding: const EdgeInsets.symmetric(vertical: 7),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -62,10 +60,12 @@ class _PostCardTextState extends State<PostCardText> {
             avatarUrl: widget.post.authorPhotoUrl,
             onMore: widget.onMore,
           ),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(width: 52),
+          Transform.translate(
+            offset: const Offset(0, -12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(width: 52),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -76,19 +76,18 @@ class _PostCardTextState extends State<PostCardText> {
                         style: Theme.of(context).extension<AppPostTypography>()?.postBody ??
                             const TextStyle(fontSize: 18, fontWeight: FontWeight.w400, height: 1.5, color: Colors.black),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 8),
                     ],
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
+                      padding: const EdgeInsets.only(bottom: 2),
                       child: PostInteractionBar(
                         post: widget.post,
-                        initialIsLiked: widget.isLiked,
                         onLike: (_) => _handleLike(),
                         onComment: widget.onComment,
                         onShare: widget.onShare,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 6),
                     const Divider(
                       height: 1,
                       thickness: 0.8,
@@ -100,6 +99,7 @@ class _PostCardTextState extends State<PostCardText> {
               ),
             ],
           ),
+        ),
         ],
       ),
     );

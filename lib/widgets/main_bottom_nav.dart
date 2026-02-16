@@ -24,10 +24,10 @@ class MainBottomNav extends StatelessWidget {
 
   static const Color _primaryPurple = Color(0xFF6A1A5D);
   static const double _horizontalMargin = 20;
-  static const double _verticalPadding = 12;
-  static const double _iconSize = 24;
-  static const double _circleSizeInactive = 48;
-  static const double _circleSizeActive = 52;
+  static const double _verticalPadding = 11; // 12 * 0.9 (10% smaller)
+  static const double _iconSize = 20; // 34 * 0.6 (40% smaller)
+  static const double _circleSizeInactive = 43; // 48 * 0.9
+  static const double _circleSizeActive = 47; // 52 * 0.9
 
   @override
   Widget build(BuildContext context) {
@@ -55,11 +55,11 @@ class MainBottomNav extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildNavItem(context, feedIndex, 'assets/bottomNavBarIcon/dicoverIcon.png', AppConstants.routeDiscover),
-                _buildNavItem(context, chatIndex, 'assets/bottomNavBarIcon/ChatIcon.png', AppConstants.routeChat),
-                _buildNavItem(context, homeIndex, 'assets/bottomNavBarIcon/HomeIcon.png', AppConstants.routeHome),
-                _buildNavItem(context, brandIndex, 'assets/bottomNavBarIcon/DiscoverBrandIcon.png', AppConstants.routeMembership),
-                _buildNavItem(context, marketplaceIndex, 'assets/bottomNavBarIcon/MarketPlaceIcon.png', AppConstants.routeMarketplace),
+                _buildNavItem(context, feedIndex, 'assets/icons/nav_discovery.png', AppConstants.routeDiscover, Icons.explore, iconSize: _iconSize),
+                _buildNavItem(context, chatIndex, 'assets/icons/nav_bubble_chat.png', AppConstants.routeChat, Icons.chat_bubble_outline, iconSize: _iconSize),
+                _buildNavItem(context, homeIndex, 'assets/icons/nav_home.png', AppConstants.routeHome, Icons.home, iconSize: _iconSize),
+                _buildNavItem(context, brandIndex, 'assets/icons/nav_insurance.png', AppConstants.routeMembership, Icons.shield_outlined, iconSize: _iconSize),
+                _buildNavItem(context, marketplaceIndex, 'assets/icons/nav_bag.png', AppConstants.routeMarketplace, Icons.shopping_bag_outlined, iconSize: _iconSize),
               ],
             ),
           ),
@@ -68,7 +68,7 @@ class MainBottomNav extends StatelessWidget {
     );
   }
 
-  Widget _buildNavItem(BuildContext context, int index, String assetPath, String route) {
+  Widget _buildNavItem(BuildContext context, int index, String assetPath, String route, IconData fallbackIcon, {double iconSize = _iconSize}) {
     final isActive = currentIndex == index;
     final size = isActive ? _circleSizeActive : _circleSizeInactive;
 
@@ -97,17 +97,20 @@ class MainBottomNav extends StatelessWidget {
               : null,
         ),
         child: Center(
-          child: Image.asset(
-            assetPath,
-            width: _iconSize,
-            height: _iconSize,
-            fit: BoxFit.contain,
-            color: isActive ? Colors.white : Colors.black87,
-            colorBlendMode: BlendMode.srcIn,
-            errorBuilder: (_, __, ___) => Icon(
-              Icons.circle_outlined,
-              size: _iconSize,
-              color: isActive ? Colors.white : Colors.black87,
+          child: ColorFiltered(
+            colorFilter: ColorFilter.mode(
+              isActive ? Colors.white : Colors.black87,
+              BlendMode.srcIn,
+            ),
+            child: Image.asset(
+              assetPath,
+              width: iconSize,
+              height: iconSize,
+              fit: BoxFit.contain,
+              errorBuilder: (_, error, __) {
+                debugPrint('Bottom nav icon failed to load: $assetPath - $error');
+                return Icon(fallbackIcon, size: iconSize, color: isActive ? Colors.white : Colors.black87);
+              },
             ),
           ),
         ),

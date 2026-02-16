@@ -52,25 +52,6 @@ class InteractionService {
     }
   }
 
-  /// Check if current user liked a post
-  static Future<bool> getLikeStatus(String postId) async {
-    try {
-      debugPrint('🔵 GET /posts/$postId/like/status');
-      
-      final response = await BackendApiClient.get(
-        '/posts/$postId/like/status',
-        useAuth: true,
-      );
-      
-      final isLiked = response['isLiked'] == true;
-      debugPrint('✅ Like status for $postId: $isLiked');
-      return isLiked;
-    } catch (e) {
-      debugPrint('❌ InteractionService.getLikeStatus error: $e');
-      return false;
-    }
-  }
-
   /// Get users who liked a post (paginated)
   static Future<Map<String, dynamic>> getPostLikes({
     required String postId,

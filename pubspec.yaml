@@ -110,6 +110,11 @@ flutter:
     - assets/icons/
     - assets/InteractionButton/
     - assets/bottomNavBarIcon/
+    - assets/bottomNavBarIcon/discovery.png
+    - assets/bottomNavBarIcon/bubble-chat.png
+    - assets/bottomNavBarIcon/home.png
+    - assets/bottomNavBarIcon/insurance.png
+    - assets/bottomNavBarIcon/bag.png
     - assets/logo/
     - assets/logo/Logo-KINS.svg
     - assets/logo/kins-App-Logo.svg

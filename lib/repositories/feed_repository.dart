@@ -50,16 +50,6 @@ class FeedRepository {
     }
   }
 
-  /// Check if user liked a post
-  Future<bool> getLikeStatus(String postId) async {
-    try {
-      return await InteractionService.getLikeStatus(postId);
-    } catch (e) {
-      debugPrint('❌ FeedRepository.getLikeStatus error: $e');
-      return false;
-    }
-  }
-
   // ========== COMMENTS ==========
 
   /// Create a comment or reply
@@ -193,26 +183,6 @@ class FeedRepository {
     } catch (e) {
       debugPrint('❌ FeedRepository.votePoll error: $e');
       rethrow;
-    }
-  }
-
-  /// Get poll results and check if user voted
-  Future<Map<String, dynamic>?> getPollResults(String postId) async {
-    try {
-      return await FeedService.getPollResults(postId);
-    } catch (e) {
-      debugPrint('❌ FeedRepository.getPollResults error: $e');
-      return null;
-    }
-  }
-
-  /// Get user's vote for a poll (legacy - returns -1 if voted)
-  Future<int?> getUserVote(String postId) async {
-    try {
-      return await FeedService.getUserVote(postId);
-    } catch (e) {
-      debugPrint('❌ FeedRepository.getUserVote error: $e');
-      return null;
     }
   }
 
