@@ -7,6 +7,7 @@ import 'package:kins_app/providers/interest_provider.dart';
 import 'package:kins_app/widgets/app_card.dart';
 import 'package:kins_app/widgets/skeleton/skeleton_loaders.dart';
 import 'package:kins_app/widgets/auth_flow_layout.dart';
+import 'package:kins_app/widgets/interest_chips_scrollable.dart';
 import '../../models/interest_model.dart';
 
 /// Minimum number of interests required to enable Next (0 = any, 1+ = at least that many).
@@ -21,6 +22,9 @@ class InterestsScreen extends ConsumerStatefulWidget {
 
 class _InterestsScreenState extends ConsumerState<InterestsScreen> {
   bool _isSaving = false;
+  final TextEditingController _searchController = TextEditingController();
+
+  static const Color _borderGrey = Color(0xFFE5E5E5);
 
   @override
   void initState() {
@@ -28,6 +32,12 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(interestProvider.notifier).loadInterests(currentUserId);
     });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _handleContinue() async {
@@ -80,6 +90,12 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
     context.go(AppConstants.routeDiscover);
   }
 
+  List<InterestModel> _filterInterests(List<InterestModel> interests) {
+    final query = _searchController.text.trim().toLowerCase();
+    if (query.isEmpty) return interests;
+    return interests.where((i) => i.name.toLowerCase().contains(query)).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -110,12 +126,55 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
                     children: [
                       // Header (fixed)
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+                        padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
                         child: Text(
                           'Select your interests',
                           style: textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.w500,
                             color: colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+
+                      // Search Bar (same style as feed screen)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                        child: Container(
+                          height: 45,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(28),
+                            border: Border.all(color: _borderGrey, width: 1),
+                          ),
+                          child: Row(
+                            children: [
+                              const SizedBox(width: 16),
+                              Icon(Icons.search, size: 20, color: Colors.grey.shade600),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: TextField(
+                                  controller: _searchController,
+                                  onChanged: (_) => setState(() {}),
+                                  style: textTheme.bodyMedium,
+                                  decoration: InputDecoration(
+                                    hintText: 'Search',
+                                    hintStyle: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                    border: InputBorder.none,
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
+                                    disabledBorder: InputBorder.none,
+                                    errorBorder: InputBorder.none,
+                                    focusedErrorBorder: InputBorder.none,
+                                    contentPadding: EdgeInsets.zero,
+                                    isDense: true,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                            ],
                           ),
                         ),
                       ),
@@ -154,8 +213,8 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
                                   )
                                 : SingleChildScrollView(
                                     padding: const EdgeInsets.symmetric(horizontal: 24),
-                                    child: _InterestsScrollableRows(
-                                      interests: interestState.interests,
+                                    child: InterestChipsScrollable(
+                                      interests: _filterInterests(interestState.interests),
                                       selectedIds: interestState.selectedInterestIds,
                                       onToggle: (id) => ref.read(interestProvider.notifier).toggleInterest(id),
                                     ),
@@ -180,125 +239,6 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
               ),
             ),
         ],
-      ),
-    );
-  }
-}
-
-/// Target number of pills per row; each row is horizontally scrollable.
-const int _kPillsPerRow = 6;
-
-class _InterestsScrollableRows extends StatelessWidget {
-  const _InterestsScrollableRows({
-    required this.interests,
-    required this.selectedIds,
-    required this.onToggle,
-  });
-
-  final List<InterestModel> interests;
-  final Set<String> selectedIds;
-  final ValueChanged<String> onToggle;
-
-  @override
-  Widget build(BuildContext context) {
-    if (interests.isEmpty) return const SizedBox.shrink();
-
-    final rows = <List<InterestModel>>[];
-    for (var i = 0; i < interests.length; i += _kPillsPerRow) {
-      rows.add(
-        interests.sublist(i, i + _kPillsPerRow > interests.length ? interests.length : i + _kPillsPerRow),
-      );
-    }
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (var r = 0; r < rows.length; r++) ...[
-          if (r > 0) const SizedBox(height: 12),
-          SizedBox(
-            height: 48,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(vertical: 2),
-              itemCount: rows[r].length,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (context, index) {
-                final interest = rows[r][index];
-                return _InterestPill(
-                  interest: interest,
-                  isSelected: selectedIds.contains(interest.id),
-                  onTap: () => onToggle(interest.id),
-                );
-              },
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _InterestPill extends StatelessWidget {
-  const _InterestPill({
-    required this.interest,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  final InterestModel interest;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  static const double _pillRadius = 24;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(_pillRadius),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(_pillRadius),
-            border: Border.all(
-              color: isSelected ? colorScheme.primary : Colors.grey.shade300,
-              width: isSelected ? 1.5 : 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-                spreadRadius: 0,
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                interest.name,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                  color: colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Icon(
-                isSelected ? Icons.close : Icons.add,
-                size: 18,
-                color: isSelected ? colorScheme.primary : colorScheme.primary,
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

@@ -12,6 +12,7 @@ import 'package:kins_app/providers/post_provider.dart';
 import 'package:kins_app/providers/interest_provider.dart';
 import 'package:kins_app/repositories/user_details_repository.dart';
 import 'package:kins_app/widgets/skeleton/skeleton_loaders.dart';
+import 'package:kins_app/widgets/interest_chips_scrollable.dart';
 
 class CreatePostScreen extends ConsumerStatefulWidget {
   const CreatePostScreen({super.key});
@@ -39,6 +40,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   Set<String> _userInterestIds = {};
   final Set<String> _selectedInterestIds = {};
   bool _loadingInterests = true;
+  final TextEditingController _interestSearchController = TextEditingController();
+
+  static const Color _borderGrey = Color(0xFFE5E5E5);
 
   @override
   void initState() {
@@ -51,6 +55,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   void dispose() {
     _textController.dispose();
     _pollQuestionController.dispose();
+    _interestSearchController.dispose();
     for (final c in _pollOptionControllers) {
       c.dispose();
     }
@@ -699,6 +704,11 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       return a.name.compareTo(b.name);
     });
 
+    final query = _interestSearchController.text.trim().toLowerCase();
+    final filteredInterests = query.isEmpty
+        ? sortedInterests
+        : sortedInterests.where((i) => i.name.toLowerCase().contains(query)).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -712,43 +722,53 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        
-        // Interest chips
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: sortedInterests.map((interest) {
-            final selected = _selectedInterestIds.contains(interest.id);
-            final isUserInterest = _userInterestIds.contains(interest.id);
-            
-            return FilterChip(
-              label: Text(
-                interest.name,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: selected ? Colors.white : Colors.black,
+        // Search bar (same style as interests screen)
+        Container(
+          height: 45,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: _borderGrey, width: 1),
+          ),
+          child: Row(
+            children: [
+              const SizedBox(width: 16),
+              Icon(Icons.search, size: 20, color: Colors.grey.shade600),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  controller: _interestSearchController,
+                  onChanged: (_) => setState(() {}),
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  decoration: InputDecoration(
+                    hintText: 'Search interests',
+                    hintStyle: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                    isDense: true,
+                  ),
                 ),
               ),
-              selected: selected,
-              selectedColor: Colors.black,
-              checkmarkColor: Colors.white,
-              backgroundColor: Colors.grey.shade100,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              side: BorderSide.none,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              onSelected: (v) {
-                setState(() {
-                  if (v == true) {
-                    _selectedInterestIds.add(interest.id);
-                  } else {
-                    _selectedInterestIds.remove(interest.id);
-                  }
-                });
-              },
-            );
-          }).toList(),
+              const SizedBox(width: 16),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Interest chips (scrollable horizontal rows)
+        InterestChipsScrollable(
+          interests: filteredInterests,
+          selectedIds: _selectedInterestIds,
+          onToggle: (id) {
+            setState(() {
+              if (_selectedInterestIds.contains(id)) {
+                _selectedInterestIds.remove(id);
+              } else {
+                _selectedInterestIds.add(id);
+              }
+            });
+          },
         ),
       ],
     );

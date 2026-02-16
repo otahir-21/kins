@@ -4,10 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/providers/onboarding_provider.dart';
 
-/// Onboarding image paths (add img-2.png, img-3.png to assets/onboardingIcons/ for pages 2 & 3)
-const String _onboardingImg1 = 'assets/onboardingIcons/img-1.png';
-const String _onboardingImg2 = 'assets/onboardingIcons/img-2.png';
-const String _onboardingImg3 = 'assets/onboardingIcons/img-3.png';
+/// Onboarding image paths
+const String _onboardingImg1 = 'assets/onboardingIcons/mother.png';
+const String _onboardingImg2 = 'assets/onboardingIcons/motherhood.png';
+const String _onboardingImg3 = 'assets/onboardingIcons/mothers-day.png';
 
 /// Onboarding colors matching the design
 class _OnboardingColors {

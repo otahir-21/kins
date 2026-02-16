@@ -119,6 +119,9 @@ flutter:
     - assets/logo/Logo-KINS.svg
     - assets/logo/kins-App-Logo.svg
     - assets/onboardingIcons/
+    - assets/onboardingIcons/mother.png
+    - assets/onboardingIcons/motherhood.png
+    - assets/onboardingIcons/mothers-day.png
     - assets/fonts/
 
   # SF Pro (iOS) - add .otf files from Apple: https://developer.apple.com/fonts/
