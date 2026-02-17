@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:kins_app/core/theme/app_theme.dart';
 import 'package:kins_app/models/post_model.dart';
 import 'package:kins_app/repositories/feed_repository.dart';
@@ -150,7 +151,7 @@ class _MediaPostCard extends StatelessWidget {
     final text = post.text ?? '';
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
+      padding: EdgeInsets.symmetric(vertical: 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -161,22 +162,21 @@ class _MediaPostCard extends StatelessWidget {
             avatarUrl: post.authorPhotoUrl,
             onMore: onMore,
           ),
-          Transform.translate(
-            offset: const Offset(0, -12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(width: 52),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Text
-                  if (text.isNotEmpty) ...[
+          const SizedBox(height: 0),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(width: Responsive.spacing(context, 50)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Text
+                    if (text.isNotEmpty) ...[
                   Text(
                     text,
                     style: Theme.of(context).extension<AppPostTypography>()?.postBodySmall ??
-                        const TextStyle(fontSize: 15, fontWeight: FontWeight.w400, height: 1.4, color: Colors.black),
+                        TextStyle(fontSize: Responsive.fontSize(context, 15), fontWeight: FontWeight.w400, height: 1.4, color: Colors.black),
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -228,14 +228,13 @@ class _MediaPostCard extends StatelessWidget {
                   thickness: 0.8,
                   color: Color(0xFFE5E5E5),
                 ),
-                const SizedBox(height: 12),
-              ],
-            ),
+                const SizedBox(height: 0),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
-      ),
-    ),
-  ],
       ),
     );
   }
@@ -281,7 +280,7 @@ class _PollPostCard extends StatelessWidget {
     final text = post.text ?? '';
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
+      padding: EdgeInsets.symmetric(vertical: 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -292,21 +291,20 @@ class _PollPostCard extends StatelessWidget {
             avatarUrl: post.authorPhotoUrl,
             onMore: onMore,
           ),
-          Transform.translate(
-            offset: const Offset(0, -12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(width: 52),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (text.isNotEmpty) ...[
+          const SizedBox(height: 0),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(width: Responsive.spacing(context, 50)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (text.isNotEmpty) ...[
                       Text(
                         text,
                         style: Theme.of(context).extension<AppPostTypography>()?.pollQuestion ??
-                            const TextStyle(fontSize: 16, fontWeight: FontWeight.w400, height: 1.4, color: Colors.black),
+                            TextStyle(fontSize: Responsive.fontSize(context, 16), fontWeight: FontWeight.w400, height: 1.4, color: Colors.black),
                       ),
                       const SizedBox(height: 9),
                     ],
@@ -314,7 +312,7 @@ class _PollPostCard extends StatelessWidget {
                       post: post,
                       feedRepo: feedRepo,
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 0),
                     Padding(
                       padding: const EdgeInsets.only(bottom: 2),
                       child: PostInteractionBar(
@@ -330,13 +328,12 @@ class _PollPostCard extends StatelessWidget {
                       thickness: 0.8,
                       color: Color(0xFFE5E5E5),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 0),
                   ],
                 ),
               ),
             ],
           ),
-        ),
         ],
       ),
     );
@@ -508,7 +505,7 @@ class _PollOptionRowState extends State<_PollOptionRow> with SingleTickerProvide
                   child: Text(
                     '${pct.toStringAsFixed(0)}%',
                     style: Theme.of(context).extension<AppPostTypography>()?.pollOption ??
-                        const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black),
+                        TextStyle(fontSize: Responsive.fontSize(context, 15), fontWeight: FontWeight.w500, color: Colors.black),
                   ),
                 ),
               ),
@@ -523,7 +520,7 @@ class _PollOptionRowState extends State<_PollOptionRow> with SingleTickerProvide
   Widget _buildNotVotedState() {
     return Container(
       height: 44,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: EdgeInsets.symmetric(horizontal: Responsive.screenPaddingH(context)),
       decoration: BoxDecoration(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(22),
@@ -533,7 +530,7 @@ class _PollOptionRowState extends State<_PollOptionRow> with SingleTickerProvide
       child: Text(
         widget.option.text,
         style: Theme.of(context).extension<AppPostTypography>()?.pollOption ??
-            const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black),
+            TextStyle(fontSize: Responsive.fontSize(context, 15), fontWeight: FontWeight.w500, color: Colors.black),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
@@ -589,7 +586,7 @@ class _PollOptionRowState extends State<_PollOptionRow> with SingleTickerProvide
               top: 0,
               bottom: 0,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: EdgeInsets.symmetric(horizontal: Responsive.screenPaddingH(context)),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
@@ -597,7 +594,7 @@ class _PollOptionRowState extends State<_PollOptionRow> with SingleTickerProvide
                       child: Text(
                         widget.option.text,
                         style: Theme.of(context).extension<AppPostTypography>()?.pollOption ??
-                            const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black),
+                            TextStyle(fontSize: Responsive.fontSize(context, 15), fontWeight: FontWeight.w500, color: Colors.black),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),

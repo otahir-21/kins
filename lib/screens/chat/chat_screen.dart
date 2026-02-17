@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kins_app/core/utils/auth_utils.dart';
@@ -102,14 +103,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16.0, 12.0, 16.0, 8.0),
+      padding: EdgeInsets.fromLTRB(
+        Responsive.screenPaddingH(context),
+        Responsive.spacing(context, 12),
+        Responsive.screenPaddingH(context),
+        Responsive.spacing(context, 8),
+      ),
       child: Row(
         children: [
-          const Expanded(
+          Expanded(
             child: Text(
               'Chats',
               style: TextStyle(
-                fontSize: 28,
+                fontSize: Responsive.fontSize(context, 28),
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
               ),
@@ -135,7 +141,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             child: GestureDetector(
               onTap: () => setState(() => _selectedSegment = index),
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 10),
+                padding: EdgeInsets.symmetric(vertical: Responsive.spacing(context, 10)),
                 decoration: BoxDecoration(
                   color: isSelected ? Colors.grey.shade200 : Colors.transparent,
                   borderRadius: BorderRadius.circular(20),
@@ -144,7 +150,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   segments[index],
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: Responsive.fontSize(context, 14),
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                     color: Colors.black87,
                   ),
@@ -159,13 +165,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Widget _buildSearchBar() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 12.0),
+      padding: EdgeInsets.fromLTRB(
+        Responsive.screenPaddingH(context),
+        0,
+        Responsive.screenPaddingH(context),
+        Responsive.spacing(context, 12),
+      ),
       child: TextField(
         controller: _searchController,
         focusNode: _searchFocusNode,
         decoration: InputDecoration(
           hintText: 'Search',
-          hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 15),
+          hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: Responsive.fontSize(context, 15)),
           prefixIcon: Icon(Icons.search, color: Colors.grey.shade600, size: 22),
           filled: true,
           fillColor: Colors.grey.shade100,
@@ -195,13 +206,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           return Center(
             child: Text(
               chats.isEmpty ? 'No chats yet. Tap + to start a conversation.' : 'No matching chats.',
-              style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
+              style: TextStyle(fontSize: Responsive.fontSize(context, 15), color: Colors.grey.shade600),
               textAlign: TextAlign.center,
             ),
           );
         }
         return ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          padding: EdgeInsets.symmetric(horizontal: Responsive.screenPaddingH(context)),
           itemCount: filtered.length,
           itemBuilder: (context, index) {
             final chat = filtered[index];
@@ -223,7 +234,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         if (isPermission) hint = '\n\nAdd the chats security rules in Firebase Console → Firestore → Rules (see FIREBASE_CHAT_SETUP.md).';
         return Center(
           child: Padding(
-            padding: const EdgeInsets.all(24.0),
+            padding: EdgeInsets.all(Responsive.screenPaddingH(context)),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -231,13 +242,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 const SizedBox(height: 16),
                 Text(
                   'Something went wrong',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.grey.shade800),
+                  style: TextStyle(fontSize: Responsive.fontSize(context, 18), fontWeight: FontWeight.w600, color: Colors.grey.shade800),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
                 Text(
                   msg + hint,
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                  style: TextStyle(fontSize: Responsive.fontSize(context, 13), color: Colors.grey.shade600),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -281,12 +292,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           const SizedBox(height: 16),
           Text(
             'Marketplace',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
+            style: TextStyle(fontSize: Responsive.fontSize(context, 18), fontWeight: FontWeight.w600, color: Colors.grey.shade700),
           ),
           const SizedBox(height: 8),
           Text(
             'Buy & sell with other kins',
-            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+            style: TextStyle(fontSize: Responsive.fontSize(context, 14), color: Colors.grey.shade600),
           ),
         ],
       ),
@@ -404,10 +415,10 @@ class _ChatListTile extends StatelessWidget {
               child: avatarUrl == null
                   ? Text(
                       name.isNotEmpty ? name[0].toUpperCase() : '?',
-                      style: const TextStyle(
-                        color: Color(0xFF6B4C93),
+                      style: TextStyle(
+                        color: const Color(0xFF6B4C93),
                         fontWeight: FontWeight.w600,
-                        fontSize: 20,
+                        fontSize: Responsive.fontSize(context, 20),
                       ),
                     )
                   : null,
@@ -419,8 +430,8 @@ class _ChatListTile extends StatelessWidget {
                 children: [
                   Text(
                     name,
-                    style: const TextStyle(
-                      fontSize: 16,
+                    style: TextStyle(
+                      fontSize: Responsive.fontSize(context, 16),
                       fontWeight: FontWeight.w600,
                       color: Colors.black87,
                     ),
@@ -431,7 +442,7 @@ class _ChatListTile extends StatelessWidget {
                   Text(
                     lastMessage,
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: Responsive.fontSize(context, 14),
                       color: Colors.grey.shade600,
                     ),
                     maxLines: 1,
@@ -446,7 +457,7 @@ class _ChatListTile extends StatelessWidget {
                 Text(
                   time,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: Responsive.fontSize(context, 12),
                     color: Colors.grey.shade600,
                   ),
                 ),
@@ -460,9 +471,9 @@ class _ChatListTile extends StatelessWidget {
                     ),
                     child: Text(
                       '$unreadCount',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.white,
-                        fontSize: 12,
+                        fontSize: Responsive.fontSize(context, 12),
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -530,8 +541,8 @@ class _GroupCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    fontSize: 16,
+                  style: TextStyle(
+                    fontSize: Responsive.fontSize(context, 16),
                     fontWeight: FontWeight.w600,
                     color: Colors.black87,
                   ),
@@ -542,7 +553,7 @@ class _GroupCard extends StatelessWidget {
                 Text(
                   description,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: Responsive.fontSize(context, 13),
                     color: Colors.grey.shade600,
                   ),
                   maxLines: 2,
@@ -554,7 +565,7 @@ class _GroupCard extends StatelessWidget {
                     Text(
                       '$members Members',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: Responsive.fontSize(context, 12),
                         color: Colors.grey.shade600,
                       ),
                     ),
@@ -571,7 +582,7 @@ class _GroupCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(20),
                         ),
                       ),
-                      child: const Text('Join', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                      child: Text('Join', style: TextStyle(fontSize: Responsive.fontSize(context, 13), fontWeight: FontWeight.w500)),
                     ),
                   ],
                 ),
@@ -693,9 +704,9 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
             children: [
               Row(
                 children: [
-                  const Text(
+                  Text(
                     'New chat',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: Responsive.fontSize(context, 20), fontWeight: FontWeight.bold),
                   ),
                   const Spacer(),
                   IconButton(
@@ -707,7 +718,7 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
               const SizedBox(height: 8),
               Text(
                 'Enter their phone number with country code (e.g. +1 234 567 8900)',
-                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                style: TextStyle(fontSize: Responsive.fontSize(context, 14), color: Colors.grey.shade600),
               ),
               const SizedBox(height: 16),
               IntlPhoneField(

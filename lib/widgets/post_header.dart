@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:kins_app/core/theme/app_theme.dart';
 
 /// Reusable post header — exact copy of Poll post header layout.
@@ -22,16 +23,17 @@ class PostHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final typo = Theme.of(context).extension<AppPostTypography>();
-    final headerName = typo?.headerName ?? const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black);
-    final headerMeta = typo?.headerMeta ?? const TextStyle(fontSize: 16, fontWeight: FontWeight.w400, color: Color(0xFF8E8E93));
-    final headerTime = typo?.headerTime ?? const TextStyle(fontSize: 14, fontWeight: FontWeight.w400, color: Color(0xFF8E8E93));
+    final base = typo ?? AppPostTypography.fromBase(Theme.of(context).textTheme);
+    final headerName = base.headerName.copyWith(fontSize: Responsive.fontSize(context, 15));
+    final headerMeta = base.headerMeta.copyWith(fontSize: Responsive.fontSize(context, 15));
+    final headerTime = base.headerTime.copyWith(fontSize: Responsive.fontSize(context, 13));
 
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
-          width: 40,
-          height: 40,
+          width: 30,
+          height: 30,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: Colors.grey.shade200,
@@ -80,6 +82,7 @@ class PostHeader extends StatelessWidget {
             ],
           ),
         ),
+
       ],
     );
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:kins_app/models/interest_model.dart';
 
 /// Scrollable horizontal rows of interest pills (same layout as interests screen).
@@ -15,7 +16,7 @@ class InterestChipsScrollable extends StatelessWidget {
   final Set<String> selectedIds;
   final ValueChanged<String> onToggle;
 
-  static const int _kPillsPerRow = 30;
+  static const int _kPillsPerRow = 6;
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +38,7 @@ class InterestChipsScrollable extends StatelessWidget {
         for (var r = 0; r < rows.length; r++) ...[
           if (r > 0) const SizedBox(height: 12),
           SizedBox(
-            height: 48,
+            height: 32,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(vertical: 2),
@@ -70,7 +71,7 @@ class _InterestPill extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
 
-  static const double _pillRadius = 24;
+  static const double _pillRadius = 14;
 
   @override
   Widget build(BuildContext context) {
@@ -83,22 +84,14 @@ class _InterestPill extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(_pillRadius),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(_pillRadius),
             border: Border.all(
               color: isSelected ? colorScheme.primary : Colors.grey.shade300,
-              width: isSelected ? 1.5 : 1,
+              width: 1,
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-                spreadRadius: 0,
-              ),
-            ],
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -106,15 +99,16 @@ class _InterestPill extends StatelessWidget {
             children: [
               Text(
                 interest.name,
-                style: theme.textTheme.bodyMedium?.copyWith(
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  fontSize: Responsive.fontSize(context, 12),
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                   color: colorScheme.onSurface,
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 4),
               Icon(
                 isSelected ? Icons.close : Icons.add,
-                size: 18,
+                size: 12,
                 color: colorScheme.primary,
               ),
             ],

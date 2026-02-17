@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kins_app/core/utils/auth_utils.dart';
@@ -99,12 +100,12 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
           const SizedBox(height: 16),
           Text(
             'Join Our Premium Community',
-            style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.grey.shade900),
+            style: TextStyle(fontSize: Responsive.fontSize(context, 26), fontWeight: FontWeight.bold, color: Colors.grey.shade900),
           ),
           const SizedBox(height: 12),
           Text(
             'Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry\'s standard dummy text ever since the 1500s.',
-            style: TextStyle(fontSize: 14, color: Colors.grey.shade600, height: 1.5),
+            style: TextStyle(fontSize: Responsive.fontSize(context, 14), color: Colors.grey.shade600, height: 1.5),
           ),
           const SizedBox(height: 24),
           _buildBecomeMemberCard(),
@@ -137,7 +138,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
 
   Widget _buildBecomeMemberCard() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(Responsive.spacing(context, 20)),
       decoration: BoxDecoration(
         color: Colors.grey.shade50,
         borderRadius: BorderRadius.circular(16),
@@ -146,12 +147,12 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Become a Member', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text('Become a Member', style: TextStyle(fontSize: Responsive.fontSize(context, 18), fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          Text('\$100 per year', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Color(0xFF6B4C93))),
+          Text('\$100 per year', style: TextStyle(fontSize: Responsive.fontSize(context, 20), fontWeight: FontWeight.w600, color: const Color(0xFF6B4C93))),
           const SizedBox(height: 16),
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(Responsive.screenPaddingH(context)),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
@@ -171,9 +172,9 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(_userName ?? 'Member', style: const TextStyle(fontWeight: FontWeight.w600)),
-                      if (_userEmail != null) Text(_userEmail!, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                      Text('Membership ID: $_membershipId', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-                      Text('Account type: $_accountType', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                      if (_userEmail != null) Text(_userEmail!, style: TextStyle(fontSize: Responsive.fontSize(context, 12), color: Colors.grey.shade600)),
+                      Text('Membership ID: $_membershipId', style: TextStyle(fontSize: Responsive.fontSize(context, 11), color: Colors.grey.shade600)),
+                      Text('Account type: $_accountType', style: TextStyle(fontSize: Responsive.fontSize(context, 11), color: Colors.grey.shade600)),
                     ],
                   ),
                 ),
@@ -196,13 +197,13 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: benefits.map((b) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
+        padding: EdgeInsets.only(bottom: Responsive.spacing(context, 12)),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(Icons.check_circle, color: Color(0xFF6B4C93), size: 22),
             const SizedBox(width: 10),
-            Expanded(child: Text(b, style: TextStyle(fontSize: 15, color: Colors.grey.shade800))),
+            Expanded(child: Text(b, style: TextStyle(fontSize: Responsive.fontSize(context, 15), color: Colors.grey.shade800))),
           ],
         ),
       )).toList(),
@@ -217,7 +218,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
         children: [
           const SizedBox(height: 16),
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.all(Responsive.spacing(context, 20)),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
@@ -240,21 +241,21 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(_userName ?? 'Member', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                          if (_userEmail != null) Text(_userEmail!, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+                          Text(_userName ?? 'Member', style: TextStyle(fontSize: Responsive.fontSize(context, 18), fontWeight: FontWeight.bold)),
+                          if (_userEmail != null) Text(_userEmail!, style: TextStyle(fontSize: Responsive.fontSize(context, 13), color: Colors.grey.shade600)),
                         ],
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
-                Text('Membership ID: $_membershipId', style: TextStyle(fontSize: 13, color: Colors.grey.shade700)),
+                Text('Membership ID: $_membershipId', style: TextStyle(fontSize: Responsive.fontSize(context, 13), color: Colors.grey.shade700)),
                 const SizedBox(height: 4),
-                Text('Expiry: $_expiry', style: TextStyle(fontSize: 13, color: Colors.grey.shade700)),
+                Text('Expiry: $_expiry', style: TextStyle(fontSize: Responsive.fontSize(context, 13), color: Colors.grey.shade700)),
                 const SizedBox(height: 4),
-                Text('Account type: $_accountType', style: TextStyle(fontSize: 13, color: Colors.grey.shade700)),
+                Text('Account type: $_accountType', style: TextStyle(fontSize: Responsive.fontSize(context, 13), color: Colors.grey.shade700)),
                 const SizedBox(height: 12),
-                Align(alignment: Alignment.bottomRight, child: Text('kins', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF6B4C93)))),
+                Align(alignment: Alignment.bottomRight, child: Text('kins', style: TextStyle(fontSize: Responsive.fontSize(context, 14), fontWeight: FontWeight.bold, color: const Color(0xFF6B4C93)))),
               ],
             ),
           ),
@@ -265,7 +266,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
                 child: OutlinedButton(
                   onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cancel – coming soon'))),
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    padding: EdgeInsets.symmetric(vertical: Responsive.spacing(context, 14)),
                     side: BorderSide(color: Colors.grey.shade300),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -277,7 +278,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
                 child: OutlinedButton(
                   onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Renew – coming soon'))),
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    padding: EdgeInsets.symmetric(vertical: Responsive.spacing(context, 14)),
                     side: BorderSide(color: Colors.grey.shade300),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -319,7 +320,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
                   children: [
                     Icon(Icons.pool, size: 48, color: Colors.blue.shade300),
                     const SizedBox(height: 8),
-                    Text('AURA SKYPOOL', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
+                    Text('AURA SKYPOOL', style: TextStyle(fontSize: Responsive.fontSize(context, 16), fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
                   ],
                 ),
               ),
@@ -328,9 +329,12 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
               top: 12,
               left: 12,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: EdgeInsets.symmetric(
+                  horizontal: Responsive.spacing(context, 10),
+                  vertical: Responsive.spacing(context, 4),
+                ),
                 decoration: BoxDecoration(color: Color(0xFF6B4C93), borderRadius: BorderRadius.circular(8)),
-                child: const Text('25% off', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12)),
+                child: Text('25% off', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: Responsive.fontSize(context, 12))),
               ),
             ),
             Positioned(
@@ -340,9 +344,9 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Cancel anytime, no questions asked', style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
-                  Text('All plans include 7 days money back guarantee', style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
-                  Text('Secure payment process', style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+                  Text('Cancel anytime, no questions asked', style: TextStyle(fontSize: Responsive.fontSize(context, 11), color: Colors.grey.shade700)),
+                  Text('All plans include 7 days money back guarantee', style: TextStyle(fontSize: Responsive.fontSize(context, 11), color: Colors.grey.shade700)),
+                  Text('Secure payment process', style: TextStyle(fontSize: Responsive.fontSize(context, 11), color: Colors.grey.shade700)),
                 ],
               ),
             ),

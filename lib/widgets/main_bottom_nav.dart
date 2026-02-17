@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
 
@@ -32,13 +33,21 @@ class MainBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(_horizontalMargin, 0, _horizontalMargin, 0),
+      padding: EdgeInsets.fromLTRB(
+        Responsive.spacing(context, _horizontalMargin),
+        0,
+        Responsive.spacing(context, _horizontalMargin),
+        0,
+      ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(40),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
           child: Container(
-            padding: const EdgeInsets.symmetric(vertical: _verticalPadding, horizontal: 8),
+            padding: EdgeInsets.symmetric(
+              vertical: Responsive.spacing(context, _verticalPadding),
+              horizontal: Responsive.spacing(context, 8),
+            ),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.45),
               borderRadius: BorderRadius.circular(40),

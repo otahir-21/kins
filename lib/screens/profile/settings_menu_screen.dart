@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
+import 'package:kins_app/core/responsive/responsive.dart';
+import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:kins_app/providers/auth_provider.dart';
-import 'package:kins_app/repositories/auth_repository.dart';
+import 'package:kins_app/services/account_deletion_service.dart';
 
 /// Settings menu: Account Settings, Favourite, FAQ's, Terms, Privacy, About us, Log out.
 class SettingsMenuScreen extends ConsumerWidget {
@@ -23,7 +25,10 @@ class SettingsMenuScreen extends ConsumerWidget {
         title: const Text('Settings', style: TextStyle(color: Colors.black)),
       ),
       body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        padding: EdgeInsets.symmetric(
+          horizontal: Responsive.screenPaddingH(context),
+          vertical: Responsive.spacing(context, 8),
+        ),
         children: [
           _buildItem(context, 'Account Settings', Icons.person_outline, () => context.push(AppConstants.routeAccountSettings)),
           _buildItem(context, 'Edit Profile', Icons.edit_outlined, () => context.push(AppConstants.routeEditProfile)),
@@ -34,25 +39,61 @@ class SettingsMenuScreen extends ConsumerWidget {
           _buildItem(context, 'Privacy Policy', Icons.privacy_tip_outlined, () => _showComingSoon(context)),
           _buildItem(context, 'About us', Icons.info_outline, () => _showComingSoon(context)),
           const Divider(height: 24),
-          _buildItem(context, 'Log out', Icons.logout, () => _onLogout(context, ref), isLogout: true),
+          _buildItem(context, 'Delete account', Icons.delete_outline, () => _onDeleteAccount(context, ref), isDestructive: true),
+          _buildItem(context, 'Log out', Icons.exit_to_app, () => _onLogout(context, ref), isLogout: true),
           const SizedBox(height: 24),
         ],
       ),
     );
   }
 
-  Widget _buildItem(BuildContext context, String title, IconData icon, VoidCallback onTap, {bool isLogout = false}) {
-    final color = isLogout ? Colors.red : Colors.black87;
+  Widget _buildItem(BuildContext context, String title, IconData icon, VoidCallback onTap, {bool isLogout = false, bool isDestructive = false}) {
+    final color = (isLogout || isDestructive) ? Colors.red : Colors.black87;
     return ListTile(
       leading: Icon(icon, color: color, size: 24),
-      title: Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: color)),
-      trailing: isLogout ? null : Icon(Icons.chevron_right, color: Colors.grey.shade400),
+      title: Text(title, style: TextStyle(fontSize: Responsive.fontSize(context, 16), fontWeight: FontWeight.w500, color: color)),
+      trailing: (isLogout || isDestructive) ? null : Icon(Icons.chevron_right, color: Colors.grey.shade400),
       onTap: onTap,
     );
   }
 
   void _showComingSoon(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Coming soon')));
+  }
+
+  void _onDeleteAccount(BuildContext context, WidgetRef ref) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete account'),
+        content: const Text(
+          'This will permanently delete your account and all your data from our servers. This action cannot be undone.\n\nAre you sure you want to continue?',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete account'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !context.mounted) return;
+    try {
+      final service = AccountDeletionService();
+      await service.deleteAccount(
+        userId: currentUserId,
+        authRepository: ref.read(authRepositoryProvider),
+      );
+      if (context.mounted) context.go(AppConstants.routeSplash);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete account: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   void _onLogout(BuildContext context, WidgetRef ref) async {

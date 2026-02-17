@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
@@ -104,9 +105,9 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
             Expanded(
               child: Text(
                 displayName,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
-                  fontSize: 18,
+                  fontSize: Responsive.fontSize(context, 18),
                   fontWeight: FontWeight.w600,
                 ),
                 overflow: TextOverflow.ellipsis,
@@ -147,7 +148,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
                   return Center(
                     child: Text(
                       'No messages yet. Say hi!',
-                      style: TextStyle(color: Colors.grey.shade600, fontSize: 15),
+                      style: TextStyle(color: Colors.grey.shade600, fontSize: Responsive.fontSize(context, 15)),
                     ),
                   );
                 }
@@ -162,7 +163,10 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
                     return ListView.builder(
                       controller: _scrollController,
                       reverse: true,
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: Responsive.spacing(context, 8),
+                        vertical: Responsive.spacing(context, 12),
+                      ),
                       itemCount: messages.length,
                       itemBuilder: (context, index) {
                         final msg = messages[index];
@@ -204,7 +208,12 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
 
   Widget _buildInputBar() {
     return Container(
-      padding: EdgeInsets.fromLTRB(8, 8, 8, 8 + MediaQuery.of(context).padding.bottom),
+      padding: EdgeInsets.fromLTRB(
+        Responsive.spacing(context, 8),
+        Responsive.spacing(context, 8),
+        Responsive.spacing(context, 8),
+        Responsive.spacing(context, 8) + MediaQuery.of(context).padding.bottom,
+      ),
       color: const Color(0xFFF0F2F5),
       child: Row(
         children: [
@@ -243,7 +252,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
           GestureDetector(
             onTap: _isSending ? null : _sendMessage,
             child: Container(
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.all(Responsive.screenPaddingH(context)),
               decoration: const BoxDecoration(
                 color: Color(0xFF075E54),
                 shape: BoxShape.circle,
@@ -280,7 +289,10 @@ class _MessageBubble extends StatelessWidget {
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.only(bottom: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: EdgeInsets.symmetric(
+          horizontal: Responsive.spacing(context, 12),
+          vertical: Responsive.spacing(context, 8),
+        ),
         constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
         decoration: BoxDecoration(
           color: isMe ? const Color(0xFFD9FDD3) : Colors.white,
@@ -304,7 +316,7 @@ class _MessageBubble extends StatelessWidget {
           children: [
             Text(
               message.text,
-              style: const TextStyle(fontSize: 15, color: Colors.black87),
+              style: TextStyle(fontSize: Responsive.fontSize(context, 15), color: Colors.black87),
             ),
             const SizedBox(height: 4),
             Row(
@@ -312,7 +324,7 @@ class _MessageBubble extends StatelessWidget {
               children: [
                 Text(
                   timeStr,
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                  style: TextStyle(fontSize: Responsive.fontSize(context, 11), color: Colors.grey.shade600),
                 ),
                 if (isMe && status != null) ...[
                   const SizedBox(width: 4),

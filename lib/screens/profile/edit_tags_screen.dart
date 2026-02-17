@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kins_app/core/utils/auth_utils.dart';
@@ -76,7 +77,7 @@ class _EditTagsScreenState extends ConsumerState<EditTagsScreen> {
         title: const Text('Edit tags', style: TextStyle(color: Colors.black)),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.all(Responsive.spacing(context, 20)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -93,9 +94,9 @@ class _EditTagsScreenState extends ConsumerState<EditTagsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(_userName ?? 'User', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text(_userName ?? 'User', style: TextStyle(fontSize: Responsive.fontSize(context, 18), fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
-                      Text('120 Followers · 20 Following · 8 Posts · 2 Reposts', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                      Text('120 Followers · 20 Following · 8 Posts · 2 Reposts', style: TextStyle(fontSize: Responsive.fontSize(context, 12), color: Colors.grey.shade600)),
                     ],
                   ),
                 ),
@@ -143,7 +144,7 @@ class _EditTagsScreenState extends ConsumerState<EditTagsScreen> {
               onTap: () => setState(() => _tagsExpanded = !_tagsExpanded),
               child: Row(
                 children: [
-                  const Text('Tags', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  Text('Tags', style: TextStyle(fontSize: Responsive.fontSize(context, 16), fontWeight: FontWeight.w600)),
                   const Spacer(),
                   Icon(_tagsExpanded ? Icons.expand_less : Icons.expand_more),
                 ],

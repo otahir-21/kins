@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:kins_app/core/theme/app_theme.dart';
 import 'package:kins_app/models/post_model.dart';
 
@@ -78,7 +79,7 @@ class PostInteractionBar extends StatelessWidget {
           Text(
             count.toString(),
             style: Theme.of(context).extension<AppPostTypography>()?.interactionCount ??
-                const TextStyle(fontSize: 20, fontWeight: FontWeight.w500, color: Colors.black),
+                TextStyle(fontSize: Responsive.fontSize(context, 20), fontWeight: FontWeight.w500, color: Colors.black),
           ),
         ],
       ),

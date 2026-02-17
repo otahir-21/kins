@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 /// App-wide skeleton loaders. Use instead of CircularProgressIndicator.
@@ -15,7 +16,10 @@ class SkeletonFeedList extends StatelessWidget {
     return Skeletonizer(
       enabled: true,
       child: ListView.builder(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        padding: EdgeInsets.symmetric(
+          vertical: Responsive.spacing(context, 8),
+          horizontal: Responsive.screenPaddingH(context),
+        ),
         itemCount: itemCount,
         itemBuilder: (_, __) => _SkeletonPostCard(),
       ),
@@ -27,8 +31,8 @@ class _SkeletonPostCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20),
+      margin: EdgeInsets.only(bottom: Responsive.spacing(context, 16)),
+      padding: EdgeInsets.all(Responsive.screenPaddingH(context)),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
@@ -110,7 +114,7 @@ class SkeletonProfile extends StatelessWidget {
     return Skeletonizer(
       enabled: true,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+        padding: EdgeInsets.symmetric(horizontal: Responsive.screenPaddingH(context)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -175,7 +179,7 @@ class SkeletonProfile extends StatelessWidget {
             ...List.generate(
               3,
               (_) => Padding(
-                padding: const EdgeInsets.only(bottom: 16),
+                padding: EdgeInsets.only(bottom: Responsive.spacing(context, 16)),
                 child: _SkeletonPostCard(),
               ),
             ),
@@ -215,10 +219,10 @@ class SkeletonCommentList extends StatelessWidget {
     return Skeletonizer(
       enabled: true,
       child: ListView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(Responsive.screenPaddingH(context)),
         itemCount: itemCount,
         itemBuilder: (_, __) => Padding(
-          padding: const EdgeInsets.only(bottom: 16),
+          padding: EdgeInsets.only(bottom: Responsive.spacing(context, 16)),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -294,10 +298,10 @@ class SkeletonNotificationList extends StatelessWidget {
     return Skeletonizer(
       enabled: true,
       child: ListView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(Responsive.screenPaddingH(context)),
         itemCount: itemCount,
         itemBuilder: (_, __) => Padding(
-          padding: const EdgeInsets.only(bottom: 16),
+          padding: EdgeInsets.only(bottom: Responsive.spacing(context, 16)),
           child: Row(
             children: [
               CircleAvatar(radius: 28, backgroundColor: Colors.grey.shade300),
@@ -339,7 +343,7 @@ class SkeletonChatList extends StatelessWidget {
     return Skeletonizer(
       enabled: true,
       child: ListView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(Responsive.screenPaddingH(context)),
         itemCount: itemCount,
         itemBuilder: (_, __) => Padding(
           padding: const EdgeInsets.only(bottom: 12),
@@ -384,7 +388,7 @@ class SkeletonFollowList extends StatelessWidget {
     return Skeletonizer(
       enabled: true,
       child: ListView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(Responsive.screenPaddingH(context)),
         itemCount: itemCount,
         itemBuilder: (_, __) => ListTile(
           leading: CircleAvatar(radius: 24, backgroundColor: Colors.grey.shade300),
@@ -574,7 +578,7 @@ class SkeletonHome extends StatelessWidget {
     return Skeletonizer(
       enabled: true,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(Responsive.screenPaddingH(context)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -587,7 +591,7 @@ class SkeletonHome extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             ...List.generate(6, (_) => Padding(
-              padding: const EdgeInsets.only(bottom: 16),
+              padding: EdgeInsets.only(bottom: Responsive.spacing(context, 16)),
               child: Row(
                 children: [
                   Container(

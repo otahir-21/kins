@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
@@ -19,7 +20,12 @@ class UserDetailsSuccessScreen extends ConsumerWidget {
           children: [
             // Top section with logo and skip
             Padding(
-              padding: const EdgeInsets.fromLTRB(24.0, 8.0, 24.0, 16.0),
+              padding: EdgeInsets.fromLTRB(
+                Responsive.screenPaddingH(context),
+                Responsive.spacing(context, 8),
+                Responsive.screenPaddingH(context),
+                Responsive.spacing(context, 16),
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -31,12 +37,12 @@ class UserDetailsSuccessScreen extends ConsumerWidget {
                       color: const Color(0xFF6B4C93), // Dark purple/plum
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Center(
+                    child: Center(
                       child: Text(
                         'kins',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 24,
+                          fontSize: Responsive.fontSize(context, 24),
                           fontWeight: FontWeight.bold,
                           letterSpacing: 0.5,
                         ),
@@ -57,7 +63,7 @@ class UserDetailsSuccessScreen extends ConsumerWidget {
                       'Skip',
                       style: TextStyle(
                         color: Colors.grey.shade400,
-                        fontSize: 14,
+                        fontSize: Responsive.fontSize(context, 14),
                         fontWeight: FontWeight.w400,
                       ),
                     ),
@@ -69,7 +75,10 @@ class UserDetailsSuccessScreen extends ConsumerWidget {
             // Main content card
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                padding: EdgeInsets.symmetric(
+                  horizontal: Responsive.screenPaddingH(context),
+                  vertical: Responsive.spacing(context, 16),
+                ),
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
@@ -90,15 +99,20 @@ class UserDetailsSuccessScreen extends ConsumerWidget {
                             
                             // Content on top
                             Padding(
-                              padding: const EdgeInsets.fromLTRB(32.0, 40.0, 32.0, 32.0),
+                              padding: EdgeInsets.fromLTRB(
+                                Responsive.spacing(context, 32),
+                                Responsive.spacing(context, 40),
+                                Responsive.spacing(context, 32),
+                                Responsive.spacing(context, 32),
+                              ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   // Title - using Text with proper styling
-                                  const Text(
+                                  Text(
                                     'Document Uploaded\nand Data Saved',
                                     style: TextStyle(
-                                      fontSize: 28,
+                                      fontSize: Responsive.fontSize(context, 28),
                                       fontWeight: FontWeight.bold,
                                       color: Colors.black,
                                       height: 1.3,
@@ -114,7 +128,7 @@ class UserDetailsSuccessScreen extends ConsumerWidget {
                                   Text(
                                     'Your information has been successfully saved to Firebase',
                                     style: TextStyle(
-                                      fontSize: 16,
+                                      fontSize: Responsive.fontSize(context, 16),
                                       color: Colors.grey.shade700,
                                       height: 1.5,
                                       letterSpacing: 0.2,
@@ -137,15 +151,20 @@ class UserDetailsSuccessScreen extends ConsumerWidget {
 
             // Bottom action bar
             Padding(
-              padding: const EdgeInsets.fromLTRB(24.0, 0, 24.0, 24.0),
+              padding: EdgeInsets.fromLTRB(
+                Responsive.screenPaddingH(context),
+                0,
+                Responsive.screenPaddingH(context),
+                Responsive.spacing(context, 24),
+              ),
               child: Row(
                 children: [
                   // Selected items row
                   Expanded(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: Responsive.spacing(context, 12),
+                        vertical: Responsive.spacing(context, 8),
                       ),
                       decoration: BoxDecoration(
                         color: Colors.grey.shade200.withOpacity(0.6),
@@ -156,7 +175,7 @@ class UserDetailsSuccessScreen extends ConsumerWidget {
                         child: Row(
                           children: [
                             // Selected interest tags with Lorem Ipsum text
-                            ..._buildSelectedTags(),
+                            ..._buildSelectedTags(context),
                           ],
                         ),
                       ),
@@ -278,7 +297,7 @@ class UserDetailsSuccessScreen extends ConsumerWidget {
   }
 
   // Build selected interest tags
-  List<Widget> _buildSelectedTags() {
+  List<Widget> _buildSelectedTags(BuildContext context) {
     final tags = [
       {'color': const Color(0xFF8B4513), 'text': 'Lorem'}, // Reddish-brown
       {'color': const Color(0xFFE6E6FA), 'text': 'Lorem'}, // Light lavender
@@ -289,7 +308,7 @@ class UserDetailsSuccessScreen extends ConsumerWidget {
 
     return tags.map((tag) {
       return Padding(
-        padding: const EdgeInsets.only(right: 8.0),
+        padding: EdgeInsets.only(right: Responsive.spacing(context, 8)),
         child: Container(
           width: 48,
           height: 48,
@@ -300,9 +319,9 @@ class UserDetailsSuccessScreen extends ConsumerWidget {
           child: Center(
             child: Text(
               tag['text'] as String,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.white,
-                fontSize: 12,
+                fontSize: Responsive.fontSize(context, 12),
                 fontWeight: FontWeight.w500,
               ),
             ),

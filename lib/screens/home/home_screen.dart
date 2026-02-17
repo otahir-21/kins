@@ -8,13 +8,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
+import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:kins_app/repositories/user_details_repository.dart';
 import 'package:kins_app/providers/auth_provider.dart';
 import 'package:kins_app/providers/notification_provider.dart';
 import 'package:kins_app/services/location_service.dart';
 import 'package:kins_app/repositories/location_repository.dart';
-import 'package:kins_app/services/account_deletion_service.dart';
 import 'package:kins_app/widgets/floating_nav_overlay.dart';
+import 'package:kins_app/widgets/kins_logo.dart';
 import 'package:kins_app/widgets/skeleton/skeleton_loaders.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -169,15 +170,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => Container(
-        padding: const EdgeInsets.all(24.0),
+        padding: EdgeInsets.all(Responsive.spacing(context, 24)),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Select Status',
               style: TextStyle(
-                fontSize: 20,
+                fontSize: Responsive.fontSize(context, 20),
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -219,7 +220,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               _buildHeader(),
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  padding: EdgeInsets.symmetric(horizontal: Responsive.screenPaddingH(context)),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -245,7 +246,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 12.0),
+      padding: EdgeInsets.fromLTRB(
+        Responsive.screenPaddingH(context),
+        Responsive.spacing(context, 8),
+        Responsive.screenPaddingH(context),
+        Responsive.spacing(context, 12),
+      ),
       child: Column(
         children: [
           // Top Row: Menu, Title, Profile
@@ -262,11 +268,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               
               // Home Title
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Home',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: Responsive.fontSize(context, 18),
                     fontWeight: FontWeight.w600,
                     color: Colors.black87,
                   ),
@@ -310,9 +316,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 child: GestureDetector(
                   onTap: _showStatusDialog,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: Responsive.screenPaddingH(context),
+                      vertical: Responsive.spacing(context, 10),
                     ),
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -324,8 +330,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     child: Text(
                       _selectedStatus ?? 'Expecting Mother',
-                      style: const TextStyle(
-                        fontSize: 14,
+                      style: TextStyle(
+                        fontSize: Responsive.fontSize(context, 14),
                         fontWeight: FontWeight.w500,
                         color: Colors.black,
                       ),
@@ -337,7 +343,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               TextButton(
                 onPressed: _showStatusDialog,
                 style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: Responsive.screenPaddingH(context),
+                    vertical: Responsive.spacing(context, 10),
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                     side: BorderSide(color: Colors.grey.shade300),
@@ -347,7 +356,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   'Change',
                   style: TextStyle(
                     color: Colors.grey.shade700,
-                    fontSize: 14,
+                    fontSize: Responsive.fontSize(context, 14),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -434,7 +443,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: EdgeInsets.all(Responsive.screenPaddingH(context)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -446,8 +455,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 const Spacer(),
                 Text(
                   title,
-                  style: const TextStyle(
-                    fontSize: 14,
+                  style: TextStyle(
+                    fontSize: Responsive.fontSize(context, 14),
                     fontWeight: FontWeight.w600,
                     color: Colors.black,
                   ),
@@ -532,16 +541,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     color: Colors.transparent,
                     child: Center(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: Responsive.screenPaddingH(context),
+                          vertical: Responsive.spacing(context, 8),
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.black.withOpacity(0.6),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: const Text(
+                        child: Text(
                           'Tap to view full map',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 12,
+                            fontSize: Responsive.fontSize(context, 12),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -554,9 +566,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 bottom: 20,
                 left: 20,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: Responsive.spacing(context, 12),
+                    vertical: Responsive.spacing(context, 8),
                   ),
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -577,10 +589,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         color: const Color(0xFF6B4C93),
                       ),
                       const SizedBox(width: 6),
-                      const Text(
+                      Text(
                         'Dubai Hills Mall',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: Responsive.fontSize(context, 12),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -634,16 +646,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               top: 12,
               right: 12,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: EdgeInsets.symmetric(
+                  horizontal: Responsive.spacing(context, 8),
+                  vertical: Responsive.spacing(context, 4),
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text(
+                child: Text(
                   'Promoted Ad',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 10,
+                    fontSize: Responsive.fontSize(context, 10),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -658,7 +673,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   color: Colors.red.shade400,
                   shape: BoxShape.circle,
                 ),
-                child: const Center(
+                child: Center(
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -666,11 +681,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         'p',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 28,
+                          fontSize: Responsive.fontSize(context, 28),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      Icon(
+                      const Icon(
                         Icons.favorite,
                         color: Colors.white,
                         size: 20,
@@ -679,7 +694,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         'geon',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 28,
+                          fontSize: Responsive.fontSize(context, 28),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -752,7 +767,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Widget _buildKinsightsSection() {
     return Container(
-      padding: const EdgeInsets.all(20.0),
+      padding: EdgeInsets.all(Responsive.spacing(context, 20)),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -771,19 +786,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Kinsights',
             style: TextStyle(
-              fontSize: 22,
+              fontSize: Responsive.fontSize(context, 22),
               fontWeight: FontWeight.bold,
               color: Colors.black,
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'What influences your mother & child purchases the most?',
             style: TextStyle(
-              fontSize: 14,
+              fontSize: Responsive.fontSize(context, 14),
               color: Colors.black87,
             ),
           ),
@@ -819,7 +834,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Widget _buildKinsightChip(String text) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14),
+      padding: EdgeInsets.symmetric(vertical: Responsive.spacing(context, 14)),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -831,8 +846,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       child: Center(
         child: Text(
           text,
-          style: const TextStyle(
-            fontSize: 13,
+          style: TextStyle(
+            fontSize: Responsive.fontSize(context, 13),
             fontWeight: FontWeight.w500,
             color: Colors.black87,
           ),
@@ -843,7 +858,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildDrawer() {
-    final uid = currentUserId;
     final authRepository = ref.read(authRepositoryProvider);
 
     return Drawer(
@@ -858,17 +872,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              // Close Button
+              // Logo and Close Button
               Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: EdgeInsets.all(Responsive.screenPaddingH(context)),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    KinsLogo(
+                      width: Responsive.scale(context, 90),
+                      height: Responsive.scale(context, 36),
+                    ),
                     IconButton(
                       icon: const Icon(Icons.close, color: Colors.black),
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
+                      onPressed: () => Navigator.pop(context),
                     ),
                   ],
                 ),
@@ -881,6 +897,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   children: [
                     _buildDrawerItem(
                       title: 'Saved Posts',
+                      icon: Icons.bookmark_border,
                       onTap: () {
                         Navigator.pop(context);
                         // TODO: Navigate to saved posts
@@ -888,6 +905,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     _buildDrawerItem(
                       title: 'Account Settings',
+                      icon: Icons.person_outline,
                       onTap: () {
                         Navigator.pop(context);
                         context.push(AppConstants.routeSettings);
@@ -895,6 +913,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     _buildDrawerItem(
                       title: 'Terms of Service',
+                      icon: Icons.description_outlined,
                       onTap: () {
                         Navigator.pop(context);
                         // TODO: Navigate to terms of service
@@ -902,6 +921,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     _buildDrawerItem(
                       title: 'Privacy Policy',
+                      icon: Icons.privacy_tip_outlined,
                       onTap: () {
                         Navigator.pop(context);
                         // TODO: Navigate to privacy policy
@@ -909,6 +929,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     _buildDrawerItem(
                       title: 'About Us',
+                      icon: Icons.info_outline,
                       onTap: () {
                         Navigator.pop(context);
                         // TODO: Navigate to about us
@@ -916,6 +937,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     _buildDrawerItem(
                       title: 'Contact Us',
+                      icon: Icons.contact_support_outlined,
                       onTap: () {
                         Navigator.pop(context);
                         // TODO: Navigate to contact us
@@ -923,54 +945,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     const Divider(height: 1),
                     _buildDrawerItem(
-                      title: 'Delete account',
-                      isDestructive: true,
-                      onTap: () async {
-                        Navigator.pop(context);
-                        final confirm = await showDialog<bool>(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            title: const Text('Delete account'),
-                            content: const Text(
-                              'This will permanently delete your account and all your data from our servers. This action cannot be undone.\n\nAre you sure you want to continue?',
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx, false),
-                                child: const Text('Cancel'),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx, true),
-                                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                                child: const Text('Delete account'),
-                              ),
-                            ],
-                          ),
-                        );
-                        if (confirm != true || !mounted) return;
-                        try {
-                          final service = AccountDeletionService();
-                          await service.deleteAccount(
-                            userId: uid,
-                            authRepository: authRepository,
-                          );
-                          if (mounted) {
-                            context.go(AppConstants.routeSplash);
-                          }
-                        } catch (e) {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Failed to delete account: $e'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        }
-                      },
-                    ),
-                    _buildDrawerItem(
                       title: 'Log out',
+                      icon: Icons.exit_to_app,
                       isLogout: true,
                       onTap: () async {
                         final shouldLogout = await showDialog<bool>(
@@ -1026,17 +1002,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Widget _buildDrawerItem({
     required String title,
+    required IconData icon,
     required VoidCallback onTap,
     bool isLogout = false,
     bool isDestructive = false,
   }) {
     final useRed = isLogout || isDestructive;
     return ListTile(
+      dense: true,
+      leading: Icon(icon, color: useRed ? Colors.red : Colors.black87, size: 24),
       title: Text(
         title,
         style: TextStyle(
           color: useRed ? Colors.red : Colors.black87,
-          fontSize: 16,
+          fontSize: Responsive.fontSize(context, 16),
           fontWeight: FontWeight.w500,
         ),
       ),
@@ -1045,7 +1024,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         color: useRed ? Colors.red : Colors.grey.shade400,
       ),
       onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+      contentPadding: EdgeInsets.symmetric(
+        horizontal: Responsive.screenPaddingH(context),
+        vertical: 0,
+      ),
     );
   }
 

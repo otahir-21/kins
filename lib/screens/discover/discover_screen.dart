@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:kins_app/core/utils/storage_service.dart';
 import 'package:share_plus/share_plus.dart';
@@ -15,9 +16,9 @@ import 'package:kins_app/providers/feed_provider.dart';
 import 'package:kins_app/providers/interest_provider.dart';
 import 'package:kins_app/providers/post_provider.dart';
 import 'package:kins_app/repositories/feed_repository.dart';
-import 'package:kins_app/services/account_deletion_service.dart';
 import 'package:kins_app/services/backend_auth_service.dart';
 import 'package:kins_app/widgets/floating_nav_overlay.dart';
+import 'package:kins_app/widgets/kins_logo.dart';
 import 'package:kins_app/screens/comments/comments_bottom_sheet.dart';
 import 'package:kins_app/widgets/feed_post_card.dart';
 import 'package:kins_app/widgets/skeleton/skeleton_loaders.dart';
@@ -349,16 +350,21 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
       onRefresh: () => _loadFeed(isRefresh: true),
       child: ListView.builder(
         controller: _scrollController,
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 1),
+        padding: EdgeInsets.fromLTRB(
+          Responsive.screenPaddingH(context),
+          0,
+          Responsive.screenPaddingH(context),
+          1,
+        ),
         itemCount: posts.length + (_hasMore ? 1 : 0),
         physics: const AlwaysScrollableScrollPhysics(),
         itemBuilder: (context, index) {
           if (index >= posts.length) {
             // Loading indicator at bottom
             return _isLoadingMore
-                ? const Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: SkeletonFeedItem(),
+                ? Padding(
+                    padding: EdgeInsets.all(Responsive.screenPaddingH(context)),
+                    child: const SkeletonFeedItem(),
                   )
                 : const SizedBox.shrink();
           }
@@ -381,23 +387,31 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
     final unreadCount = notificationState?.unreadCount ?? 0;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      color: _headerBg,
+      padding: EdgeInsets.symmetric(horizontal: Responsive.screenPaddingH(context)),
+
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 1) Top Header Row
           Builder(
             builder: (context) => Row(
               crossAxisAlignment: CrossAxisAlignment.center,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // LEFT: Menu
-                IconButton(
-                  onPressed: () => Scaffold.of(context).openDrawer(),
-                  icon: const Icon(Icons.menu, size: 24, color: Colors.black),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                SizedBox(
+                  width: 30,
+                  height: 48,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: IconButton(
+                      onPressed: () => Scaffold.of(context).openDrawer(),
+                      icon: const Icon(Icons.menu, size: 20),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      style: IconButton.styleFrom(
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                  ),
                 ),
                 // CENTER: Avatar + Name + Location
                 Expanded(
@@ -411,7 +425,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
-                          width: 40,
+                          width: 35,
                           height: 40,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
@@ -424,10 +438,10 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
                                 : null,
                           ),
                           child: _profilePictureUrl == null
-                              ? Icon(Icons.person, size: 24, color: Colors.grey.shade400)
+                              ? Icon(Icons.person, size: 20, color: Colors.grey.shade400)
                               : null,
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 5),
                         Flexible(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -435,8 +449,8 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
                             children: [
                               Text(
                                 _userName ?? 'Discover',
-                                style: const TextStyle(
-                                  fontSize: 18,
+                                style: TextStyle(
+                                  fontSize: Responsive.fontSize(context, 15),
                                   fontWeight: FontWeight.w600,
                                   color: Colors.black,
                                 ),
@@ -446,13 +460,13 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
                                 const SizedBox(height: 4),
                                 Row(
                                   children: [
-                                    Icon(Icons.location_on_outlined, size: 16, color: _greyMeta),
+                                    Icon(Icons.location_on_outlined, size: 13, color: _greyMeta),
                                     const SizedBox(width: 4),
                                     Flexible(
                                       child: Text(
                                         _userLocation!,
-                                        style: const TextStyle(
-                                          fontSize: 14,
+                                        style: TextStyle(
+                                          fontSize: Responsive.fontSize(context, 12),
                                           color: _greyMeta,
                                         ),
                                         overflow: TextOverflow.ellipsis,
@@ -475,13 +489,13 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
                     clipBehavior: Clip.none,
                     children: [
                       Container(
-                        width: 40,
+                        width: 35,
                         height: 40,
                         decoration: BoxDecoration(
                           color: Colors.grey.shade200,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.notifications_outlined, size: 24, color: Colors.black87),
+                        child: const Icon(Icons.notifications_outlined, size: 18, color: Colors.black87),
                       ),
                       if (unreadCount > 0)
                         Positioned(
@@ -502,10 +516,10 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
               ],
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 3),
           // 2) Search Bar
           Container(
-            height: 45,
+            height: 40,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(28),
@@ -520,11 +534,13 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
                   child: TextField(
                     controller: _searchController,
                     onChanged: (_) => setState(() {}),
-                    style: Theme.of(context).textTheme.bodyMedium,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontSize: Responsive.fontSize(context, 16),
+                    ),
                     decoration: InputDecoration(
                       hintText: 'Search',
                       hintStyle: TextStyle(
-                        fontSize: 16,
+                        fontSize: Responsive.fontSize(context, 16),
                         color: Colors.grey.shade600,
                       ),
                       border: InputBorder.none,
@@ -541,9 +557,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
                 const SizedBox(width: 12),
                 Image.asset(
                   'assets/logo/Logo-KINS.png',
-                  height: 70,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Text('KINS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  errorBuilder: (_, __, ___) => Text('KINS', style: TextStyle(fontSize: Responsive.fontSize(context, 15), fontWeight: FontWeight.w600)),
                 ),
                 const SizedBox(width: 16),
               ],
@@ -570,7 +584,12 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
 
     return Container(
       color: _headerBg,
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 1),
+      padding: EdgeInsets.fromLTRB(
+        Responsive.screenPaddingH(context),
+        0,
+        Responsive.screenPaddingH(context),
+        10,
+      ),
       child: SizedBox(
         height: 30,
         child: ListView.separated(
@@ -595,7 +614,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+        padding: EdgeInsets.symmetric(horizontal: Responsive.spacing(context, 16)),
         decoration: BoxDecoration(
           color: Colors.transparent,
           borderRadius: BorderRadius.circular(22),
@@ -605,7 +624,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: Responsive.fontSize(context, 16),
             fontWeight: FontWeight.w500,
             color: selected ? Colors.black : Colors.grey.shade700,
           ),
@@ -615,7 +634,6 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
   }
 
   Widget _buildDrawer() {
-    final uid = currentUserId;
     final authRepository = ref.read(authRepositoryProvider);
     return Drawer(
       child: Container(
@@ -629,25 +647,23 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
         child: SafeArea(
           child: Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.close, color: Colors.black),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  KinsLogo(
+                    width: Responsive.scale(context, 96),
+                    height: Responsive.scale(context, 70),
+                  ),
+                ],
               ),
               Expanded(
                 child: ListView(
                   padding: EdgeInsets.zero,
                   children: [
-                    _buildDrawerItem(title: 'Saved Posts', onTap: () => Navigator.pop(context)),
+                    _buildDrawerItem(title: 'Saved Posts', icon: Icons.bookmark_border, onTap: () => Navigator.pop(context)),
                     _buildDrawerItem(
                       title: 'Account Settings',
+                      icon: Icons.person_outline,
                       onTap: () async {
                         Navigator.pop(context);
                         await context.push(AppConstants.routeSettings);
@@ -657,58 +673,16 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
                         }
                       },
                     ),
-                    _buildDrawerItem(title: 'Terms of Service', onTap: () => Navigator.pop(context)),
-                    _buildDrawerItem(title: 'Privacy Policy', onTap: () => Navigator.pop(context)),
-                    _buildDrawerItem(title: 'About Us', onTap: () => Navigator.pop(context)),
-                    _buildDrawerItem(title: 'Contact Us', onTap: () => Navigator.pop(context)),
+                    _buildDrawerItem(title: 'Request Verification', icon: Icons.verified_outlined, onTap: () => Navigator.pop(context)),
+                    _buildDrawerItem(title: 'Terms of Service', icon: Icons.description_outlined, onTap: () => Navigator.pop(context)),
+                    _buildDrawerItem(title: 'Community Guidelines', icon: Icons.rule_outlined, onTap: () => Navigator.pop(context)),
+                    _buildDrawerItem(title: 'Privacy Policy', icon: Icons.privacy_tip_outlined, onTap: () => Navigator.pop(context)),
+                    _buildDrawerItem(title: 'About Us', icon: Icons.info_outline, onTap: () => Navigator.pop(context)),
+                    _buildDrawerItem(title: 'Contact Us', icon: Icons.contact_support_outlined, onTap: () => Navigator.pop(context)),
                     const Divider(height: 1),
                     _buildDrawerItem(
-                      title: 'Delete account',
-                      isDestructive: true,
-                      onTap: () async {
-                        Navigator.pop(context);
-                        final confirm = await showDialog<bool>(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            title: const Text('Delete account'),
-                            content: const Text(
-                              'This will permanently delete your account and all your data from our servers. This action cannot be undone.\n\nAre you sure you want to continue?',
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx, false),
-                                child: const Text('Cancel'),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx, true),
-                                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                                child: const Text('Delete account'),
-                              ),
-                            ],
-                          ),
-                        );
-                        if (confirm != true || !context.mounted) return;
-                        try {
-                          final service = AccountDeletionService();
-                          await service.deleteAccount(
-                            userId: uid,
-                            authRepository: authRepository,
-                          );
-                          if (context.mounted) context.go(AppConstants.routeSplash);
-                        } catch (e) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Failed to delete account: $e'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        }
-                      },
-                    ),
-                    _buildDrawerItem(
                       title: 'Log out',
+                      icon: Icons.exit_to_app,
                       isLogout: true,
                       onTap: () async {
                         final shouldLogout = await showDialog<bool>(
@@ -756,22 +730,38 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
 
   Widget _buildDrawerItem({
     required String title,
+    required IconData icon,
     required VoidCallback onTap,
     bool isLogout = false,
     bool isDestructive = false,
-  }) {
+  })
+  {
     final useRed = isLogout || isDestructive;
-    return ListTile(
-      title:       Text(
-        title,
-        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-          color: useRed ? Colors.red : Colors.black87,
-          fontWeight: FontWeight.w500,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ListTile(
+          dense: true,
+          leading: Icon(icon, color: useRed ? Colors.red : Colors.black87, size: 24),
+          title: Text(
+            title,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              fontSize: Responsive.fontSize(context, 14),
+              color: useRed ? Colors.red : Colors.black87,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          trailing: Icon(
+            Icons.chevron_right,
+            color: useRed ? Colors.red : Colors.grey,
+          ),
+          onTap: onTap,
+          contentPadding: EdgeInsets.symmetric(
+            horizontal: Responsive.screenPaddingH(context),
+            vertical: 0,
+          ),
         ),
-      ),
-      trailing: Icon(Icons.chevron_right, color: useRed ? Colors.red : Colors.grey.shade400),
-      onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+      ],
     );
   }
 
@@ -929,7 +919,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
             children: [
               // Header
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(Responsive.screenPaddingH(context)),
                 decoration: BoxDecoration(
                   border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
                 ),
@@ -959,7 +949,12 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
               // Posts list
               Expanded(
                 child: ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                  padding: EdgeInsets.fromLTRB(
+                    Responsive.screenPaddingH(context),
+                    8,
+                    Responsive.screenPaddingH(context),
+                    8,
+                  ),
                   itemCount: myPosts.length,
                   itemBuilder: (context, index) {
                     return _buildPostCardFromModel(myPosts[index], feedRepo);
@@ -987,7 +982,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
-        margin: const EdgeInsets.all(16),
+        margin: EdgeInsets.all(Responsive.screenPaddingH(context)),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),

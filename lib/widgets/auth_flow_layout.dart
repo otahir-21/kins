@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:kins_app/widgets/kins_logo.dart';
 
 /// Layout wrapper for auth/profile flow screens: SafeArea, logo at top, then
 /// [children] (e.g. [Expanded(child: SingleChildScrollView(...))]).
-/// Does not change layout or positioning.
+/// Logo and layout adapt to screen size.
 class AuthFlowLayout extends StatelessWidget {
   const AuthFlowLayout({
     super.key,
@@ -14,10 +15,13 @@ class AuthFlowLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final logoSize = Responsive.isSmallHeight(context) ? 100.0 : 150.0;
+
     return SafeArea(
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          const KinsLogo(),
+          KinsLogo(width: logoSize, height: logoSize),
           ...children,
         ],
       ),

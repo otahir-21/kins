@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:kins_app/models/comment_model.dart';
 import 'package:kins_app/widgets/skeleton/skeleton_loaders.dart';
 import 'package:kins_app/models/post_model.dart';
@@ -165,7 +166,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
         children: [
           // Header
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(Responsive.screenPaddingH(context)),
             decoration: BoxDecoration(
               border: Border(
                 bottom: BorderSide(color: Colors.grey[200]!),
@@ -196,7 +197,10 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
           // Reply indicator
           if (_replyingTo != null)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: EdgeInsets.symmetric(
+                horizontal: Responsive.screenPaddingH(context),
+                vertical: Responsive.spacing(context, 8),
+              ),
               color: Colors.grey[100],
               child: Row(
                 children: [
@@ -219,7 +223,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
           
           // Comment input
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(Responsive.screenPaddingH(context)),
             decoration: BoxDecoration(
               border: Border(
                 top: BorderSide(color: Colors.grey[200]!),
@@ -241,9 +245,9 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                           borderRadius: BorderRadius.circular(24),
                           borderSide: BorderSide(color: Colors.grey[300]!),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: Responsive.screenPaddingH(context),
+                          vertical: Responsive.spacing(context, 10),
                         ),
                         counterText: '',
                       ),
@@ -313,7 +317,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(Responsive.screenPaddingH(context)),
       itemCount: _comments.length,
       itemBuilder: (context, index) {
         final comment = _comments[index];
@@ -407,7 +411,7 @@ class _CommentItemState extends State<_CommentItem> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(bottom: 12),
+          padding: EdgeInsets.only(bottom: Responsive.spacing(context, 12)),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -540,7 +544,7 @@ class _CommentItemState extends State<_CommentItem> {
         // Replies
         if (_showReplies && _replies.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.only(left: 48, bottom: 12),
+            padding: EdgeInsets.only(left: Responsive.spacing(context, 48), bottom: Responsive.spacing(context, 12)),
             child: Column(
               children: _replies.map((reply) {
                 return _ReplyItem(
@@ -552,8 +556,8 @@ class _CommentItemState extends State<_CommentItem> {
           ),
         
         if (_loadingReplies)
-          const Padding(
-            padding: EdgeInsets.only(left: 48, bottom: 12),
+          Padding(
+            padding: EdgeInsets.only(left: Responsive.spacing(context, 48), bottom: Responsive.spacing(context, 12)),
             child: const SkeletonInline(size: 20),
           ),
       ],
@@ -589,7 +593,7 @@ class _ReplyItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.only(bottom: Responsive.spacing(context, 12)),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

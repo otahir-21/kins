@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
+import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:kins_app/providers/onboarding_provider.dart';
 
 /// Onboarding image paths
@@ -218,7 +219,7 @@ class _OnboardingPageContent extends StatelessWidget {
               top: Radius.circular(24),
             ),
             child: Container(
-              margin: EdgeInsets.all(10),
+              margin: EdgeInsets.all(Responsive.spacing(context, 10)),
               width: double.infinity,
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -277,7 +278,7 @@ class _OnboardingPageContent extends StatelessWidget {
           ),
           // Text content (outside the image container)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 28),
+            padding: EdgeInsets.symmetric(horizontal: Responsive.screenPaddingH(context)),
             child: Column(
               children: [
                 const SizedBox(height: 24),
@@ -286,8 +287,8 @@ class _OnboardingPageContent extends StatelessWidget {
               style: textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.w300,
                 color: Colors.black,
-              ) ?? const TextStyle(
-                fontSize: 28,
+              ) ?? TextStyle(
+                fontSize: Responsive.fontSize(context, 28),
                 fontWeight: FontWeight.w700,
                 color: Colors.black,
               ),
@@ -300,8 +301,8 @@ class _OnboardingPageContent extends StatelessWidget {
               style: textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w200,
                 color: Colors.black,
-              ) ?? const TextStyle(
-                fontSize: 20,
+              ) ?? TextStyle(
+                fontSize: Responsive.fontSize(context, 20),
                 fontWeight: FontWeight.w600,
                 color: Colors.black,
               ),
@@ -314,8 +315,8 @@ class _OnboardingPageContent extends StatelessWidget {
               style: textTheme.bodyMedium?.copyWith(
                 color: Colors.black87,
                 height: 1.4,
-              ) ?? const TextStyle(
-                fontSize: 15,
+              ) ?? TextStyle(
+                fontSize: Responsive.fontSize(context, 15),
                 color: Colors.black87,
                 height: 1.4,
               ),

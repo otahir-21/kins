@@ -7,11 +7,13 @@ import 'package:intl_phone_field/countries.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
+import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:kins_app/providers/auth_provider.dart';
 import 'package:kins_app/services/auth_flow_service.dart';
 import 'package:kins_app/services/backend_auth_service.dart';
 import 'package:kins_app/widgets/auth_flow_layout.dart';
 import 'package:kins_app/widgets/app_card.dart';
+import 'package:kins_app/widgets/secondary_button.dart';
 import 'package:kins_app/widgets/skeleton/skeleton_loaders.dart';
 
 class PhoneAuthScreen extends ConsumerStatefulWidget {
@@ -36,12 +38,12 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
   Future<void> _handleGoogleSignIn() async {
     if (!AppConstants.useFirebaseAuth) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Google sign-in is only available with Firebase Auth'),
-            backgroundColor: Colors.black,
-          ),
-        );
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Google sign-in is only available with Firebase Auth'),
+              backgroundColor: Theme.of(context).colorScheme.surface,
+            ),
+          );
       }
       return;
     }
@@ -67,7 +69,7 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(ref.read(authProvider).error ?? e.toString()),
-            backgroundColor: Colors.black,
+            backgroundColor: Theme.of(context).colorScheme.error,
             duration: const Duration(seconds: 3),
           ),
         );
@@ -78,10 +80,10 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
   Future<void> _sendOTP() async {
     if (_completePhoneNumber.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a valid phone number'),
-          backgroundColor: Colors.black,
-          duration: Duration(seconds: 2),
+        SnackBar(
+          content: const Text('Please enter a valid phone number'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+          duration: const Duration(seconds: 2),
         ),
       );
       return;
@@ -97,7 +99,7 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(authState.error!),
-          backgroundColor: Colors.black,
+          backgroundColor: Theme.of(context).colorScheme.error,
           duration: const Duration(seconds: 3),
         ),
       );
@@ -112,29 +114,43 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: AuthFlowLayout(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Form(
+          Expanded(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                Responsive.screenPaddingH(context),
+                Responsive.spacing(context, 8),
+                Responsive.screenPaddingH(context),
+                Responsive.screenPaddingH(context),
+              ),
+              child: Form(
                 key: _formKey,
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const SizedBox(height: 48),
-                    const Text(
+                    const SizedBox(height: 24),
+                    Text(
                       'Motherhood unmuted.',
-                      style: TextStyle(
-                        fontSize: 24,
+                      style: textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: Colors.black,
+                        color: colorScheme.onSurface,
+                      ) ?? TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.onSurface,
+                        fontFamily: theme.textTheme.bodyLarge?.fontFamily,
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 30),
+                    const SizedBox(height: 24),
                     SignInCard(
                       isLoading: authState.isLoading,
                       onContinue: (String fullPhone) {
@@ -143,7 +159,6 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
                       },
                     ),
                     const SizedBox(height: 8),
-
                     SocialLoginDivider(onGooglePressed: _handleGoogleSignIn),
                     const SizedBox(height: 20),
                     const TermsAndPolicyDisclaimer(),
@@ -151,6 +166,7 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
                 ),
               ),
             ),
+          ),
         ],
       ),
     );
@@ -161,9 +177,6 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
 class TermsAndPolicyDisclaimer extends StatelessWidget {
   const TermsAndPolicyDisclaimer({super.key});
 
-  static const Color _bodyColor = Colors.grey;
-  static const Color _linkColor = Colors.blue;
-
   Future<void> _openUrl(String url) async {
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
@@ -173,44 +186,46 @@ class TermsAndPolicyDisclaimer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textStyle = theme.textTheme.bodySmall?.copyWith(
+      fontSize: 12,
+      color: theme.colorScheme.onSurfaceVariant,
+    ) ?? TextStyle(
+      fontSize: 12,
+      color: theme.colorScheme.onSurfaceVariant,
+      fontFamily: theme.textTheme.bodyLarge?.fontFamily,
+    );
+    final linkStyle = textStyle.copyWith(
+      color: theme.colorScheme.primary,
+      decoration: TextDecoration.underline,
+    );
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Center(
         child: RichText(
           textAlign: TextAlign.center,
           text: TextSpan(
-            style: DefaultTextStyle.of(context).style.copyWith(
-              fontSize: 12,
-              color: _bodyColor,
-            ),
+            style: textStyle,
             children: [
               const TextSpan(text: 'By signing up, you agree to our '),
               TextSpan(
                 text: 'Terms of Service',
-                style: const TextStyle(
-                  color: _linkColor,
-                  decoration: TextDecoration.underline,
-                ),
+                style: linkStyle,
                 recognizer: TapGestureRecognizer()
                   ..onTap = () => _openUrl('https://example.com/terms'),
               ),
               const TextSpan(text: ', '),
               TextSpan(
                 text: 'Community Guidelines',
-                style: const TextStyle(
-                  color: _linkColor,
-                  decoration: TextDecoration.underline,
-                ),
+                style: linkStyle,
                 recognizer: TapGestureRecognizer()
                   ..onTap = () => _openUrl('https://example.com/community-guidelines'),
               ),
               const TextSpan(text: ' and '),
               TextSpan(
                 text: 'Privacy Policy',
-                style: const TextStyle(
-                  color: _linkColor,
-                  decoration: TextDecoration.underline,
-                ),
+                style: linkStyle,
                 recognizer: TapGestureRecognizer()
                   ..onTap = () => _openUrl('https://example.com/privacy'),
               ),
@@ -258,12 +273,17 @@ class _SignInCardState extends State<SignInCard> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textTheme = theme.textTheme;
+    final colorScheme = theme.colorScheme;
+
     return Center(
       child: AppCard(
+        color: Colors.white,
         padding: const EdgeInsets.all(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: colorScheme.onSurface.withOpacity(0.08),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -272,9 +292,15 @@ class _SignInCardState extends State<SignInCard> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               "Sign in",
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+              style: textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ) ?? TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                fontFamily: textTheme.bodyLarge?.fontFamily,
+              ),
             ),
             const SizedBox(height: 16),
 
@@ -283,7 +309,7 @@ class _SignInCardState extends State<SignInCard> {
               height: 52,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                color: const Color(0xffF2F2F2),
+                color: const Color(0xffF5F5F5),
                 borderRadius: BorderRadius.circular(30),
               ),
               child: Row(
@@ -292,13 +318,13 @@ class _SignInCardState extends State<SignInCard> {
                   DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
                       value: selectedCode,
-                      icon: const Icon(Icons.keyboard_arrow_down, size: 20),
+                      icon: const Icon(Icons.keyboard_arrow_down, size: 17),
                       items: gccCountries.map((country) {
                         return DropdownMenuItem(
                           value: country["code"],
                           child: Text(
                             country["code"]!,
-                            style: const TextStyle(fontSize: 14),
+                            style: textTheme.bodySmall?.copyWith(fontSize: 12),
                           ),
                         );
                       }).toList(),
@@ -312,7 +338,7 @@ class _SignInCardState extends State<SignInCard> {
                   Container(
                     width: 1,
                     height: 22,
-                    color: Colors.grey.shade400,
+                    color: colorScheme.outlineVariant,
                   ),
                   const SizedBox(width: 10),
 
@@ -322,12 +348,16 @@ class _SignInCardState extends State<SignInCard> {
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
                       enabled: !widget.isLoading,
-                      decoration: const InputDecoration(
+                      style: textTheme.bodyLarge?.copyWith(
+                        fontSize: 12,
+                      ),
+                      decoration: InputDecoration(
                         hintText: "Mobile Number",
-                        hintStyle: TextStyle(
-                          color: Colors.grey,
-                          fontSize: 16,
+                        hintStyle: textTheme.bodyLarge?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                          fontSize: 12,
                         ),
+
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
@@ -347,47 +377,24 @@ class _SignInCardState extends State<SignInCard> {
             const SizedBox(height: 20),
 
             // Continue button
-            SizedBox(
-              height: 52,
-              width: double.infinity,
-              child: Material(
-                color: widget.isLoading
-                    ? Colors.grey
-                    : const Color(0xffEDEDED),
-                borderRadius: BorderRadius.circular(30),
-                child: InkWell(
-                  onTap: widget.isLoading
-                      ? null
-                      : () {
-                          final digits = _phoneController.text.trim().replaceAll(RegExp(r'\s'), '');
-                          final fullPhone = selectedCode + digits;
-                          if (digits.length < 8) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Please enter a valid phone number'),
-                                backgroundColor: Colors.black,
-                                duration: Duration(seconds: 2),
-                              ),
-                            );
-                            return;
-                          }
-                          widget.onContinue(fullPhone);
-                        },
-                  borderRadius: BorderRadius.circular(30),
-                  child: Center(
-                    child: widget.isLoading
-                        ? const SkeletonInline(size: 24)
-                        : const Text(
-                            "Continue",
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: Colors.black54,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                  ),
-                ),
-              ),
+            SecondaryButton(
+              onPressed: () {
+                final digits = _phoneController.text.trim().replaceAll(RegExp(r'\s'), '');
+                final fullPhone = selectedCode + digits;
+                if (digits.length < 8) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Please enter a valid phone number'),
+                      backgroundColor: Theme.of(context).colorScheme.error,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                  return;
+                }
+                widget.onContinue(fullPhone);
+              },
+              label: 'Continue',
+              isLoading: widget.isLoading,
             ),
           ],
         ),
@@ -409,19 +416,19 @@ class SocialLoginDivider extends StatelessWidget {
 
         // Divider with text
         Row(
-          children: const [
-            Expanded(child: Divider(thickness: 1)),
+          children: [
+            Expanded(child: Divider(thickness: 0.5, color: Colors.grey)),
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Text(
                 'Or continue with',
-                style: TextStyle(
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   fontSize: 14,
-                  color: Colors.grey,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
-            Expanded(child: Divider(thickness: 1)),
+            Expanded(child: Divider(thickness: 0.5, color: Colors.grey)),
           ],
         ),
 
@@ -433,8 +440,18 @@ class SocialLoginDivider extends StatelessWidget {
   }
 }
 
-/// Shared height for Apple and Google buttons (UI only).
+/// Shared height and text style for Apple and Google buttons (same font on both).
 const double _kSocialButtonHeight = 44.0;
+
+TextStyle _socialButtonTextStyle(BuildContext context) {
+  final base = Theme.of(context).textTheme.bodyMedium;
+  final color = Theme.of(context).colorScheme.onSurfaceVariant;
+  return (base ?? const TextStyle()).copyWith(
+    fontSize: 15,
+    color: color,
+    fontWeight: FontWeight.w500,
+  );
+}
 
 class _SocialButtonHeight extends StatelessWidget {
   const _SocialButtonHeight({this.onGooglePressed});
@@ -460,12 +477,11 @@ class _SocialButtonHeight extends StatelessWidget {
         SizedBox(
           height: _kSocialButtonHeight,
           width: double.infinity,
-          child: SignInWithAppleButton(
-            onPressed: () {
+          child: _AppleSignInButton(
+            height: _kSocialButtonHeight,
+            onTap: () {
               // Apple login - UI only
             },
-            height: _kSocialButtonHeight,
-            borderRadius: BorderRadius.circular(8),
           ),
         ),
       ],
@@ -473,7 +489,7 @@ class _SocialButtonHeight extends StatelessWidget {
   }
 }
 
-/// Custom Google button: official G logo on the left + "Sign in with Google".
+/// Custom Google button: official G logo + "Sign in with Google". Uses theme font.
 class _GoogleSignInButton extends StatelessWidget {
   const _GoogleSignInButton({required this.height, this.onTap});
 
@@ -482,8 +498,9 @@ class _GoogleSignInButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Material(
-      color: Colors.white,
+      color: const Color(0xffEFEFEF),
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
         onTap: onTap,
@@ -493,12 +510,10 @@ class _GoogleSignInButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey.shade300),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Official Google "G" logo (unchanged, no recolor)
               Image.network(
                 'https://www.gstatic.com/images/branding/product/2x/googleg_48dp.png',
                 height: 24,
@@ -509,11 +524,45 @@ class _GoogleSignInButton extends StatelessWidget {
               const SizedBox(width: 12),
               Text(
                 'Sign in with Google',
-                style: TextStyle(
-                  fontSize: 15,
-                  color: Colors.grey.shade800,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: _socialButtonTextStyle(context).copyWith(color: Colors.black),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Custom Apple button: same font as Google, black bg per Apple HIG.
+class _AppleSignInButton extends StatelessWidget {
+  const _AppleSignInButton({required this.height, this.onTap});
+
+  final double height;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.black,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          height: height,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.apple, size: 24, color: Colors.white),
+              const SizedBox(width: 12),
+              Text(
+                'Sign in with Apple',
+                style: _socialButtonTextStyle(context).copyWith(color: Colors.white),
               ),
             ],
           ),

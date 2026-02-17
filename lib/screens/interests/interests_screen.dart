@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
+import 'package:kins_app/providers/auth_provider.dart';
 import 'package:kins_app/providers/interest_provider.dart';
 import 'package:kins_app/widgets/app_card.dart';
 import 'package:kins_app/widgets/skeleton/skeleton_loaders.dart';
@@ -30,7 +32,8 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(interestProvider.notifier).loadInterests(currentUserId);
+      final uid = ref.read(authProvider).user?.uid ?? currentUserId;
+      ref.read(interestProvider.notifier).loadInterests(uid);
     });
   }
 
@@ -41,7 +44,8 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
   }
 
   Future<void> _handleContinue() async {
-    final uid = currentUserId;
+    // Use authProvider.user first; fallback to currentUserId (storage/Firebase) for app restart
+    final uid = ref.read(authProvider).user?.uid ?? currentUserId;
     if (uid.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -103,15 +107,22 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
     final textTheme = theme.textTheme;
     final interestState = ref.watch(interestProvider);
 
+    final isSmallScreen = Responsive.isSmallHeight(context);
+
     return Scaffold(
       body: AuthFlowLayout(
         children: [
-          const SizedBox(height: 120),
+          SizedBox(height: isSmallScreen ? 48 : Responsive.spacing(context, 120)),
           Expanded(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                padding: EdgeInsets.fromLTRB(
+                  Responsive.screenPaddingH(context),
+                  0,
+                  Responsive.screenPaddingH(context),
+                  Responsive.screenPaddingH(context),
+                ),
                 child: AppCard(
-                  constraints: const BoxConstraints(maxWidth: 500),
+                  constraints: BoxConstraints(maxWidth: Responsive.maxContentWidth(context)),
                   border: Border.all(color: Colors.grey.shade300, width: 1),
                   boxShadow: [
                     BoxShadow(
@@ -126,11 +137,21 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
                     children: [
                       // Header (fixed)
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+                        padding: EdgeInsets.fromLTRB(
+                          Responsive.screenPaddingH(context),
+                          Responsive.spacing(context, 24),
+                          Responsive.screenPaddingH(context),
+                          Responsive.spacing(context, 16),
+                        ),
                         child: Text(
                           'Select your interests',
-                          style: textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w500,
+                          style: textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: colorScheme.onSurface,
+                          ) ?? TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: textTheme.bodyLarge?.fontFamily,
                             color: colorScheme.onSurface,
                           ),
                         ),
@@ -138,7 +159,12 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
 
                       // Search Bar (same style as feed screen)
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                        padding: EdgeInsets.fromLTRB(
+                          Responsive.screenPaddingH(context),
+                          0,
+                          Responsive.screenPaddingH(context),
+                          Responsive.spacing(context, 16),
+                        ),
                         child: Container(
                           height: 45,
                           decoration: BoxDecoration(
@@ -155,12 +181,12 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
                                 child: TextField(
                                   controller: _searchController,
                                   onChanged: (_) => setState(() {}),
-                                  style: textTheme.bodyMedium,
+                                  style: textTheme.bodyLarge?.copyWith(fontSize: 12),
                                   decoration: InputDecoration(
                                     hintText: 'Search',
-                                    hintStyle: TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.grey.shade600,
+                                    hintStyle: textTheme.bodyLarge?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                      fontSize: 12,
                                     ),
                                     border: InputBorder.none,
                                     enabledBorder: InputBorder.none,
@@ -182,15 +208,15 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
                       // Interest pills (expands to fill remaining space, scrolls inside)
                       Expanded(
                         child: interestState.isLoading
-                            ? const Center(
+                            ? Center(
                                 child: Padding(
-                                  padding: EdgeInsets.all(24),
-                                  child: SkeletonInterestChips(),
+                                  padding: EdgeInsets.all(Responsive.screenPaddingH(context)),
+                                  child: const SkeletonInterestChips(),
                                 ),
                               )
                             : interestState.error != null
                                 ? Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                                    padding: EdgeInsets.symmetric(horizontal: Responsive.screenPaddingH(context)),
                                     child: Center(
                                       child: Column(
                                         mainAxisSize: MainAxisSize.min,
@@ -199,7 +225,7 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
                                           const SizedBox(height: 12),
                                           Text(
                                             interestState.error!,
-                                            style: textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
+                                            style: textTheme.bodyLarge?.copyWith(fontSize: 12, color: Colors.grey.shade600),
                                             textAlign: TextAlign.center,
                                           ),
                                           const SizedBox(height: 16),
@@ -212,7 +238,7 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
                                     ),
                                   )
                                 : SingleChildScrollView(
-                                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                                    padding: EdgeInsets.symmetric(horizontal: Responsive.screenPaddingH(context)),
                                     child: InterestChipsScrollable(
                                       interests: _filterInterests(interestState.interests),
                                       selectedIds: interestState.selectedInterestIds,
@@ -223,7 +249,12 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
 
                       // Next button (fixed at bottom of card)
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+                        padding: EdgeInsets.fromLTRB(
+                          Responsive.screenPaddingH(context),
+                          Responsive.spacing(context, 16),
+                          Responsive.screenPaddingH(context),
+                          Responsive.spacing(context, 24),
+                        ),
                         child: Align(
                           alignment: Alignment.centerRight,
                           child: _NextButton(

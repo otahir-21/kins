@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:kins_app/models/interest_model.dart';
 import 'package:kins_app/providers/edit_profile_provider.dart';
 import 'package:kins_app/repositories/interest_repository.dart';
@@ -81,7 +82,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     final notifier = ref.read(editProfileProvider.notifier);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: EdgeInsets.symmetric(horizontal: Responsive.screenPaddingH(context)),
       child: Column(
         children: [
           _buildHeader(s, notifier),
@@ -237,7 +238,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (helper != null) ...[
-          Text(helper, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+          Text(helper, style: TextStyle(fontSize: Responsive.fontSize(context, 12), color: Colors.grey.shade600)),
           const SizedBox(height: 6),
         ],
         Container(
@@ -255,14 +256,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   initialValue: value ?? '',
                   onChanged: onChanged,
                   keyboardType: keyboard,
-                  style: const TextStyle(
-                    fontSize: 16,
+                  style: TextStyle(
+                    fontSize: Responsive.fontSize(context, 16),
                     fontWeight: FontWeight.w400,
                     color: Colors.black,
                   ),
                   decoration: InputDecoration(
                     hintText: hint,
-                    hintStyle: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+                    hintStyle: TextStyle(fontSize: Responsive.fontSize(context, 16), color: Colors.grey.shade600),
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,
@@ -299,14 +300,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         initialValue: value ?? '',
         onChanged: onChanged,
         maxLines: 3,
-        style: const TextStyle(
-          fontSize: 16,
+        style: TextStyle(
+          fontSize: Responsive.fontSize(context, 16),
           fontWeight: FontWeight.w400,
           color: Colors.black,
         ),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+          hintStyle: TextStyle(fontSize: Responsive.fontSize(context, 16), color: Colors.grey.shade600),
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
@@ -366,12 +367,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: v,
-          hint: Text(hint, style: TextStyle(fontSize: 16, color: Colors.grey.shade600)),
+          hint: Text(hint, style: TextStyle(fontSize: Responsive.fontSize(context, 16), color: Colors.grey.shade600)),
           isExpanded: true,
           items: effectiveItems
               .map((s) => DropdownMenuItem(
                     value: s,
-                    child: Text(s, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w400, color: Colors.black)),
+                    child: Text(s, style: TextStyle(fontSize: Responsive.fontSize(context, 16), fontWeight: FontWeight.w400, color: Colors.black)),
                   ))
               .toList(),
           onChanged: onChanged,
@@ -389,7 +390,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       children: [
         Row(
           children: [
-            Text('Tags (Interests)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.grey.shade800)),
+            Text('Tags (Interests)', style: TextStyle(fontSize: Responsive.fontSize(context, 14), fontWeight: FontWeight.w500, color: Colors.grey.shade800)),
             if (!hasSelection) ...[
               const SizedBox(width: 6),
               Icon(Icons.info_outline, size: 18, color: Colors.grey.shade500),
@@ -417,7 +418,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 child: Text(
                   i.name,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: Responsive.fontSize(context, 13),
                     color: isSelected ? _primaryColor : Colors.black87,
                   ),
                 ),

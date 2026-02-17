@@ -3,6 +3,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/core/network/backend_api_client.dart';
@@ -278,7 +279,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
             // Content (scrollable)
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: EdgeInsets.symmetric(horizontal: Responsive.screenPaddingH(context)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -320,7 +321,10 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
 
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: EdgeInsets.symmetric(
+        horizontal: Responsive.screenPaddingH(context),
+        vertical: Responsive.spacing(context, 12),
+      ),
       child: Row(
         children: [
           // Close button
@@ -370,7 +374,10 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               backgroundColor: Colors.black,
               disabledBackgroundColor: Colors.grey.shade300,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+              padding: EdgeInsets.symmetric(
+                horizontal: Responsive.spacing(context, 18),
+                vertical: Responsive.spacing(context, 8),
+              ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
@@ -378,10 +385,10 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
             ),
             child: _isPosting
                 ? const SkeletonInline(size: 16)
-                : const Text(
+                : Text(
                     'Post',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: Responsive.fontSize(context, 14),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -395,15 +402,15 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     return TextField(
       controller: _textController,
       maxLines: null,
-      style: const TextStyle(
-        fontSize: 18,
+      style: TextStyle(
+        fontSize: Responsive.fontSize(context, 18),
         fontWeight: FontWeight.w400,
         color: Colors.black,
       ),
-      decoration: const InputDecoration(
+      decoration: InputDecoration(
         hintText: 'Share your thoughts...',
         hintStyle: TextStyle(
-          fontSize: 18,
+          fontSize: Responsive.fontSize(context, 18),
           fontWeight: FontWeight.w400,
           color: Colors.grey,
         ),
@@ -423,7 +430,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         Text(
           'Question:',
           style: TextStyle(
-            fontSize: 14,
+            fontSize: Responsive.fontSize(context, 14),
             color: Colors.grey.shade600,
           ),
         ),
@@ -432,7 +439,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         // Question input
         TextField(
           controller: _pollQuestionController,
-          style: const TextStyle(fontSize: 18),
+          style: TextStyle(fontSize: Responsive.fontSize(context, 18)),
           decoration: const InputDecoration(
             hintText: 'Ask a question...',
             border: InputBorder.none,
@@ -448,7 +455,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         Text(
           'Answer Options:',
           style: TextStyle(
-            fontSize: 14,
+            fontSize: Responsive.fontSize(context, 14),
             color: Colors.grey.shade600,
           ),
         ),
@@ -457,13 +464,13 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         // Options
         ...List.generate(_pollOptionControllers.length, (i) {
           return Padding(
-            padding: const EdgeInsets.only(bottom: 16),
+            padding: EdgeInsets.only(bottom: Responsive.spacing(context, 16)),
             child: Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _pollOptionControllers[i],
-                    style: const TextStyle(fontSize: 16),
+                    style: TextStyle(fontSize: Responsive.fontSize(context, 16)),
                     decoration: InputDecoration(
                       hintText: 'Option ${i + 1}',
                       enabledBorder: UnderlineInputBorder(
@@ -493,7 +500,10 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
           InkWell(
             onTap: _addPollOption,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              padding: EdgeInsets.symmetric(
+                horizontal: Responsive.spacing(context, 14),
+                vertical: Responsive.spacing(context, 6),
+              ),
               decoration: BoxDecoration(
                 color: Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(20),
@@ -501,7 +511,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               child: Text(
                 '+ Add option',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: Responsive.fontSize(context, 14),
                   color: Colors.grey.shade700,
                 ),
               ),
@@ -559,7 +569,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               _postType = PostType.text;
             }),
             child: Container(
-              padding: const EdgeInsets.all(6),
+              padding: EdgeInsets.all(Responsive.spacing(context, 6)),
               decoration: BoxDecoration(
                 color: Colors.black.withOpacity(0.6),
                 shape: BoxShape.circle,
@@ -578,7 +588,10 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
 
   Widget _buildBottomActions() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      padding: EdgeInsets.symmetric(
+        horizontal: Responsive.screenPaddingH(context),
+        vertical: Responsive.spacing(context, 24),
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
@@ -716,7 +729,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         Text(
           'Topics (optional)',
           style: TextStyle(
-            fontSize: 14,
+            fontSize: Responsive.fontSize(context, 14),
             color: Colors.grey.shade600,
             fontWeight: FontWeight.w500,
           ),
@@ -742,7 +755,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                   style: Theme.of(context).textTheme.bodyMedium,
                   decoration: InputDecoration(
                     hintText: 'Search interests',
-                    hintStyle: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+                    hintStyle: TextStyle(fontSize: Responsive.fontSize(context, 16), color: Colors.grey.shade600),
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,

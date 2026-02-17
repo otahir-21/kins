@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:kins_app/models/kin_location_model.dart';
@@ -180,7 +181,7 @@ class _NearbyKinsScreenState extends ConsumerState<NearbyKinsScreen> {
           else if (_locationError != null)
             Center(
               child: Padding(
-                padding: const EdgeInsets.all(24.0),
+                padding: EdgeInsets.all(Responsive.spacing(context, 24)),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -193,7 +194,7 @@ class _NearbyKinsScreenState extends ConsumerState<NearbyKinsScreen> {
                     Text(
                       _locationError!,
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: Responsive.fontSize(context, 16),
                         color: Colors.grey.shade600,
                       ),
                       textAlign: TextAlign.center,
@@ -252,7 +253,7 @@ class _NearbyKinsScreenState extends ConsumerState<NearbyKinsScreen> {
               children: [
                 // Breadcrumb and back button
                 Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: EdgeInsets.all(Responsive.screenPaddingH(context)),
                   child: Row(
                     children: [
                       IconButton(
@@ -263,7 +264,7 @@ class _NearbyKinsScreenState extends ConsumerState<NearbyKinsScreen> {
                       Text(
                         'Maps → Nearby kins',
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: Responsive.fontSize(context, 14),
                           color: Colors.grey.shade600,
                         ),
                       ),
@@ -272,13 +273,13 @@ class _NearbyKinsScreenState extends ConsumerState<NearbyKinsScreen> {
                 ),
                 // Title
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  padding: EdgeInsets.symmetric(horizontal: Responsive.screenPaddingH(context)),
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
                       'Kins around your\nlocation',
-                      style: const TextStyle(
-                        fontSize: 24,
+                      style: TextStyle(
+                        fontSize: Responsive.fontSize(context, 24),
                         fontWeight: FontWeight.bold,
                         color: Colors.black,
                       ),
@@ -313,7 +314,7 @@ class _NearbyKinsScreenState extends ConsumerState<NearbyKinsScreen> {
   Widget _buildFilterChips() {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      padding: EdgeInsets.symmetric(horizontal: Responsive.screenPaddingH(context)),
       child: Row(
         children: [
           // Distance filter
@@ -359,15 +360,15 @@ class _NearbyKinsScreenState extends ConsumerState<NearbyKinsScreen> {
     showModalBottomSheet(
       context: context,
       builder: (context) => Container(
-        padding: const EdgeInsets.all(24.0),
+        padding: EdgeInsets.all(Responsive.spacing(context, 24)),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Select Distance',
               style: TextStyle(
-                fontSize: 20,
+                fontSize: Responsive.fontSize(context, 20),
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -446,7 +447,7 @@ class _NearbyKinsScreenState extends ConsumerState<NearbyKinsScreen> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.all(20.0),
+                padding: EdgeInsets.all(Responsive.screenPaddingH(context)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
@@ -496,8 +497,8 @@ class _NearbyKinsScreenState extends ConsumerState<NearbyKinsScreen> {
                               // Name
                               Text(
                                 kin.name ?? 'Unknown User',
-                                style: const TextStyle(
-                                  fontSize: 20,
+                                style: TextStyle(
+                                  fontSize: Responsive.fontSize(context, 20),
                                   fontWeight: FontWeight.bold,
                                   color: Colors.black87,
                                 ),
@@ -507,7 +508,7 @@ class _NearbyKinsScreenState extends ConsumerState<NearbyKinsScreen> {
                               Text(
                                 kin.description ?? 'Lorem Ipsum is Lorem Ipsum',
                                 style: TextStyle(
-                                  fontSize: 14,
+                                  fontSize: Responsive.fontSize(context, 14),
                                   color: Colors.grey.shade600,
                                 ),
                               ),
@@ -519,7 +520,7 @@ class _NearbyKinsScreenState extends ConsumerState<NearbyKinsScreen> {
                                     Text(
                                       'Nationality: ',
                                       style: TextStyle(
-                                        fontSize: 14,
+                                        fontSize: Responsive.fontSize(context, 14),
                                         color: Colors.grey.shade700,
                                         fontWeight: FontWeight.w500,
                                       ),
@@ -527,7 +528,7 @@ class _NearbyKinsScreenState extends ConsumerState<NearbyKinsScreen> {
                                     Text(
                                       kin.nationality!,
                                       style: TextStyle(
-                                        fontSize: 14,
+                                        fontSize: Responsive.fontSize(context, 14),
                                         color: Colors.grey.shade800,
                                       ),
                                     ),
@@ -540,7 +541,7 @@ class _NearbyKinsScreenState extends ConsumerState<NearbyKinsScreen> {
                                   Text(
                                     'Status: ',
                                     style: TextStyle(
-                                      fontSize: 14,
+                                      fontSize: Responsive.fontSize(context, 14),
                                       color: Colors.grey.shade700,
                                       fontWeight: FontWeight.w500,
                                     ),
@@ -548,7 +549,7 @@ class _NearbyKinsScreenState extends ConsumerState<NearbyKinsScreen> {
                                   Text(
                                     kin.motherhoodStatus ?? 'Expecting',
                                     style: TextStyle(
-                                      fontSize: 14,
+                                      fontSize: Responsive.fontSize(context, 14),
                                       color: Colors.grey.shade800,
                                     ),
                                   ),
@@ -576,16 +577,16 @@ class _NearbyKinsScreenState extends ConsumerState<NearbyKinsScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFE6E6FA), // Light purple
                               foregroundColor: Colors.black87,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              padding: EdgeInsets.symmetric(vertical: Responsive.spacing(context, 14)),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               elevation: 0,
                             ),
-                            child: const Text(
+                            child: Text(
                               'Follow',
                               style: TextStyle(
-                                fontSize: 16,
+                                fontSize: Responsive.fontSize(context, 16),
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -605,16 +606,16 @@ class _NearbyKinsScreenState extends ConsumerState<NearbyKinsScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFE6E6FA), // Light purple
                               foregroundColor: Colors.black87,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              padding: EdgeInsets.symmetric(vertical: Responsive.spacing(context, 14)),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               elevation: 0,
                             ),
-                            child: const Text(
+                            child: Text(
                               'Message',
                               style: TextStyle(
-                                fontSize: 16,
+                                fontSize: Responsive.fontSize(context, 16),
                                 fontWeight: FontWeight.w600,
                               ),
                             ),

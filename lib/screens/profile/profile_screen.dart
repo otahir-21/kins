@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
+import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:kins_app/core/network/backend_api_client.dart';
 import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:kins_app/models/post_model.dart';
@@ -154,7 +155,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         child: _isLoading
             ? const SkeletonProfile()
             : SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: EdgeInsets.symmetric(horizontal: Responsive.screenPaddingH(context)),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
@@ -177,10 +178,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push(AppConstants.routeCreatePost),
+        onPressed: () async {
+          await context.push(AppConstants.routeEditProfile);
+          if (mounted) _loadAll();
+        },
         backgroundColor: const Color(0xFF6B4C93),
         elevation: 2,
-        child: const Icon(Icons.add, color: Colors.white, size: 28),
+        child: const Icon(Icons.edit_outlined, color: Colors.white, size: 24),
       ),
     );
   }
@@ -194,19 +198,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           child: const Icon(Icons.arrow_back, color: Colors.black, size: 24),
         ),
         GestureDetector(
-          onTap: () async {
-            await context.push(AppConstants.routeEditProfile);
-            if (mounted) _loadAll();
-          },
+          onTap: () => context.push(AppConstants.routeSettings),
           child: Container(
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: Color(0xffD9D9D9),
+              color: const Color(0xffD9D9D9),
               shape: BoxShape.circle,
               border: Border.all(color: Colors.grey.shade300, width: 1),
             ),
-            child: const Icon(Icons.edit_outlined, color: Colors.black, size: 20),
+            child: const Icon(Icons.settings_outlined, color: Colors.black, size: 20),
           ),
         ),
       ],
@@ -244,8 +245,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Center(
       child: Text(
         _userName ?? 'User',
-        style: const TextStyle(
-          fontSize: 17,
+        style: TextStyle(
+          fontSize: Responsive.fontSize(context, 17),
           fontWeight: FontWeight.w600,
           letterSpacing: 0.2,
           color: Colors.black,
@@ -260,8 +261,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Center(
       child: Text(
         bio,
-        style: const TextStyle(
-          fontSize: 16,
+        style: TextStyle(
+          fontSize: Responsive.fontSize(context, 16),
           fontWeight: FontWeight.w400,
           color: _textGrey,
         ),
@@ -287,8 +288,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       children: [
         Text(
           number,
-          style: const TextStyle(
-            fontSize: 17,
+          style: TextStyle(
+            fontSize: Responsive.fontSize(context, 17),
             fontWeight: FontWeight.w700,
             color: Colors.black,
           ),
@@ -296,8 +297,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         const SizedBox(height: 6),
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 10,
+          style: TextStyle(
+            fontSize: Responsive.fontSize(context, 10),
             fontWeight: FontWeight.w400,
             color: _textGrey,
           ),
@@ -321,7 +322,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         itemBuilder: (context, index) {
           final name = _interestNames[index];
           return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: EdgeInsets.symmetric(horizontal: Responsive.screenPaddingH(context)),
             decoration: BoxDecoration(
               color: Colors.transparent,
               borderRadius: BorderRadius.circular(22),
@@ -330,8 +331,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             alignment: Alignment.center,
             child: Text(
               name,
-              style: const TextStyle(
-                fontSize: 16,
+              style: TextStyle(
+                fontSize: Responsive.fontSize(context, 16),
                 fontWeight: FontWeight.w500,
                 color: Colors.black,
               ),
@@ -349,7 +350,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         const SizedBox(height: 10),
         if (_mergedPosts.isEmpty)
           Padding(
-            padding: const EdgeInsets.all(32),
+            padding: EdgeInsets.all(Responsive.spacing(context, 32)),
             child: Center(
               child: Column(
                 children: [
@@ -380,7 +381,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         if (merged.isRepost)
           Padding(
             padding: const EdgeInsets.only(bottom: 6),
-            child: Text('Reposted', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+            child: Text('Reposted', style: TextStyle(fontSize: Responsive.fontSize(context, 12), color: Colors.grey.shade600)),
           ),
         FeedPostCard(
           post: merged.post,

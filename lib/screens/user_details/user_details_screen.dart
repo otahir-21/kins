@@ -1,16 +1,20 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
+import 'package:kins_app/core/utils/auth_utils.dart';
+import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:kins_app/providers/auth_provider.dart';
 import 'package:kins_app/providers/user_details_provider.dart';
 import 'package:kins_app/models/google_profile_data.dart';
 import 'package:kins_app/widgets/app_card.dart';
 import 'package:kins_app/widgets/auth_flow_layout.dart';
-import 'package:kins_app/widgets/primary_button.dart';
+import 'package:kins_app/widgets/secondary_button.dart';
 import 'package:kins_app/widgets/skeleton/skeleton_loaders.dart';
 
 /// "About you" profile screen.
@@ -74,7 +78,14 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
 
   void _applyGoogleProfile() {
     final g = widget.googleProfile;
-    if (g == null) return;
+    // When from phone auth (no googleProfile), pre-fill phone from storage
+    if (g == null) {
+      final phone = currentUserPhone;
+      if (phone != null && phone.trim().isNotEmpty && _phoneController.text.isEmpty) {
+        _phoneController.text = phone.trim();
+      }
+      return;
+    }
     if (g.name != null && g.name!.trim().isNotEmpty) {
       _nameController.text = g.name!.trim();
       _nameLockedFromGoogle = true;
@@ -193,11 +204,69 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
   }
 
   Future<DateTime?> _selectDateOfBirth() async {
+    final initialDate = _selectedDateOfBirth ??
+        DateTime.now().subtract(const Duration(days: 365 * 18));
+    final firstDate = DateTime(1900);
+    final lastDate = DateTime.now();
+
+    if (Platform.isIOS) {
+      DateTime selectedDate = initialDate.isBefore(firstDate)
+          ? firstDate
+          : (initialDate.isAfter(lastDate) ? lastDate : initialDate);
+      final picked = await showCupertinoModalPopup<DateTime>(
+        context: context,
+        builder: (ctx) => Container(
+            height: 320,
+            color: Theme.of(ctx).scaffoldBackgroundColor,
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  CupertinoButton(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Cancel'),
+                  ),
+                  CupertinoButton(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    onPressed: () => Navigator.pop(ctx, selectedDate),
+                    child: const Text('Done', style: TextStyle(fontWeight: FontWeight.w600)),
+                  ),
+                ],
+              ),
+              Expanded(
+                child: CupertinoTheme(
+                  data: CupertinoTheme.of(ctx).copyWith(
+                    textTheme: CupertinoTextThemeData(
+                      dateTimePickerTextStyle: TextStyle(
+                        fontSize: 20,
+                        color: CupertinoColors.label.resolveFrom(ctx),
+                      ),
+                    ),
+                  ),
+                  child: CupertinoDatePicker(
+                    mode: CupertinoDatePickerMode.date,
+                    initialDateTime: selectedDate,
+                    minimumDate: firstDate,
+                    maximumDate: lastDate,
+                    onDateTimeChanged: (v) => selectedDate = v,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (picked != null) setState(() => _selectedDateOfBirth = picked);
+      return picked;
+    }
+
     final picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now().subtract(const Duration(days: 365 * 18)),
-      firstDate: DateTime(1900),
-      lastDate: DateTime.now(),
+      initialDate: initialDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
       helpText: 'Select Date of Birth',
     );
     if (picked != null) setState(() => _selectedDateOfBirth = picked);
@@ -208,9 +277,10 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
     if (!_formKey.currentState!.validate()) return;
     _formKey.currentState!.save();
     if (_selectedDateOfBirth == null) return;
+    // Use authProvider.user first; fallback to currentUserId (storage/Firebase) for app restart
     final authState = ref.read(authProvider);
-    final userId = authState.user?.uid;
-    if (userId == null) {
+    final userId = authState.user?.uid ?? currentUserId;
+    if (userId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('User not authenticated'),
@@ -256,13 +326,13 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
               child: SingleChildScrollView(
                 keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: EdgeInsets.only(
-                  left: 24,
-                  right: 24,
-                  top: 16,
-                  bottom: MediaQuery.viewPaddingOf(context).bottom + 24,
+                  left: Responsive.screenPaddingH(context),
+                  right: Responsive.screenPaddingH(context),
+                  top: Responsive.spacing(context, 16),
+                  bottom: MediaQuery.viewPaddingOf(context).bottom + Responsive.screenPaddingH(context),
                 ),
                 child: AppCard(
-                  constraints: const BoxConstraints(maxWidth: 500),
+                  constraints: BoxConstraints(maxWidth: Responsive.maxContentWidth(context)),
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
                   border: Border.all(color: Colors.grey.shade200, width: 1),
                   boxShadow: [
@@ -283,11 +353,14 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
                           alignment: Alignment.centerLeft,
                           child: Text(
                             'About you',
-                            style: textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.onSurface,
+                            style: textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ) ?? TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              fontFamily: textTheme.bodyLarge?.fontFamily,
                             ),
-                          ),
+                          )
                         ),
                         const SizedBox(height: 20),
                         _ThemedTextField(
@@ -373,11 +446,10 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
                           },
                         ),
                         const SizedBox(height: 24),
-                        PrimaryButton(
+                        SecondaryButton(
                           onPressed: userDetailsState.isSubmitting ? null : _submitForm,
                           isLoading: userDetailsState.isSubmitting,
                           label: 'Continue',
-                          loadingColor: Colors.grey.shade600,
                         ),
                       ],
                     ),
@@ -416,7 +488,7 @@ class _ThemedTextField extends StatelessWidget {
   final String? availabilityLabel;
   final bool readOnly;
 
-  static final _pillRadius = BorderRadius.circular(26);
+  static final _pillRadius = BorderRadius.circular(30);
 
   @override
   Widget build(BuildContext context) {
@@ -462,10 +534,15 @@ class _ThemedTextField extends StatelessWidget {
           textCapitalization: textCapitalization,
           onChanged: onChanged,
           validator: validator,
+          style: theme.textTheme.bodyLarge?.copyWith(fontSize: 12),
           decoration: InputDecoration(
             hintText: hint,
+            hintStyle: theme.textTheme.bodyLarge?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+              fontSize: 12,
+            ),
             filled: true,
-            fillColor: const Color(0xffF2F2F2),
+            fillColor: const Color(0xffF5F5F5),
             border: OutlineInputBorder(borderRadius: _pillRadius),
             enabledBorder: OutlineInputBorder(
               borderRadius: _pillRadius,
@@ -479,7 +556,7 @@ class _ThemedTextField extends StatelessWidget {
               borderRadius: _pillRadius,
               borderSide: BorderSide(color: colorScheme.error),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
             suffixIcon: suffixIcon,
           ).applyDefaults(theme.inputDecorationTheme),
         ),
@@ -515,7 +592,7 @@ class _DateOfBirthField extends StatelessWidget {
   final String? errorText;
   final bool readOnly;
 
-  static final _pillRadius = BorderRadius.circular(26);
+  static final _pillRadius = BorderRadius.circular(30);
 
   @override
   Widget build(BuildContext context) {
@@ -523,8 +600,12 @@ class _DateOfBirthField extends StatelessWidget {
     final decorator = InputDecorator(
         decoration: InputDecoration(
           hintText: 'Date of birth',
+          hintStyle: theme.textTheme.bodyLarge?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+            fontSize: 12,
+          ),
           filled: true,
-          fillColor: const Color(0xffF2F2F2),
+          fillColor: const Color(0xffF5F5F5),
           border: OutlineInputBorder(borderRadius: _pillRadius),
           enabledBorder: OutlineInputBorder(
             borderRadius: _pillRadius,
@@ -534,13 +615,14 @@ class _DateOfBirthField extends StatelessWidget {
             borderRadius: _pillRadius,
             borderSide: BorderSide(color: colorScheme.error),
           ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
           suffixIcon: Icon(Icons.calendar_today, size: 20, color: colorScheme.onSurfaceVariant),
           errorText: errorText,
         ).applyDefaults(theme.inputDecorationTheme),
         child: Text(
           selectedDate != null ? dateFormat.format(selectedDate!) : 'Date of birth',
           style: theme.textTheme.bodyLarge?.copyWith(
+            fontSize: 12,
             color: selectedDate != null ? colorScheme.onSurface : colorScheme.onSurfaceVariant,
           ),
         ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:kins_app/core/theme/app_theme.dart';
 import 'package:kins_app/models/post_model.dart';
 import 'package:kins_app/widgets/post_header.dart';
@@ -49,7 +50,7 @@ class _PostCardTextState extends State<PostCardText> {
     final text = widget.post.text ?? '';
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
+      padding: const EdgeInsets.symmetric(vertical: 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -60,12 +61,11 @@ class _PostCardTextState extends State<PostCardText> {
             avatarUrl: widget.post.authorPhotoUrl,
             onMore: widget.onMore,
           ),
-          Transform.translate(
-            offset: const Offset(0, -12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(width: 52),
+          const SizedBox(height: 0),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(width: Responsive.spacing(context, 50)),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -74,7 +74,7 @@ class _PostCardTextState extends State<PostCardText> {
                       Text(
                         text,
                         style: Theme.of(context).extension<AppPostTypography>()?.postBody ??
-                            const TextStyle(fontSize: 18, fontWeight: FontWeight.w400, height: 1.5, color: Colors.black),
+                            TextStyle(fontSize: Responsive.fontSize(context, 18), fontWeight: FontWeight.w400, height: 1.5, color: Colors.black),
                       ),
                       const SizedBox(height: 8),
                     ],
@@ -93,13 +93,12 @@ class _PostCardTextState extends State<PostCardText> {
                       thickness: 0.8,
                       color: Color(0xFFE5E5E5),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 0),
                   ],
                 ),
               ),
             ],
           ),
-        ),
         ],
       ),
     );

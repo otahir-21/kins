@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:kins_app/models/notification_model.dart';
@@ -35,11 +36,11 @@ class NotificationsScreen extends ConsumerWidget {
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Notification',
           style: TextStyle(
             color: Colors.black,
-            fontSize: 20,
+            fontSize: Responsive.fontSize(context, 20),
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -47,12 +48,12 @@ class NotificationsScreen extends ConsumerWidget {
       body: notificationsState.isLoading
           ? const SkeletonNotificationList()
           : groupedNotifications.isEmpty
-              ? _buildEmptyState()
+              ? _buildEmptyState(context)
               : _buildNotificationsList(context, ref, uid, groupedNotifications),
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(BuildContext context) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -66,7 +67,7 @@ class NotificationsScreen extends ConsumerWidget {
           Text(
             'No new notifications',
             style: TextStyle(
-              fontSize: 18,
+              fontSize: Responsive.fontSize(context, 18),
               color: Colors.grey.shade600,
               fontWeight: FontWeight.w500,
             ),
@@ -83,7 +84,7 @@ class NotificationsScreen extends ConsumerWidget {
     Map<String, List<NotificationModel>> groupedNotifications,
   ) {
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: EdgeInsets.symmetric(vertical: Responsive.spacing(context, 8)),
       itemCount: groupedNotifications.length,
       itemBuilder: (context, index) {
         final dateKey = groupedNotifications.keys.elementAt(index);
@@ -94,11 +95,16 @@ class NotificationsScreen extends ConsumerWidget {
           children: [
             // Date header
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              padding: EdgeInsets.fromLTRB(
+                Responsive.screenPaddingH(context),
+                Responsive.spacing(context, 16),
+                Responsive.screenPaddingH(context),
+                Responsive.spacing(context, 8),
+              ),
               child: Text(
                 dateKey,
-                style: const TextStyle(
-                  fontSize: 18,
+                style: TextStyle(
+                  fontSize: Responsive.fontSize(context, 18),
                   fontWeight: FontWeight.bold,
                   color: Colors.black,
                 ),
@@ -133,7 +139,10 @@ class NotificationsScreen extends ConsumerWidget {
         _handleNotificationTap(context, notification);
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: EdgeInsets.symmetric(
+          horizontal: Responsive.screenPaddingH(context),
+          vertical: Responsive.spacing(context, 12),
+        ),
         decoration: BoxDecoration(
           color: notification.read ? Colors.white : Colors.blue.shade50.withOpacity(0.3),
           border: Border(
@@ -182,8 +191,8 @@ class NotificationsScreen extends ConsumerWidget {
                 children: [
                   RichText(
                     text: TextSpan(
-                      style: const TextStyle(
-                        fontSize: 14,
+                      style: TextStyle(
+                        fontSize: Responsive.fontSize(context, 14),
                         color: Colors.black,
                         height: 1.4,
                       ),
@@ -241,15 +250,18 @@ class NotificationsScreen extends ConsumerWidget {
     // Show message button for follow notifications
     if (notification.type == 'followed_you') {
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: EdgeInsets.symmetric(
+          horizontal: Responsive.spacing(context, 12),
+          vertical: Responsive.spacing(context, 6),
+        ),
         decoration: BoxDecoration(
           color: const Color(0xFFF5F0E8), // Beige
           borderRadius: BorderRadius.circular(16),
         ),
-        child: const Text(
+        child: Text(
           'Message',
           style: TextStyle(
-            fontSize: 12,
+            fontSize: Responsive.fontSize(context, 12),
             color: Colors.black87,
             fontWeight: FontWeight.w500,
           ),

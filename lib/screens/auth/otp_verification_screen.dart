@@ -5,13 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:kins_app/core/network/backend_api_client.dart';
+import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:kins_app/providers/auth_provider.dart';
 import 'package:kins_app/services/auth_flow_service.dart';
 import 'package:kins_app/services/backend_auth_service.dart';
 
 import '../../widgets/app_card.dart';
 import '../../widgets/auth_flow_layout.dart';
-import '../../widgets/primary_button.dart';
+import '../../widgets/secondary_button.dart';
 import '../../widgets/skeleton/skeleton_loaders.dart';
 
 bool _isServerUnavailable(String message) {
@@ -184,8 +185,6 @@ class _OtpVerificationScreenState
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
-    final otpLength = _otpController.text.length;
-    final canContinue = otpLength == 6 && !authState.isLoading && !_isCheckingUser;
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
 
@@ -202,10 +201,16 @@ class _OtpVerificationScreenState
         children: [
           Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                padding: EdgeInsets.symmetric(
+                  horizontal: Responsive.screenPaddingH(context),
+                  vertical: Responsive.spacing(context, 16),
+                ),
                 child: AppCard(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-                  constraints: const BoxConstraints(maxWidth: 400),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: Responsive.screenPaddingH(context),
+                    vertical: Responsive.spacing(context, 28),
+                  ),
+                  constraints: BoxConstraints(maxWidth: Responsive.maxContentWidth(context)),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.06),
@@ -221,7 +226,7 @@ class _OtpVerificationScreenState
                       Text(
                         'Enter OTP',
                         style: textTheme.titleLarge?.copyWith(
-                          fontSize: 17,
+                          fontSize: 15,
                           fontWeight: FontWeight.bold,
                           color: Colors.black,
                         ),
@@ -270,30 +275,27 @@ class _OtpVerificationScreenState
                       else
                         const SizedBox(height: 52),
                       const SizedBox(height: 24),
-                      if (authState.isLoading || _isCheckingUser)
-                        const Center(
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(vertical: 12),
-                            child: SkeletonInline(size: 24),
-                          ),
-                        )
-                      else
-                        PrimaryButton(
-                          onPressed: (_isDisposed || !mounted)
-                              ? null
-                              : canContinue
-                                  ? () {
-                                      if (mounted && !_isDisposed) {
-                                        try {
-                                          final otp = _otpController.text;
-                                          if (otp.length == 6) _verifyOTP(otp);
-                                        } catch (e) { /* controller disposed */ }
-                                      }
-                                    }
-                                  : null,
-                          isLoading: authState.isLoading || _isCheckingUser,
-                          label: 'Continue',
-                        ),
+                      SecondaryButton(
+                        onPressed: (_isDisposed || !mounted)
+                            ? null
+                            : () {
+                                if (!mounted || _isDisposed) return;
+                                final otp = _otpController.text;
+                                if (otp.length != 6) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: const Text('Please enter 6-digit OTP'),
+                                      backgroundColor: Theme.of(context).colorScheme.error,
+                                      duration: const Duration(seconds: 2),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                _verifyOTP(otp);
+                              },
+                        label: 'Continue',
+                        isLoading: authState.isLoading || _isCheckingUser,
+                      ),
                       const SizedBox(height: 20),
                       Align(
                         alignment: Alignment.centerRight,
