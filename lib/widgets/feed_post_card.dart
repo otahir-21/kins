@@ -171,12 +171,12 @@ class _MediaPostCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Text
+                    // Text (same style as text-only and poll posts for consistency)
                     if (text.isNotEmpty) ...[
                   Text(
                     text,
-                    style: Theme.of(context).extension<AppPostTypography>()?.postBodySmall ??
-                        TextStyle(fontSize: Responsive.fontSize(context, 15), fontWeight: FontWeight.w400, height: 1.4, color: Colors.black),
+                    style: Theme.of(context).extension<AppPostTypography>()?.postBody ??
+                        TextStyle(fontSize: Responsive.fontSize(context, 14), fontWeight: FontWeight.w400, height: 1.5, color: Colors.black),
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -303,8 +303,8 @@ class _PollPostCard extends StatelessWidget {
                     if (text.isNotEmpty) ...[
                       Text(
                         text,
-                        style: Theme.of(context).extension<AppPostTypography>()?.pollQuestion ??
-                            TextStyle(fontSize: Responsive.fontSize(context, 16), fontWeight: FontWeight.w400, height: 1.4, color: Colors.black),
+                        style: Theme.of(context).extension<AppPostTypography>()?.postBody ??
+                            TextStyle(fontSize: Responsive.fontSize(context, 14), fontWeight: FontWeight.w400, height: 1.5, color: Colors.black),
                       ),
                       const SizedBox(height: 9),
                     ],
@@ -418,9 +418,9 @@ class _PollOptionsContentState extends State<_PollOptionsContent> {
           Text(
             poll.question,
             style: Theme.of(context).extension<AppPostTypography>()?.pollQuestion ??
-                const TextStyle(fontSize: 16, fontWeight: FontWeight.w400, height: 1.4, color: Colors.black),
+                const TextStyle(fontSize: 14, fontWeight: FontWeight.w400, height: 1.5, color: Colors.black),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 8),
         ],
         ...poll.options.asMap().entries.map((entry) => _PollOptionRow(
               option: entry.value,
@@ -485,7 +485,7 @@ class _PollOptionRowState extends State<_PollOptionRow> with SingleTickerProvide
     final pct = widget.total > 0 ? (widget.option.count / widget.total) * 100 : 0.0;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 6),
       child: GestureDetector(
         onTap: widget.onTap,
         child: Row(
@@ -493,14 +493,14 @@ class _PollOptionRowState extends State<_PollOptionRow> with SingleTickerProvide
           children: [
             Expanded(
               child: SizedBox(
-                height: 44,
+                height: 36,
                 child: widget.hasVoted ? _buildVotedState() : _buildNotVotedState(),
               ),
             ),
             if (widget.hasVoted) ...[
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               SizedBox(
-                width: 44,
+                width: 36,
                 child: Center(
                   child: Text(
                     '${pct.toStringAsFixed(0)}%',
@@ -519,11 +519,11 @@ class _PollOptionRowState extends State<_PollOptionRow> with SingleTickerProvide
   /// STATE 1: User has NOT voted - transparent bg, border only, no fill/percentage/check
   Widget _buildNotVotedState() {
     return Container(
-      height: 44,
+      height: 36,
       padding: EdgeInsets.symmetric(horizontal: Responsive.screenPaddingH(context)),
       decoration: BoxDecoration(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFE5E5E5), width: 1),
       ),
       alignment: Alignment.centerLeft,
@@ -547,11 +547,11 @@ class _PollOptionRowState extends State<_PollOptionRow> with SingleTickerProvide
           children: [
             // Background pill (light grey)
             Container(
-              height: 44,
+              height: 36,
               width: double.infinity,
               decoration: BoxDecoration(
                 color: _pollOptionBg,
-                borderRadius: BorderRadius.circular(22),
+                borderRadius: BorderRadius.circular(18),
               ),
             ),
             // Fill bar (darker grey) - width matches vote %
@@ -569,10 +569,10 @@ class _PollOptionRowState extends State<_PollOptionRow> with SingleTickerProvide
                     decoration: BoxDecoration(
                       color: const Color(0xFFD6D6D6),
                       borderRadius: full
-                          ? BorderRadius.circular(22)
+                          ? BorderRadius.circular(18)
                           : const BorderRadius.only(
-                              topLeft: Radius.circular(22),
-                              bottomLeft: Radius.circular(22),
+                              topLeft: Radius.circular(18),
+                              bottomLeft: Radius.circular(18),
                             ),
                     ),
                   ),

@@ -74,7 +74,7 @@ class _PostCardTextState extends State<PostCardText> {
                       Text(
                         text,
                         style: Theme.of(context).extension<AppPostTypography>()?.postBody ??
-                            TextStyle(fontSize: Responsive.fontSize(context, 18), fontWeight: FontWeight.w400, height: 1.5, color: Colors.black),
+                            TextStyle(fontSize: Responsive.fontSize(context, 14), fontWeight: FontWeight.w400, height: 1.5, color: Colors.black),
                       ),
                       const SizedBox(height: 8),
                     ],
