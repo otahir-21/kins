@@ -93,10 +93,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _onFabPressed,
+        mini: true,
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87,
         elevation: 2,
-        child: const Icon(Icons.add, size: 28),
+        child: const Icon(Icons.add, size: 22),
       ),
     );
   }
@@ -174,10 +175,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       child: TextField(
         controller: _searchController,
         focusNode: _searchFocusNode,
+        style: TextStyle(
+          fontSize: Responsive.fontSize(context, 14),
+          fontWeight: FontWeight.w400,
+          color: Colors.black,
+        ),
         decoration: InputDecoration(
           hintText: 'Search',
-          hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: Responsive.fontSize(context, 15)),
-          prefixIcon: Icon(Icons.search, color: Colors.grey.shade600, size: 22),
+          hintStyle: TextStyle(fontSize: Responsive.fontSize(context, 14), color: Colors.grey.shade600),
+          prefixIcon: Icon(Icons.search, color: Colors.grey.shade600, size: 24),
           filled: true,
           fillColor: Colors.grey.shade100,
           border: OutlineInputBorder(
@@ -722,8 +728,15 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
               ),
               const SizedBox(height: 16),
               IntlPhoneField(
+                style: TextStyle(
+                  fontSize: Responsive.fontSize(context, 14),
+                  fontWeight: FontWeight.w400,
+                  color: Colors.black,
+                ),
                 decoration: InputDecoration(
                   labelText: 'Phone number',
+                  labelStyle: TextStyle(fontSize: Responsive.fontSize(context, 14), color: Colors.grey.shade600),
+                  hintStyle: TextStyle(fontSize: Responsive.fontSize(context, 14), color: Colors.grey.shade600),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),

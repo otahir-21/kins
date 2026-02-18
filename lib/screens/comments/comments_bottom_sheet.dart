@@ -238,9 +238,14 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                       focusNode: _commentFocusNode,
                       maxLines: null,
                       maxLength: 2000,
+                      style: TextStyle(
+                        fontSize: Responsive.fontSize(context, 14),
+                        fontWeight: FontWeight.w400,
+                        color: Colors.black,
+                      ),
                       decoration: InputDecoration(
                         hintText: 'Write a comment...',
-                        hintStyle: TextStyle(color: Colors.grey[400]),
+                        hintStyle: TextStyle(fontSize: Responsive.fontSize(context, 14), color: Colors.grey.shade600),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(24),
                           borderSide: BorderSide(color: Colors.grey[300]!),

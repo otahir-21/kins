@@ -14,6 +14,7 @@ import 'package:kins_app/providers/auth_provider.dart';
 import 'package:kins_app/providers/notification_provider.dart';
 import 'package:kins_app/services/location_service.dart';
 import 'package:kins_app/repositories/location_repository.dart';
+import 'package:kins_app/widgets/confirm_dialog.dart';
 import 'package:kins_app/widgets/floating_nav_overlay.dart';
 import 'package:kins_app/widgets/kins_logo.dart';
 import 'package:kins_app/widgets/skeleton/skeleton_loaders.dart';
@@ -949,25 +950,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       icon: Icons.exit_to_app,
                       isLogout: true,
                       onTap: () async {
-                        final shouldLogout = await showDialog<bool>(
+                        final shouldLogout = await showConfirmDialog<bool>(
                           context: context,
-                          builder: (context) => AlertDialog(
-                            title: const Text('Logout'),
-                            content: const Text('Are you sure you want to logout?'),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context, false),
-                                child: const Text('Cancel'),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.pop(context, true),
-                                style: TextButton.styleFrom(
-                                  foregroundColor: Colors.red,
-                                ),
-                                child: const Text('Logout'),
-                              ),
-                            ],
-                          ),
+                          title: 'Log out',
+                          message: 'Are you sure you want to log out?',
+                          confirmLabel: 'Log out',
+                          destructive: true,
+                          icon: Icons.logout,
                         );
 
                         if (shouldLogout == true) {

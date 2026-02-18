@@ -141,7 +141,7 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
                           Responsive.screenPaddingH(context),
                           Responsive.spacing(context, 24),
                           Responsive.screenPaddingH(context),
-                          Responsive.spacing(context, 16),
+                          Responsive.spacing(context, 8),
                         ),
                         child: Text(
                           'Select your interests',
@@ -163,10 +163,10 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
                           Responsive.screenPaddingH(context),
                           0,
                           Responsive.screenPaddingH(context),
-                          Responsive.spacing(context, 16),
+                          Responsive.spacing(context, 8),
                         ),
                         child: Container(
-                          height: 45,
+                          height: 36,
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(28),
@@ -181,12 +181,16 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
                                 child: TextField(
                                   controller: _searchController,
                                   onChanged: (_) => setState(() {}),
-                                  style: textTheme.bodyLarge?.copyWith(fontSize: 12),
+                                  style: TextStyle(
+                                    fontSize: Responsive.fontSize(context, 14),
+                                    fontWeight: FontWeight.w400,
+                                    color: Colors.black,
+                                  ),
                                   decoration: InputDecoration(
                                     hintText: 'Search',
-                                    hintStyle: textTheme.bodyLarge?.copyWith(
-                                      color: colorScheme.onSurfaceVariant,
-                                      fontSize: 12,
+                                    hintStyle: TextStyle(
+                                      fontSize: Responsive.fontSize(context, 14),
+                                      color: Colors.grey.shade600,
                                     ),
                                     border: InputBorder.none,
                                     enabledBorder: InputBorder.none,

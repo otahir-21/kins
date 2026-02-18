@@ -67,9 +67,10 @@ class AppPostTypography extends ThemeExtension<AppPostTypography> {
     final inherit = base.bodyLarge ?? const TextStyle();
     // Post body: single explicit style (normal weight) so all post types look consistent
     const Color postBodyColor = Colors.black;
+    // Post body: 14px reduced by 10% = 12.6
     final TextStyle postBodyStyle = TextStyle(
       fontFamily: inherit.fontFamily,
-      fontSize: 14,
+      fontSize: 12.6,
       fontWeight: FontWeight.w400,
       height: 1.5,
       color: postBodyColor,
@@ -79,10 +80,10 @@ class AppPostTypography extends ThemeExtension<AppPostTypography> {
       headerMeta: inherit.copyWith(fontSize: 16, fontWeight: FontWeight.w400, color: _greyMeta),
       headerTime: inherit.copyWith(fontSize: 14, fontWeight: FontWeight.w400, color: _greyMeta),
       postBody: postBodyStyle,
-      postBodySmall: postBodyStyle.copyWith(fontSize: 14, height: 1.5),
-      pollQuestion: postBodyStyle.copyWith(fontSize: 14, height: 1.5),
+      postBodySmall: postBodyStyle.copyWith(fontSize: 12.6, height: 1.5),
+      pollQuestion: postBodyStyle.copyWith(fontSize: 12.6, height: 1.5),
       pollOption: inherit.copyWith(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.black),
-      interactionCount: inherit.copyWith(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.black),
+      interactionCount: inherit.copyWith(fontSize: 14.4, fontWeight: FontWeight.w500, color: Colors.black), // 16 reduced 10%
     );
   }
 }

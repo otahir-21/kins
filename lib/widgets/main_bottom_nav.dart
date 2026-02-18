@@ -25,10 +25,10 @@ class MainBottomNav extends StatelessWidget {
 
   static const Color _primaryPurple = Color(0xFF6A1A5D);
   static const double _horizontalMargin = 20;
-  static const double _verticalPadding = 11; // 12 * 0.9 (10% smaller)
-  static const double _iconSize = 20; // 34 * 0.6 (40% smaller)
-  static const double _circleSizeInactive = 43; // 48 * 0.9
-  static const double _circleSizeActive = 47; // 52 * 0.9
+  static const double _verticalPadding = 7;
+  static const double _iconSize = 16;
+  static const double _circleSizeInactive = 36;
+  static const double _circleSizeActive = 40;
 
   @override
   Widget build(BuildContext context) {

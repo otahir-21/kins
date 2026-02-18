@@ -6,6 +6,7 @@ import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:kins_app/providers/auth_provider.dart';
 import 'package:kins_app/services/account_deletion_service.dart';
+import 'package:kins_app/widgets/confirm_dialog.dart';
 
 /// Settings menu: Account Settings, Favourite, FAQ's, Terms, Privacy, About us, Log out.
 class SettingsMenuScreen extends ConsumerWidget {
@@ -19,10 +20,10 @@ class SettingsMenuScreen extends ConsumerWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.arrow_back, color: Colors.black, size: Responsive.fontSize(context, 24)),
           onPressed: () => context.pop(),
         ),
-        title: const Text('Settings', style: TextStyle(color: Colors.black)),
+        title: Text('Settings', style: TextStyle(color: Colors.black, fontSize: Responsive.fontSize(context, 18))),
       ),
       body: ListView(
         padding: EdgeInsets.symmetric(
@@ -30,18 +31,16 @@ class SettingsMenuScreen extends ConsumerWidget {
           vertical: Responsive.spacing(context, 8),
         ),
         children: [
-          _buildItem(context, 'Account Settings', Icons.person_outline, () => context.push(AppConstants.routeAccountSettings)),
           _buildItem(context, 'Edit Profile', Icons.edit_outlined, () => context.push(AppConstants.routeEditProfile)),
-          _buildItem(context, 'Edit tags', Icons.label_outline, () => context.push(AppConstants.routeEditTags)),
           _buildItem(context, 'Favourite', Icons.favorite_border, () => _showComingSoon(context)),
           _buildItem(context, 'FAQ\'s', Icons.help_outline, () => _showComingSoon(context)),
           _buildItem(context, 'Terms of Service', Icons.description_outlined, () => _showComingSoon(context)),
           _buildItem(context, 'Privacy Policy', Icons.privacy_tip_outlined, () => _showComingSoon(context)),
           _buildItem(context, 'About us', Icons.info_outline, () => _showComingSoon(context)),
-          const Divider(height: 24),
+          Divider(height: Responsive.spacing(context, 24)),
           _buildItem(context, 'Delete account', Icons.delete_outline, () => _onDeleteAccount(context, ref), isDestructive: true),
           _buildItem(context, 'Log out', Icons.exit_to_app, () => _onLogout(context, ref), isLogout: true),
-          const SizedBox(height: 24),
+          SizedBox(height: Responsive.spacing(context, 24)),
         ],
       ),
     );
@@ -50,9 +49,9 @@ class SettingsMenuScreen extends ConsumerWidget {
   Widget _buildItem(BuildContext context, String title, IconData icon, VoidCallback onTap, {bool isLogout = false, bool isDestructive = false}) {
     final color = (isLogout || isDestructive) ? Colors.red : Colors.black87;
     return ListTile(
-      leading: Icon(icon, color: color, size: 24),
-      title: Text(title, style: TextStyle(fontSize: Responsive.fontSize(context, 16), fontWeight: FontWeight.w500, color: color)),
-      trailing: (isLogout || isDestructive) ? null : Icon(Icons.chevron_right, color: Colors.grey.shade400),
+      leading: Icon(icon, color: color, size: Responsive.fontSize(context, 22)),
+      title: Text(title, style: TextStyle(fontSize: Responsive.fontSize(context, 14), fontWeight: FontWeight.w500, color: color)),
+      trailing: (isLogout || isDestructive) ? null : Icon(Icons.chevron_right, color: Colors.grey.shade400, size: Responsive.fontSize(context, 22)),
       onTap: onTap,
     );
   }
@@ -62,22 +61,13 @@ class SettingsMenuScreen extends ConsumerWidget {
   }
 
   void _onDeleteAccount(BuildContext context, WidgetRef ref) async {
-    final confirm = await showDialog<bool>(
+    final confirm = await showConfirmDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete account'),
-        content: const Text(
-          'This will permanently delete your account and all your data from our servers. This action cannot be undone.\n\nAre you sure you want to continue?',
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete account'),
-          ),
-        ],
-      ),
+      title: 'Delete account',
+      message: 'This will permanently delete your account and all your data from our servers. This action cannot be undone.\n\nAre you sure you want to continue?',
+      confirmLabel: 'Delete account',
+      destructive: true,
+      icon: Icons.delete_outline,
     );
     if (confirm != true || !context.mounted) return;
     try {
@@ -97,16 +87,13 @@ class SettingsMenuScreen extends ConsumerWidget {
   }
 
   void _onLogout(BuildContext context, WidgetRef ref) async {
-    final confirm = await showDialog<bool>(
+    final confirm = await showConfirmDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Log out'),
-        content: const Text('Are you sure you want to log out?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), style: TextButton.styleFrom(foregroundColor: Colors.red), child: const Text('Log out')),
-        ],
-      ),
+      title: 'Log out',
+      message: 'Are you sure you want to log out?',
+      confirmLabel: 'Log out',
+      destructive: true,
+      icon: Icons.logout,
     );
     if (confirm != true) return;
     try {

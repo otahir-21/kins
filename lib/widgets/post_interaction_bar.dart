@@ -66,20 +66,20 @@ class PostInteractionBar extends StatelessWidget {
         children: [
           Image.asset(
             iconPath,
-            width: 18,
-            height: 18,
+            width: 16.2,
+            height: 16.2,
             fit: BoxFit.contain,
             errorBuilder: (_, __, ___) => Container(
-              width: 18,
-              height: 18,
+              width: 16.2,
+              height: 16.2,
               color: Colors.grey.shade300,
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 9),
           Text(
             count.toString(),
             style: Theme.of(context).extension<AppPostTypography>()?.interactionCount ??
-                TextStyle(fontSize: Responsive.fontSize(context, 20), fontWeight: FontWeight.w500, color: Colors.black),
+                TextStyle(fontSize: Responsive.fontSize(context, 18), fontWeight: FontWeight.w500, color: Colors.black),
           ),
         ],
       ),

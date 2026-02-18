@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:kins_app/repositories/location_repository.dart';
 import 'package:kins_app/widgets/skeleton/skeleton_loaders.dart';
@@ -51,22 +52,26 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.arrow_back, color: Colors.black, size: Responsive.fontSize(context, 24)),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('Account Settings', style: TextStyle(color: Colors.black)),
+        title: Text('Account Settings', style: TextStyle(color: Colors.black, fontSize: Responsive.fontSize(context, 18))),
       ),
       body: _isLoading
           ? const SkeletonSettings()
           : ListView(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.symmetric(
+                horizontal: Responsive.screenPaddingH(context),
+                vertical: Responsive.spacing(context, 16),
+              ),
               children: [
                 Card(
                   child: ListTile(
-                    leading: const Icon(Icons.location_on, color: Color(0xFF6B4C93)),
-                    title: const Text('Show my location to other kins'),
+                    leading: Icon(Icons.location_on, color: const Color(0xFF6B4C93), size: Responsive.fontSize(context, 24)),
+                    title: Text('Show my location to other kins', style: TextStyle(fontSize: Responsive.fontSize(context, 16))),
                     subtitle: Text(
                       _isLocationVisible ? 'Other users can see you on the map' : 'You are hidden from other users',
+                      style: TextStyle(fontSize: Responsive.fontSize(context, 14)),
                     ),
                     trailing: Switch(
                       value: _isLocationVisible,

@@ -61,7 +61,6 @@ class _PostCardTextState extends State<PostCardText> {
             avatarUrl: widget.post.authorPhotoUrl,
             onMore: widget.onMore,
           ),
-          const SizedBox(height: 0),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -71,10 +70,13 @@ class _PostCardTextState extends State<PostCardText> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (text.isNotEmpty) ...[
-                      Text(
-                        text,
-                        style: Theme.of(context).extension<AppPostTypography>()?.postBody ??
-                            TextStyle(fontSize: Responsive.fontSize(context, 14), fontWeight: FontWeight.w400, height: 1.5, color: Colors.black),
+                      Transform.translate(
+                        offset: const Offset(-1, 0),
+                        child: Text(
+                          text,
+                          style: Theme.of(context).extension<AppPostTypography>()?.postBody ??
+                              TextStyle(fontSize: Responsive.fontSize(context, 12.6), fontWeight: FontWeight.w400, height: 1.5, color: Colors.black),
+                        ),
                       ),
                       const SizedBox(height: 8),
                     ],

@@ -274,7 +274,7 @@ class SkeletonInterestChips extends StatelessWidget {
         children: List.generate(
           8,
           (_) => Container(
-            height: 36,
+            height: 40,
             width: 90,
             decoration: BoxDecoration(
               color: Colors.grey.shade200,
@@ -491,7 +491,7 @@ class SkeletonFilterChips extends StatelessWidget {
             children: List.generate(
               6,
               (_) => Container(
-                height: 32,
+                height: 36,
                 width: 70,
                 margin: const EdgeInsets.only(right: 8),
                 decoration: BoxDecoration(

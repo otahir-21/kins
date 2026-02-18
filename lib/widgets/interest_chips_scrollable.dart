@@ -10,24 +10,25 @@ class InterestChipsScrollable extends StatelessWidget {
     required this.interests,
     required this.selectedIds,
     required this.onToggle,
+    this.pillsPerRow = 6,
   });
 
   final List<InterestModel> interests;
   final Set<String> selectedIds;
   final ValueChanged<String> onToggle;
-
-  static const int _kPillsPerRow = 6;
+  /// Number of chips per horizontal row (default 6; use 25 for create post).
+  final int pillsPerRow;
 
   @override
   Widget build(BuildContext context) {
     if (interests.isEmpty) return const SizedBox.shrink();
 
     final rows = <List<InterestModel>>[];
-    for (var i = 0; i < interests.length; i += _kPillsPerRow) {
+    for (var i = 0; i < interests.length; i += pillsPerRow) {
       rows.add(
         interests.sublist(
           i,
-          i + _kPillsPerRow > interests.length ? interests.length : i + _kPillsPerRow,
+          i + pillsPerRow > interests.length ? interests.length : i + pillsPerRow,
         ),
       );
     }
@@ -36,9 +37,9 @@ class InterestChipsScrollable extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         for (var r = 0; r < rows.length; r++) ...[
-          if (r > 0) const SizedBox(height: 12),
+          if (r > 0) const SizedBox(height: 6),
           SizedBox(
-            height: 32,
+            height: 40,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(vertical: 2),
@@ -60,6 +61,7 @@ class InterestChipsScrollable extends StatelessWidget {
   }
 }
 
+/// LinkedIn-style: inactive = white bg + grey border + grey text; active = solid fill + white text.
 class _InterestPill extends StatelessWidget {
   const _InterestPill({
     required this.interest,
@@ -71,45 +73,49 @@ class _InterestPill extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
 
-  static const double _pillRadius = 14;
+  static const double _chipRadius = 20;
+  static const Color _selectedColor = Color(0xFF7a084e);
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(_pillRadius),
+        borderRadius: BorderRadius.circular(_chipRadius),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          constraints: const BoxConstraints(maxWidth: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(_pillRadius),
+            color: isSelected ? _selectedColor : Colors.white,
+            borderRadius: BorderRadius.circular(_chipRadius),
             border: Border.all(
-              color: isSelected ? colorScheme.primary : Colors.grey.shade300,
+              color: isSelected ? _selectedColor : Colors.grey.shade300,
               width: 1,
             ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(
-                interest.name,
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  fontSize: Responsive.fontSize(context, 12),
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                  color: colorScheme.onSurface,
+              Flexible(
+                child: Text(
+                  interest.name,
+                  style: TextStyle(
+                    fontSize: Responsive.fontSize(context, 12),
+                    fontWeight: FontWeight.w500,
+                    color: isSelected ? Colors.white : Colors.grey.shade700,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: 6),
               Icon(
                 isSelected ? Icons.close : Icons.add,
-                size: 12,
-                color: colorScheme.primary,
+                size: 14,
+                color: isSelected ? Colors.white : _selectedColor,
               ),
             ],
           ),

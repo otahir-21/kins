@@ -8,6 +8,8 @@ import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:kins_app/models/interest_model.dart';
 import 'package:kins_app/providers/edit_profile_provider.dart';
 import 'package:kins_app/repositories/interest_repository.dart';
+import 'package:kins_app/widgets/interest_chips_scrollable.dart';
+import 'package:kins_app/widgets/skeleton/skeleton_loaders.dart';
 
 /// Edit Profile screen - optional fields, partial update via PUT /me/about.
 class EditProfileScreen extends ConsumerStatefulWidget {
@@ -19,17 +21,25 @@ class EditProfileScreen extends ConsumerStatefulWidget {
 
 class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   static const _primaryColor = Color(0xFF6B4C93);
+  static const _textGrey = Color(0xFF8E8E93);
   static const _inputRadius = 28.0;
   static const _fieldSpacing = 16.0;
   static const _borderGrey = Color(0xFFE5E5E5);
 
   List<InterestModel> _allInterests = [];
   File? _pickedImageFile;
+  final TextEditingController _interestSearchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _loadInterests();
+  }
+
+  @override
+  void dispose() {
+    _interestSearchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadInterests() async {
@@ -58,18 +68,25 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       body: SafeArea(
         child: asyncState.when(
           data: (s) => _buildContent(s),
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const SkeletonSettings(),
           error: (e, _) => Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text('Failed to load: $e', textAlign: TextAlign.center),
-                const SizedBox(height: 16),
-                TextButton(
-                  onPressed: () => ref.read(editProfileProvider.notifier).load(),
-                  child: const Text('Retry'),
-                ),
-              ],
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: Responsive.screenPaddingH(context)),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Failed to load: $e',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: Responsive.fontSize(context, 14)),
+                  ),
+                  SizedBox(height: Responsive.spacing(context, 16)),
+                  TextButton(
+                    onPressed: () => ref.read(editProfileProvider.notifier).load(),
+                    child: Text('Retry', style: TextStyle(fontSize: Responsive.fontSize(context, 16))),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -86,22 +103,22 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       child: Column(
         children: [
           _buildHeader(s, notifier),
-          const SizedBox(height: 24),
+          SizedBox(height: Responsive.spacing(context, 24)),
           _buildProfileImage(edit),
-          const SizedBox(height: 32),
+          SizedBox(height: Responsive.spacing(context, 32)),
           _buildField(
             hint: 'Full name',
             value: edit.name,
             onChanged: notifier.updateName,
             showWarning: (edit.name ?? '').trim().isEmpty,
           ),
-          SizedBox(height: _fieldSpacing),
+          SizedBox(height: Responsive.spacing(context, _fieldSpacing)),
           _buildMultilineField(
             hint: 'Tell us about yourself',
             value: edit.bio,
             onChanged: notifier.updateBio,
           ),
-          SizedBox(height: _fieldSpacing),
+          SizedBox(height: Responsive.spacing(context, _fieldSpacing)),
           _buildField(
             hint: 'Username',
             value: edit.username,
@@ -109,7 +126,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             showWarning: (edit.username ?? '').trim().isEmpty,
             helper: 'Unique username',
           ),
-          SizedBox(height: _fieldSpacing),
+          SizedBox(height: Responsive.spacing(context, _fieldSpacing)),
           _buildField(
             hint: 'Email',
             value: edit.email,
@@ -117,7 +134,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             keyboard: TextInputType.emailAddress,
             showWarning: (edit.email ?? '').trim().isEmpty,
           ),
-          SizedBox(height: _fieldSpacing),
+          SizedBox(height: Responsive.spacing(context, _fieldSpacing)),
           _buildField(
             hint: 'Phone',
             value: edit.phoneNumber,
@@ -125,13 +142,16 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             keyboard: TextInputType.phone,
             showWarning: (edit.phoneNumber ?? '').trim().isEmpty,
           ),
-          SizedBox(height: _fieldSpacing),
-          _buildCountryDropdown(edit.country, notifier.updateCountry),
-          SizedBox(height: _fieldSpacing),
-          _buildCityDropdown(edit.city, notifier.updateCity),
-          SizedBox(height: _fieldSpacing),
+          SizedBox(height: Responsive.spacing(context, _fieldSpacing)),
+          _buildCountryDropdown(edit.country, (s) {
+            notifier.updateCountry(s);
+            notifier.updateCity(null);
+          }),
+          SizedBox(height: Responsive.spacing(context, _fieldSpacing)),
+          _buildCityDropdown(edit.city, edit.country, notifier.updateCity),
+          SizedBox(height: Responsive.spacing(context, _fieldSpacing)),
           _buildInterestsSection(edit, notifier),
-          const SizedBox(height: 48),
+          SizedBox(height: Responsive.spacing(context, 48)),
         ],
       ),
     );
@@ -139,15 +159,15 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   Widget _buildHeader(EditProfileState s, EditProfileNotifier notifier) {
     return Padding(
-      padding: const EdgeInsets.only(top: 12),
+      padding: EdgeInsets.only(top: Responsive.spacing(context, 12)),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.black, size: 22),
+            icon: Icon(Icons.arrow_back, color: Colors.black, size: Responsive.fontSize(context, 22)),
             onPressed: () => context.pop(),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: s.hasChanges && !s.isSaving
                 ? () async {
                     try {
@@ -167,18 +187,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     }
                   }
                 : null,
-            style: TextButton.styleFrom(
-              backgroundColor: s.hasChanges && !s.isSaving ? _primaryColor : Colors.grey.shade300,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            ),
             child: s.isSaving
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                  )
+                ? const SkeletonInline(size: 20)
                 : const Text('Save'),
           ),
         ],
@@ -196,17 +206,31 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            CircleAvatar(
-              radius: 50,
-              backgroundColor: _primaryColor.withOpacity(0.2),
-              backgroundImage: hasImage ? NetworkImage(url) : null,
-              child: hasImage
-                  ? null
-                  : _pickedImageFile != null
-                      ? ClipOval(
-                          child: Image.file(_pickedImageFile!, width: 100, height: 100, fit: BoxFit.cover),
-                        )
-                      : const Icon(Icons.person, color: _primaryColor, size: 48),
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: CircleAvatar(
+                radius: 36,
+                backgroundColor: Colors.grey.shade200,
+                backgroundImage: hasImage ? NetworkImage(url!) : null,
+                child: hasImage
+                    ? null
+                    : _pickedImageFile != null
+                        ? ClipOval(
+                            child: Image.file(_pickedImageFile!, width: 72, height: 72, fit: BoxFit.cover),
+                          )
+                        : Icon(Icons.person, color: _textGrey, size: 34),
+              ),
             ),
             Positioned(
               right: 0,
@@ -239,11 +263,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       children: [
         if (helper != null) ...[
           Text(helper, style: TextStyle(fontSize: Responsive.fontSize(context, 12), color: Colors.grey.shade600)),
-          const SizedBox(height: 6),
+          SizedBox(height: Responsive.spacing(context, 6)),
         ],
         Container(
-          height: 56,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          height: Responsive.spacing(context, 56),
+          padding: EdgeInsets.symmetric(horizontal: Responsive.spacing(context, 16)),
           decoration: BoxDecoration(
             color: Colors.grey.shade100,
             borderRadius: BorderRadius.circular(_inputRadius),
@@ -257,13 +281,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   onChanged: onChanged,
                   keyboardType: keyboard,
                   style: TextStyle(
-                    fontSize: Responsive.fontSize(context, 16),
+                    fontSize: Responsive.fontSize(context, 14),
                     fontWeight: FontWeight.w400,
                     color: Colors.black,
                   ),
                   decoration: InputDecoration(
                     hintText: hint,
-                    hintStyle: TextStyle(fontSize: Responsive.fontSize(context, 16), color: Colors.grey.shade600),
+                    hintStyle: TextStyle(fontSize: Responsive.fontSize(context, 14), color: Colors.grey.shade600),
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,
@@ -276,7 +300,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 ),
               ),
               if (showWarning)
-                Icon(Icons.info_outline, size: 20, color: Colors.grey.shade500),
+                Icon(Icons.info_outline, size: Responsive.fontSize(context, 20), color: Colors.grey.shade500),
             ],
           ),
         ),
@@ -290,7 +314,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     required ValueChanged<String> onChanged,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: EdgeInsets.symmetric(horizontal: Responsive.spacing(context, 16), vertical: Responsive.spacing(context, 14)),
       decoration: BoxDecoration(
         color: Colors.grey.shade100,
         borderRadius: BorderRadius.circular(_inputRadius),
@@ -301,13 +325,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         onChanged: onChanged,
         maxLines: 3,
         style: TextStyle(
-          fontSize: Responsive.fontSize(context, 16),
+          fontSize: Responsive.fontSize(context, 14),
           fontWeight: FontWeight.w400,
           color: Colors.black,
         ),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: TextStyle(fontSize: Responsive.fontSize(context, 16), color: Colors.grey.shade600),
+          hintStyle: TextStyle(fontSize: Responsive.fontSize(context, 14), color: Colors.grey.shade600),
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
@@ -321,29 +345,39 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     );
   }
 
+  static const Map<String, List<String>> _countryCities = {
+    'United Arab Emirates': ['Dubai', 'Abu Dhabi', 'Sharjah', 'Ajman', 'Ras Al Khaimah', 'Fujairah', 'Other'],
+    'United Kingdom': ['London', 'Manchester', 'Birmingham', 'Leeds', 'Other'],
+    'United States': ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Other'],
+    'Canada': ['Toronto', 'Vancouver', 'Montreal', 'Calgary', 'Other'],
+    'Australia': ['Sydney', 'Melbourne', 'Brisbane', 'Perth', 'Other'],
+    'India': ['Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Other'],
+    'Pakistan': ['Karachi', 'Lahore', 'Islamabad', 'Rawalpindi', 'Other'],
+    'Saudi Arabia': ['Riyadh', 'Jeddah', 'Dammam', 'Mecca', 'Medina', 'Other'],
+    'Egypt': ['Cairo', 'Alexandria', 'Giza', 'Other'],
+    'Other': ['Other'],
+  };
+
+  static List<String> get _countries => _countryCities.keys.toList();
+
   Widget _buildCountryDropdown(String? value, ValueChanged<String?> onChanged) {
-    const countries = [
-      'United Arab Emirates', 'United Kingdom', 'United States', 'Canada',
-      'Australia', 'India', 'Pakistan', 'Saudi Arabia', 'Egypt', 'Other',
-    ];
     return _buildDropdown(
       value: value,
       hint: 'Country',
-      items: countries,
+      items: _countries,
       onChanged: onChanged,
     );
   }
 
-  Widget _buildCityDropdown(String? value, ValueChanged<String?> onChanged) {
-    const cities = [
-      'Dubai', 'Abu Dhabi', 'Sharjah', 'London', 'New York', 'Toronto',
-      'Sydney', 'Mumbai', 'Karachi', 'Riyadh', 'Cairo', 'Other',
-    ];
+  Widget _buildCityDropdown(String? value, String? selectedCountry, ValueChanged<String?> onChanged) {
+    final cities = (selectedCountry != null && selectedCountry.trim().isNotEmpty)
+        ? (_countryCities[selectedCountry.trim()] ?? <String>[])
+        : <String>[];
     return _buildDropdown(
       value: value,
-      hint: 'City',
+      hint: selectedCountry == null || selectedCountry.trim().isEmpty ? 'Select country first' : 'City',
       items: cities,
-      onChanged: onChanged,
+      onChanged: cities.isEmpty ? (_) {} : onChanged,
     );
   }
 
@@ -355,27 +389,76 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   }) {
     final v = (value != null && value.trim().isNotEmpty) ? value.trim() : null;
     final effectiveItems = v != null && !items.contains(v) ? [v, ...items] : items;
-    return Container(
-      height: 56,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(_inputRadius),
-        border: Border.all(color: _borderGrey),
+    final canTap = effectiveItems.isNotEmpty;
+    return GestureDetector(
+      onTap: canTap
+          ? () => _showPickerBottomSheet(context, hint, effectiveItems, (s) {
+                onChanged(s);
+                Navigator.of(context).pop();
+              })
+          : null,
+      child: Container(
+        height: Responsive.spacing(context, 56),
+        padding: EdgeInsets.symmetric(horizontal: Responsive.spacing(context, 16)),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(_inputRadius),
+          border: Border.all(color: _borderGrey),
+        ),
+        alignment: Alignment.centerLeft,
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                v ?? hint,
+                style: TextStyle(
+                  fontSize: Responsive.fontSize(context, 14),
+                  fontWeight: FontWeight.w400,
+                  color: v != null ? Colors.black : Colors.grey.shade600,
+                ),
+              ),
+            ),
+            Icon(Icons.keyboard_arrow_down, size: 24, color: canTap ? Colors.grey.shade600 : Colors.grey.shade400),
+          ],
+        ),
       ),
-      alignment: Alignment.centerLeft,
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: v,
-          hint: Text(hint, style: TextStyle(fontSize: Responsive.fontSize(context, 16), color: Colors.grey.shade600)),
-          isExpanded: true,
-          items: effectiveItems
-              .map((s) => DropdownMenuItem(
-                    value: s,
-                    child: Text(s, style: TextStyle(fontSize: Responsive.fontSize(context, 16), fontWeight: FontWeight.w400, color: Colors.black)),
-                  ))
-              .toList(),
-          onChanged: onChanged,
+    );
+  }
+
+  void _showPickerBottomSheet(BuildContext context, String title, List<String> items, ValueChanged<String> onSelected) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: EdgeInsets.all(Responsive.spacing(context, 16)),
+                child: Text(title, style: TextStyle(fontSize: Responsive.fontSize(context, 16), fontWeight: FontWeight.w600, color: Colors.black)),
+              ),
+              const Divider(height: 1),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: items.length,
+                  itemBuilder: (ctx, i) {
+                    final s = items[i];
+                    return ListTile(
+                      title: Text(s, style: TextStyle(fontSize: Responsive.fontSize(context, 14), color: Colors.black)),
+                      onTap: () => onSelected(s),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -384,6 +467,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   Widget _buildInterestsSection(EditProfileData edit, EditProfileNotifier notifier) {
     final selectedIds = Set<String>.from(edit.interestIds);
     final hasSelection = selectedIds.isNotEmpty;
+    final query = _interestSearchController.text.trim().toLowerCase();
+    final filteredInterests = query.isEmpty
+        ? _allInterests
+        : _allInterests.where((i) => i.name.toLowerCase().contains(query)).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -392,39 +479,53 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           children: [
             Text('Tags (Interests)', style: TextStyle(fontSize: Responsive.fontSize(context, 14), fontWeight: FontWeight.w500, color: Colors.grey.shade800)),
             if (!hasSelection) ...[
-              const SizedBox(width: 6),
-              Icon(Icons.info_outline, size: 18, color: Colors.grey.shade500),
+              SizedBox(width: Responsive.spacing(context, 6)),
+              Icon(Icons.info_outline, size: Responsive.fontSize(context, 18), color: Colors.grey.shade500),
             ],
           ],
         ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: _allInterests.map((i) {
-            final isSelected = selectedIds.contains(i.id);
-            return GestureDetector(
-              onTap: () => notifier.toggleInterest(i.id),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: isSelected ? _primaryColor.withOpacity(0.15) : Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isSelected ? _primaryColor : Colors.transparent,
-                    width: 1,
-                  ),
-                ),
-                child: Text(
-                  i.name,
-                  style: TextStyle(
-                    fontSize: Responsive.fontSize(context, 13),
-                    color: isSelected ? _primaryColor : Colors.black87,
+        SizedBox(height: Responsive.spacing(context, 12)),
+        Container(
+          height: 36,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: _borderGrey, width: 1),
+          ),
+          child: Row(
+            children: [
+              const SizedBox(width: 16),
+              Icon(Icons.search, size: 20, color: Colors.grey.shade600),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  controller: _interestSearchController,
+                  onChanged: (_) => setState(() {}),
+style: TextStyle(
+          fontSize: Responsive.fontSize(context, 14),
+          fontWeight: FontWeight.w400,
+          color: Colors.black,
+        ),
+        decoration: InputDecoration(
+          hintText: 'Search interests',
+          hintStyle: TextStyle(fontSize: Responsive.fontSize(context, 14), color: Colors.grey.shade600),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                    isDense: true,
                   ),
                 ),
               ),
-            );
-          }).toList(),
+              const SizedBox(width: 16),
+            ],
+          ),
+        ),
+        SizedBox(height: Responsive.spacing(context, 12)),
+        InterestChipsScrollable(
+          interests: filteredInterests,
+          selectedIds: selectedIds,
+          onToggle: (id) => notifier.toggleInterest(id),
         ),
       ],
     );

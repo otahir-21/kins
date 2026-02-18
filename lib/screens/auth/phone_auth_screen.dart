@@ -314,23 +314,23 @@ class _SignInCardState extends State<SignInCard> {
               ),
               child: Row(
                 children: [
-                  // Country code dropdown
-                  DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: selectedCode,
-                      icon: const Icon(Icons.keyboard_arrow_down, size: 17),
-                      items: gccCountries.map((country) {
-                        return DropdownMenuItem(
-                          value: country["code"],
-                          child: Text(
-                            country["code"]!,
-                            style: textTheme.bodySmall?.copyWith(fontSize: 12),
+                  // Country code picker (bottom sheet instead of dropdown)
+                  GestureDetector(
+                    onTap: () => _showCountryCodePicker(context),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          selectedCode,
+                          style: TextStyle(
+                            fontSize: Responsive.fontSize(context, 14),
+                            fontWeight: FontWeight.w400,
+                            color: Colors.black,
                           ),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() => selectedCode = value!);
-                      },
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(Icons.keyboard_arrow_down, size: 20, color: Colors.grey.shade600),
+                      ],
                     ),
                   ),
 
@@ -342,22 +342,23 @@ class _SignInCardState extends State<SignInCard> {
                   ),
                   const SizedBox(width: 10),
 
-                  // Phone number field (E.164: country code + digits)
+                  // Phone number field (E.164: country code + digits) - same font as app text fields
                   Expanded(
                     child: TextField(
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
                       enabled: !widget.isLoading,
-                      style: textTheme.bodyLarge?.copyWith(
-                        fontSize: 12,
+                      style: TextStyle(
+                        fontSize: Responsive.fontSize(context, 14),
+                        fontWeight: FontWeight.w400,
+                        color: Colors.black,
                       ),
                       decoration: InputDecoration(
                         hintText: "Mobile Number",
-                        hintStyle: textTheme.bodyLarge?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                          fontSize: 12,
+                        hintStyle: TextStyle(
+                          fontSize: Responsive.fontSize(context, 14),
+                          color: Colors.grey.shade600,
                         ),
-
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
@@ -397,6 +398,48 @@ class _SignInCardState extends State<SignInCard> {
               isLoading: widget.isLoading,
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _showCountryCodePicker(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: EdgeInsets.all(Responsive.spacing(context, 16)),
+                child: Text('Country code', style: TextStyle(fontSize: Responsive.fontSize(context, 16), fontWeight: FontWeight.w600, color: Colors.black)),
+              ),
+              const Divider(height: 1),
+              ListView.builder(
+                shrinkWrap: true,
+                itemCount: gccCountries.length,
+                itemBuilder: (ctx, i) {
+                  final c = gccCountries[i];
+                  final code = c['code']!;
+                  final name = c['name']!;
+                  return ListTile(
+                    title: Text('$name  $code', style: TextStyle(fontSize: Responsive.fontSize(context, 14), color: Colors.black)),
+                    onTap: () {
+                      setState(() => selectedCode = code);
+                      Navigator.of(ctx).pop();
+                    },
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );

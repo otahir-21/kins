@@ -371,9 +371,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
           ElevatedButton(
             onPressed: _canPost ? _submitPost : null,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black,
+              backgroundColor: const Color(0xFFEFEFEF),
               disabledBackgroundColor: Colors.grey.shade300,
-              foregroundColor: Colors.white,
+              foregroundColor: Colors.black,
               padding: EdgeInsets.symmetric(
                 horizontal: Responsive.spacing(context, 18),
                 vertical: Responsive.spacing(context, 8),
@@ -403,16 +403,15 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       controller: _textController,
       maxLines: null,
       style: TextStyle(
-        fontSize: Responsive.fontSize(context, 18),
+        fontSize: Responsive.fontSize(context, 14),
         fontWeight: FontWeight.w400,
         color: Colors.black,
       ),
       decoration: InputDecoration(
         hintText: 'Share your thoughts...',
         hintStyle: TextStyle(
-          fontSize: Responsive.fontSize(context, 18),
-          fontWeight: FontWeight.w400,
-          color: Colors.grey,
+          fontSize: Responsive.fontSize(context, 14),
+          color: Colors.grey.shade600,
         ),
         border: InputBorder.none,
         enabledBorder: InputBorder.none,
@@ -439,9 +438,14 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         // Question input
         TextField(
           controller: _pollQuestionController,
-          style: TextStyle(fontSize: Responsive.fontSize(context, 18)),
-          decoration: const InputDecoration(
+          style: TextStyle(
+            fontSize: Responsive.fontSize(context, 14),
+            fontWeight: FontWeight.w400,
+            color: Colors.black,
+          ),
+          decoration: InputDecoration(
             hintText: 'Ask a question...',
+            hintStyle: TextStyle(fontSize: Responsive.fontSize(context, 14), color: Colors.grey.shade600),
             border: InputBorder.none,
             enabledBorder: InputBorder.none,
             focusedBorder: InputBorder.none,
@@ -470,9 +474,14 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                 Expanded(
                   child: TextField(
                     controller: _pollOptionControllers[i],
-                    style: TextStyle(fontSize: Responsive.fontSize(context, 16)),
+                    style: TextStyle(
+                      fontSize: Responsive.fontSize(context, 14),
+                      fontWeight: FontWeight.w400,
+                      color: Colors.black,
+                    ),
                     decoration: InputDecoration(
                       hintText: 'Option ${i + 1}',
+                      hintStyle: TextStyle(fontSize: Responsive.fontSize(context, 14), color: Colors.grey.shade600),
                       enabledBorder: UnderlineInputBorder(
                         borderSide: BorderSide(color: Colors.grey.shade300),
                       ),
@@ -618,49 +627,32 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
           ),
           const SizedBox(width: 16),
           
-          // Photo button
+          // Image button — opens gallery directly, no bottom sheet
           _buildActionButton(
             icon: Icons.photo_outlined,
             onTap: () async {
-              // Show picker for image or video
-              final result = await showModalBottomSheet<String>(
-                context: context,
-                builder: (ctx) => SafeArea(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ListTile(
-                        leading: const Icon(Icons.image),
-                        title: const Text('Photo'),
-                        onTap: () => Navigator.pop(ctx, 'image'),
-                      ),
-                      ListTile(
-                        leading: const Icon(Icons.videocam),
-                        title: const Text('Video'),
-                        onTap: () => Navigator.pop(ctx, 'video'),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-              
-              if (result == 'image') {
-                await _pickImage();
-                if (_mediaFile != null) {
-                  setState(() {
-                    _postType = PostType.image;
-                  });
-                }
-              } else if (result == 'video') {
-                await _pickVideo();
-                if (_mediaFile != null) {
-                  setState(() {
-                    _postType = PostType.video;
-                  });
-                }
+              await _pickImage();
+              if (_mediaFile != null) {
+                setState(() {
+                  _postType = PostType.image;
+                });
               }
             },
-            isActive: _mediaFile != null,
+            isActive: _mediaFile != null && !_isVideo,
+          ),
+          const SizedBox(width: 16),
+          // Video button — opens picker directly
+          _buildActionButton(
+            icon: Icons.videocam_outlined,
+            onTap: () async {
+              await _pickVideo();
+              if (_mediaFile != null) {
+                setState(() {
+                  _postType = PostType.video;
+                });
+              }
+            },
+            isActive: _mediaFile != null && _isVideo,
           ),
           const SizedBox(width: 16),
           
@@ -737,7 +729,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         const SizedBox(height: 12),
         // Search bar (same style as interests screen)
         Container(
-          height: 45,
+          height: 36,
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(28),
@@ -752,10 +744,14 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                 child: TextField(
                   controller: _interestSearchController,
                   onChanged: (_) => setState(() {}),
-                  style: Theme.of(context).textTheme.bodyMedium,
+                  style: TextStyle(
+                    fontSize: Responsive.fontSize(context, 14),
+                    fontWeight: FontWeight.w400,
+                    color: Colors.black,
+                  ),
                   decoration: InputDecoration(
                     hintText: 'Search interests',
-                    hintStyle: TextStyle(fontSize: Responsive.fontSize(context, 16), color: Colors.grey.shade600),
+                    hintStyle: TextStyle(fontSize: Responsive.fontSize(context, 14), color: Colors.grey.shade600),
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,
@@ -773,6 +769,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         InterestChipsScrollable(
           interests: filteredInterests,
           selectedIds: _selectedInterestIds,
+          pillsPerRow: 25,
           onToggle: (id) {
             setState(() {
               if (_selectedInterestIds.contains(id)) {

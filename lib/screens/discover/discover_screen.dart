@@ -17,6 +17,7 @@ import 'package:kins_app/providers/interest_provider.dart';
 import 'package:kins_app/providers/post_provider.dart';
 import 'package:kins_app/repositories/feed_repository.dart';
 import 'package:kins_app/services/backend_auth_service.dart';
+import 'package:kins_app/widgets/confirm_dialog.dart';
 import 'package:kins_app/widgets/floating_nav_overlay.dart';
 import 'package:kins_app/widgets/kins_logo.dart';
 import 'package:kins_app/screens/comments/comments_bottom_sheet.dart';
@@ -268,9 +269,10 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
             _loadFeed(isRefresh: true);
           }
         },
+        mini: true,
         shape: const CircleBorder(),
         backgroundColor: Colors.grey.shade200,
-        child: const Icon(Icons.add,color: Colors.black,),
+        child: const Icon(Icons.add, color: Colors.black, size: 22),
       ),
       floatingActionButtonLocation: const _DiscoverFabLocation(),
     );
@@ -413,72 +415,84 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
                     ),
                   ),
                 ),
-                // CENTER: Avatar + Name + Location
+                // CENTER: Avatar + Name + Location (pinned to left of center area).
+                // Avoid Flexible inside Row(mainAxisSize: min) to prevent semantics.parentDataDirty assertion.
                 Expanded(
-                  child: InkWell(
-                    onTap: () async {
-                      await context.push(AppConstants.routeProfile);
-                      if (mounted) _loadUserProfile();
-                    },
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 35,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.grey.shade200,
-                            image: _profilePictureUrl != null
-                                ? DecorationImage(
-                                    image: NetworkImage(_profilePictureUrl!),
-                                    fit: BoxFit.cover,
-                                  )
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: InkWell(
+                      onTap: () async {
+                        await context.push(AppConstants.routeProfile);
+                        if (mounted) _loadUserProfile();
+                      },
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 35,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.grey.shade200,
+                              image: _profilePictureUrl != null
+                                  ? DecorationImage(
+                                      image: NetworkImage(_profilePictureUrl!),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : null,
+                            ),
+                            child: _profilePictureUrl == null
+                                ? Icon(Icons.person, size: 20, color: Colors.grey.shade400)
                                 : null,
                           ),
-                          child: _profilePictureUrl == null
-                              ? Icon(Icons.person, size: 20, color: Colors.grey.shade400)
-                              : null,
-                        ),
-                        const SizedBox(width: 5),
-                        Flexible(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                _userName ?? 'Discover',
-                                style: TextStyle(
-                                  fontSize: Responsive.fontSize(context, 15),
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black,
+                          const SizedBox(width: 5),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 180),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  _userName ?? 'Discover',
+                                  style: TextStyle(
+                                    fontSize: Responsive.fontSize(context, 15),
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              if (_userLocation != null && _userLocation!.isNotEmpty) ...[
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    Icon(Icons.location_on_outlined, size: 13, color: _greyMeta),
-                                    const SizedBox(width: 4),
-                                    Flexible(
-                                      child: Text(
-                                        _userLocation!,
-                                        style: TextStyle(
-                                          fontSize: Responsive.fontSize(context, 12),
-                                          color: _greyMeta,
+                                if (_userLocation != null && _userLocation!.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.start,
+                                    children: [
+                                      SizedBox(
+                                        height: 14,
+                                        child: Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: Icon(Icons.location_on_outlined, size: 12, color: _greyMeta),
                                         ),
-                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                    ),
-                                  ],
-                                ),
+                                      const SizedBox(width: 3),
+                                      Expanded(
+                                        child: Text(
+                                          _userLocation!,
+                                          style: TextStyle(
+                                            fontSize: Responsive.fontSize(context, 12),
+                                            color: _greyMeta,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ],
-                            ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -490,7 +504,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
                     children: [
                       Container(
                         width: 35,
-                        height: 40,
+                        height: 36,
                         decoration: BoxDecoration(
                           color: Colors.grey.shade200,
                           shape: BoxShape.circle,
@@ -519,7 +533,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
           const SizedBox(height: 3),
           // 2) Search Bar
           Container(
-            height: 40,
+            height: 32,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(28),
@@ -534,13 +548,15 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
                   child: TextField(
                     controller: _searchController,
                     onChanged: (_) => setState(() {}),
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontSize: Responsive.fontSize(context, 16),
+                    style: TextStyle(
+                      fontSize: Responsive.fontSize(context, 14),
+                      fontWeight: FontWeight.w400,
+                      color: Colors.black,
                     ),
                     decoration: InputDecoration(
                       hintText: 'Search',
                       hintStyle: TextStyle(
-                        fontSize: Responsive.fontSize(context, 16),
+                        fontSize: Responsive.fontSize(context, 14),
                         color: Colors.grey.shade600,
                       ),
                       border: InputBorder.none,
@@ -585,15 +601,14 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
     return Container(
       color: _headerBg,
       padding: EdgeInsets.fromLTRB(
-        Responsive.screenPaddingH(context),
-        0,
-        Responsive.screenPaddingH(context),
-        10,
+        Responsive.screenPaddingH(context), 0,
+        Responsive.screenPaddingH(context), 5,
       ),
       child: SizedBox(
-        height: 30,
+        height: 40,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(vertical: 2),
           itemCount: chipsList.length + 1,
           separatorBuilder: (_, __) => const SizedBox(width: 12),
           itemBuilder: (context, index) {
@@ -610,23 +625,46 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
     );
   }
 
+  /// Same as select your interest: Container with maxWidth constraint, Row + Flexible(Text), no fixed width.
+  static const Color _chipSelectedColor = Color(0xFF7a084e);
+  static const double _chipRadius = 20;
+
   Widget _buildChip(String label, bool selected, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: Responsive.spacing(context, 16)),
-        decoration: BoxDecoration(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: _borderGrey, width: 1),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: Responsive.fontSize(context, 16),
-            fontWeight: FontWeight.w500,
-            color: selected ? Colors.black : Colors.grey.shade700,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(_chipRadius),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+            color: selected ? _chipSelectedColor : Colors.white,
+            borderRadius: BorderRadius.circular(_chipRadius),
+            border: Border.all(
+              color: selected ? _chipSelectedColor : Colors.grey.shade300,
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Flexible(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: Responsive.fontSize(context, 14),
+                    fontWeight: FontWeight.w500,
+                    color: selected ? Colors.white : Colors.grey.shade700,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -685,23 +723,13 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
                       icon: Icons.exit_to_app,
                       isLogout: true,
                       onTap: () async {
-                        final shouldLogout = await showDialog<bool>(
+                        final shouldLogout = await showConfirmDialog<bool>(
                           context: context,
-                          builder: (ctx) => AlertDialog(
-                            title: const Text('Logout'),
-                            content: const Text('Are you sure you want to logout?'),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx, false),
-                                child: const Text('Cancel'),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx, true),
-                                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                                child: const Text('Logout'),
-                              ),
-                            ],
-                          ),
+                          title: 'Log out',
+                          message: 'Are you sure you want to log out?',
+                          confirmLabel: 'Log out',
+                          destructive: true,
+                          icon: Icons.logout,
                         );
                         if (shouldLogout == true && context.mounted) {
                           Navigator.pop(context);
@@ -1047,25 +1075,13 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
   }
 
   Future<void> _onReportPost(BuildContext context, PostModel post) async {
-    final report = await showDialog<bool>(
+    final report = await showConfirmDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Report post'),
-        content: const Text(
-          'Are you sure you want to report this post? Our team will review it.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Report'),
-          ),
-        ],
-      ),
+      title: 'Report post',
+      message: 'Are you sure you want to report this post? Our team will review it.',
+      confirmLabel: 'Report',
+      destructive: true,
+      icon: Icons.flag_outlined,
     );
     if (report == true && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1076,23 +1092,13 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
   }
 
   Future<void> _onDeletePost(BuildContext context, PostModel post) async {
-    final confirm = await showDialog<bool>(
+    final confirm = await showConfirmDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete post?'),
-        content: const Text('This cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      title: 'Delete post?',
+      message: 'This cannot be undone.',
+      confirmLabel: 'Delete',
+      destructive: true,
+      icon: Icons.delete_outline,
     );
     
     if (confirm != true || !context.mounted) return;
@@ -1128,7 +1134,7 @@ class _DiscoverFabLocation extends FloatingActionButtonLocation {
   @override
   Offset getOffset(ScaffoldPrelayoutGeometry geometry) {
     const double endPadding = 16;
-    const double bottomPadding = 148;
+    const double bottomPadding = 110;
     final double x = geometry.scaffoldSize.width -
         geometry.floatingActionButtonSize.width -
         endPadding;

@@ -162,7 +162,6 @@ class _MediaPostCard extends StatelessWidget {
             avatarUrl: post.authorPhotoUrl,
             onMore: onMore,
           ),
-          const SizedBox(height: 0),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -173,12 +172,15 @@ class _MediaPostCard extends StatelessWidget {
                   children: [
                     // Text (same style as text-only and poll posts for consistency)
                     if (text.isNotEmpty) ...[
-                  Text(
-                    text,
-                    style: Theme.of(context).extension<AppPostTypography>()?.postBody ??
-                        TextStyle(fontSize: Responsive.fontSize(context, 14), fontWeight: FontWeight.w400, height: 1.5, color: Colors.black),
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
+                  Transform.translate(
+                    offset: const Offset(-1, 0),
+                    child: Text(
+                      text,
+                      style: Theme.of(context).extension<AppPostTypography>()?.postBody ??
+                          TextStyle(fontSize: Responsive.fontSize(context, 12.6), fontWeight: FontWeight.w400, height: 1.5, color: Colors.black),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                   const SizedBox(height: 6),
                 ],
@@ -291,7 +293,6 @@ class _PollPostCard extends StatelessWidget {
             avatarUrl: post.authorPhotoUrl,
             onMore: onMore,
           ),
-          const SizedBox(height: 0),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -301,10 +302,13 @@ class _PollPostCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (text.isNotEmpty) ...[
-                      Text(
-                        text,
-                        style: Theme.of(context).extension<AppPostTypography>()?.postBody ??
-                            TextStyle(fontSize: Responsive.fontSize(context, 14), fontWeight: FontWeight.w400, height: 1.5, color: Colors.black),
+                      Transform.translate(
+                        offset: const Offset(-1, 0),
+                        child: Text(
+                          text,
+                          style: Theme.of(context).extension<AppPostTypography>()?.postBody ??
+                              TextStyle(fontSize: Responsive.fontSize(context, 12.6), fontWeight: FontWeight.w400, height: 1.5, color: Colors.black),
+                        ),
                       ),
                       const SizedBox(height: 9),
                     ],
@@ -418,7 +422,7 @@ class _PollOptionsContentState extends State<_PollOptionsContent> {
           Text(
             poll.question,
             style: Theme.of(context).extension<AppPostTypography>()?.pollQuestion ??
-                const TextStyle(fontSize: 14, fontWeight: FontWeight.w400, height: 1.5, color: Colors.black),
+                const TextStyle(fontSize: 12.6, fontWeight: FontWeight.w400, height: 1.5, color: Colors.black),
           ),
           const SizedBox(height: 8),
         ],

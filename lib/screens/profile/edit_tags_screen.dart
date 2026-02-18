@@ -3,8 +3,9 @@ import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kins_app/core/utils/auth_utils.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:kins_app/providers/user_details_provider.dart';
+import 'package:kins_app/widgets/secondary_button.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Edit tags: country/city dropdowns, tags section (add/remove).
 class EditTagsScreen extends ConsumerStatefulWidget {
@@ -17,9 +18,23 @@ class EditTagsScreen extends ConsumerStatefulWidget {
 class _EditTagsScreenState extends ConsumerState<EditTagsScreen> {
   String _country = 'UAE';
   String _city = 'Dubai';
+
+  static const List<String> _countries = ['UAE', 'Saudi Arabia', 'Kuwait', 'Qatar', 'Bahrain', 'Oman'];
+  static const Map<String, List<String>> _countryCities = {
+    'UAE': ['Dubai', 'Abu Dhabi', 'Sharjah', 'Ajman', 'Ras Al Khaimah', 'Fujairah', 'Umm Al Quwain'],
+    'Saudi Arabia': ['Riyadh', 'Jeddah', 'Dammam', 'Mecca', 'Medina', 'Khobar'],
+    'Kuwait': ['Kuwait City', 'Hawally', 'Ahmadi', 'Jahra', 'Farwaniya'],
+    'Qatar': ['Doha', 'Al Wakrah', 'Al Rayyan', 'Umm Salal'],
+    'Bahrain': ['Manama', 'Muharraq', 'Riffa', 'Hamad Town'],
+    'Oman': ['Muscat', 'Salalah', 'Sohar', 'Nizwa', 'Sur'],
+  };
+
+  List<String> _citiesForCountry(String country) => _countryCities[country] ?? [];
+
   List<String> _tags = [];
   String? _userName;
   String? _profilePhotoUrl;
+  bool _isSaving = false;
   final TextEditingController _tagController = TextEditingController();
   final TextEditingController _bioController = TextEditingController();
   bool _tagsExpanded = true;
@@ -103,42 +118,32 @@ class _EditTagsScreenState extends ConsumerState<EditTagsScreen> {
               ],
             ),
             const SizedBox(height: 8),
-            Wrap(spacing: 8, runSpacing: 8, children: _tags.map((t) => Chip(label: Text(t), onDeleted: () => _removeTag(t))).toList()),
+            _buildTagsRow(context),
             const SizedBox(height: 24),
             TextField(
               controller: _bioController,
               maxLines: 3,
+              style: TextStyle(
+                fontSize: Responsive.fontSize(context, 14),
+                fontWeight: FontWeight.w400,
+                color: Colors.black,
+              ),
               decoration: InputDecoration(
                 labelText: 'Bio',
+                labelStyle: TextStyle(fontSize: Responsive.fontSize(context, 14), color: Colors.grey.shade600),
                 hintText: 'A short bio about you',
+                hintStyle: TextStyle(fontSize: Responsive.fontSize(context, 14), color: Colors.grey.shade600),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 alignLabelWithHint: true,
               ),
             ),
             const SizedBox(height: 24),
-            DropdownButtonFormField<String>(
-              value: _country,
-              decoration: InputDecoration(
-                labelText: 'Country of residence',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              items: ['UAE', 'Saudi Arabia', 'Kuwait', 'Qatar', 'Bahrain', 'Oman']
-                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                  .toList(),
-              onChanged: (v) => setState(() => _country = v ?? _country),
-            ),
+            _buildPickerField(context, 'Country of residence', _country, _countries, (v) => setState(() {
+              _country = v;
+              _city = _citiesForCountry(v).isNotEmpty ? _citiesForCountry(v).first : '';
+            })),
             const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              value: _city,
-              decoration: InputDecoration(
-                labelText: 'City',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              items: ['Dubai', 'Abu Dhabi', 'Sharjah', 'Riyadh', 'Jeddah', 'Doha', 'Kuwait City']
-                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                  .toList(),
-              onChanged: (v) => setState(() => _city = v ?? _city),
-            ),
+            _buildPickerField(context, 'City', _city, _citiesForCountry(_country), (v) => setState(() => _city = v), hintWhenEmpty: 'Select country first'),
             const SizedBox(height: 24),
             InkWell(
               onTap: () => setState(() => _tagsExpanded = !_tagsExpanded),
@@ -152,37 +157,185 @@ class _EditTagsScreenState extends ConsumerState<EditTagsScreen> {
             ),
             if (_tagsExpanded) ...[
               const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  ..._tags.map((t) => Chip(
-                    label: Text(t),
-                    deleteIcon: const Icon(Icons.close, size: 18),
-                    onDeleted: () => _removeTag(t),
-                  )),
-                  InputChip(
-                    label: const Text('Lorem'),
-                    avatar: const Icon(Icons.add, size: 18),
-                    onPressed: () => _addTag(),
-                  ),
-                ],
-              ),
+              _buildTagsRow(context),
             ],
             const SizedBox(height: 32),
-            SizedBox(
-              height: 48,
-              child: ElevatedButton(
-                onPressed: _save,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6B4C93),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('Save'),
-              ),
+            SecondaryButton(
+              onPressed: _isSaving ? null : () async {
+                setState(() => _isSaving = true);
+                await _save();
+                if (mounted) setState(() => _isSaving = false);
+              },
+              label: 'Save',
+              isLoading: _isSaving,
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// LinkedIn-style tag pills: white bg, grey border, grey text; Add pill uses primary for accent.
+  static const double _chipRadius = 20;
+  static const Color _chipPrimary = Color(0xFF7a084e);
+
+  Widget _buildTagsRow(BuildContext context) {
+    return SizedBox(
+      height: 40,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        itemCount: _tags.length + 1,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (context, index) {
+          if (index == _tags.length) {
+            return Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: _addTag,
+                borderRadius: BorderRadius.circular(_chipRadius),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(_chipRadius),
+                    border: Border.all(color: Colors.grey.shade300, width: 1),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Add',
+                        style: TextStyle(
+                          fontSize: Responsive.fontSize(context, 14),
+                          fontWeight: FontWeight.w500,
+                          color: _chipPrimary,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Icon(Icons.add, size: 14, color: _chipPrimary),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }
+          final tag = _tags[index];
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _removeTag(tag),
+              borderRadius: BorderRadius.circular(_chipRadius),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(_chipRadius),
+                  border: Border.all(color: Colors.grey.shade300, width: 1),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      tag,
+                      style: TextStyle(
+                        fontSize: Responsive.fontSize(context, 14),
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Icon(Icons.close, size: 14, color: _chipPrimary),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildPickerField(BuildContext context, String label, String value, List<String> options, ValueChanged<String> onSelected, {String? hintWhenEmpty}) {
+    final isEmpty = options.isEmpty;
+    final displayText = value.isNotEmpty ? value : (hintWhenEmpty ?? '');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (label.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(label, style: TextStyle(fontSize: Responsive.fontSize(context, 14), fontWeight: FontWeight.w500, color: Colors.grey.shade700)),
+          ),
+        GestureDetector(
+          onTap: isEmpty ? null : () => _showPickerBottomSheet(context, label, options, onSelected),
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: Responsive.spacing(context, 16), vertical: Responsive.spacing(context, 14)),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE5E5E5)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    displayText,
+                    style: TextStyle(
+                      fontSize: Responsive.fontSize(context, 14),
+                      fontWeight: FontWeight.w400,
+                      color: value.isNotEmpty ? Colors.black : Colors.grey.shade600,
+                    ),
+                  ),
+                ),
+                Icon(Icons.keyboard_arrow_down, size: 24, color: isEmpty ? Colors.grey.shade400 : Colors.grey.shade600),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showPickerBottomSheet(BuildContext context, String title, List<String> items, ValueChanged<String> onSelected) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: EdgeInsets.all(Responsive.spacing(context, 16)),
+                child: Text(title, style: TextStyle(fontSize: Responsive.fontSize(context, 16), fontWeight: FontWeight.w600, color: Colors.black)),
+              ),
+              const Divider(height: 1),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: items.length,
+                  itemBuilder: (ctx, i) {
+                    final s = items[i];
+                    return ListTile(
+                      title: Text(s, style: TextStyle(fontSize: Responsive.fontSize(context, 14), color: Colors.black)),
+                      onTap: () {
+                        onSelected(s);
+                        Navigator.of(ctx).pop();
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -199,7 +352,15 @@ class _EditTagsScreenState extends ConsumerState<EditTagsScreen> {
         title: const Text('Add tag'),
         content: TextField(
           controller: _tagController,
-          decoration: const InputDecoration(hintText: 'Tag name'),
+          style: TextStyle(
+            fontSize: Responsive.fontSize(context, 14),
+            fontWeight: FontWeight.w400,
+            color: Colors.black,
+          ),
+          decoration: InputDecoration(
+            hintText: 'Tag name',
+            hintStyle: TextStyle(fontSize: Responsive.fontSize(context, 14), color: Colors.grey.shade600),
+          ),
           autofocus: true,
         ),
         actions: [

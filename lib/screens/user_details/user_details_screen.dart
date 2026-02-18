@@ -534,12 +534,16 @@ class _ThemedTextField extends StatelessWidget {
           textCapitalization: textCapitalization,
           onChanged: onChanged,
           validator: validator,
-          style: theme.textTheme.bodyLarge?.copyWith(fontSize: 12),
+          style: TextStyle(
+            fontSize: Responsive.fontSize(context, 14),
+            fontWeight: FontWeight.w400,
+            color: Colors.black,
+          ),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: theme.textTheme.bodyLarge?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-              fontSize: 12,
+            hintStyle: TextStyle(
+              fontSize: Responsive.fontSize(context, 14),
+              color: Colors.grey.shade600,
             ),
             filled: true,
             fillColor: const Color(0xffF5F5F5),

@@ -12,6 +12,7 @@ import 'package:kins_app/providers/post_provider.dart';
 import 'package:kins_app/repositories/feed_repository.dart';
 import 'package:kins_app/repositories/interest_repository.dart';
 import 'package:kins_app/screens/comments/comments_bottom_sheet.dart';
+import 'package:kins_app/widgets/confirm_dialog.dart';
 import 'package:kins_app/widgets/feed_post_card.dart';
 import 'package:kins_app/widgets/skeleton/skeleton_loaders.dart';
 import 'package:share_plus/share_plus.dart';
@@ -182,9 +183,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           await context.push(AppConstants.routeEditProfile);
           if (mounted) _loadAll();
         },
-        backgroundColor: const Color(0xFF6B4C93),
+        backgroundColor: const Color(0xffD9D9D9),
         elevation: 2,
-        child: const Icon(Icons.edit_outlined, color: Colors.white, size: 24),
+        mini: true,
+        shape: const CircleBorder(),
+        child: Icon(Icons.edit_outlined, color: Colors.grey.shade700, size: 18),
       ),
     );
   }
@@ -207,7 +210,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               shape: BoxShape.circle,
               border: Border.all(color: Colors.grey.shade300, width: 1),
             ),
-            child: const Icon(Icons.settings_outlined, color: Colors.black, size: 20),
+            child: Icon(Icons.settings_outlined, color: Colors.grey.shade700, size: 18),
           ),
         ),
       ],
@@ -217,8 +220,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget _buildProfileSection() {
     return Center(
       child: Container(
-        width: 120,
-        height: 120,
+        width: 72,
+        height: 72,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           boxShadow: [
@@ -230,11 +233,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ],
         ),
         child: CircleAvatar(
-          radius: 60,
+          radius: 36,
           backgroundColor: Colors.grey.shade200,
           backgroundImage: _profilePhotoUrl != null ? NetworkImage(_profilePhotoUrl!) : null,
           child: _profilePhotoUrl == null
-              ? Icon(Icons.person, color: _textGrey, size: 56)
+              ? Icon(Icons.person, color: _textGrey, size: 34)
               : null,
         ),
       ),
@@ -311,34 +314,42 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return column;
   }
 
+  /// LinkedIn-style display chips: white bg, grey border, grey text. Centered when they fit.
   Widget _buildInterestTags() {
     if (_interestNames.isEmpty) return const SizedBox.shrink();
     return SizedBox(
-      height: 44,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: _interestNames.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (context, index) {
-          final name = _interestNames[index];
-          return Container(
-            padding: EdgeInsets.symmetric(horizontal: Responsive.screenPaddingH(context)),
-            decoration: BoxDecoration(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: _borderGrey, width: 1),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              name,
-              style: TextStyle(
-                fontSize: Responsive.fontSize(context, 16),
-                fontWeight: FontWeight.w500,
-                color: Colors.black,
-              ),
-            ),
-          );
-        },
+      height: 40,
+      child: Center(
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              for (var i = 0; i < _interestNames.length; i++) ...[
+                if (i > 0) const SizedBox(width: 12),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: Responsive.spacing(context, 16), vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.grey.shade300, width: 1),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    _interestNames[i],
+                    style: TextStyle(
+                      fontSize: Responsive.fontSize(context, 14),
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -356,12 +367,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 children: [
                   Icon(Icons.post_add_outlined, size: 48, color: Colors.grey.shade400),
                   const SizedBox(height: 12),
-                  Text('No posts yet', style: TextStyle(color: Colors.grey.shade600)),
+                  Text(
+                    'No posts yet',
+                    style: TextStyle(
+                      fontSize: Responsive.fontSize(context, 15),
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   TextButton.icon(
                     onPressed: () => context.push(AppConstants.routeCreatePost),
                     icon: const Icon(Icons.add),
-                    label: const Text('Create post'),
+                    label: Text(
+                      'Create post',
+                      style: TextStyle(fontSize: Responsive.fontSize(context, 14)),
+                    ),
                   ),
                 ],
               ),
@@ -378,11 +398,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (merged.isRepost)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: Text('Reposted', style: TextStyle(fontSize: Responsive.fontSize(context, 12), color: Colors.grey.shade600)),
-          ),
         FeedPostCard(
           post: merged.post,
           feedRepo: feedRepo,
@@ -410,9 +425,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(leading: const Icon(Icons.repeat), title: const Text('Repost to Kins'), onTap: () => Navigator.pop(ctx, 'repost')),
-            ListTile(leading: const Icon(Icons.share), title: const Text('Share externally'), onTap: () => Navigator.pop(ctx, 'external')),
-            ListTile(leading: const Icon(Icons.link), title: const Text('Copy link'), onTap: () => Navigator.pop(ctx, 'copy')),
+            ListTile(
+              leading: const Icon(Icons.repeat),
+              title: Text('Repost to Kins', style: TextStyle(fontSize: Responsive.fontSize(ctx, 16))),
+              onTap: () => Navigator.pop(ctx, 'repost'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.share),
+              title: Text('Share externally', style: TextStyle(fontSize: Responsive.fontSize(ctx, 16))),
+              onTap: () => Navigator.pop(ctx, 'external'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.link),
+              title: Text('Copy link', style: TextStyle(fontSize: Responsive.fontSize(ctx, 16))),
+              onTap: () => Navigator.pop(ctx, 'copy'),
+            ),
           ],
         ),
       ),
@@ -449,7 +476,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.delete_outline),
-              title: Text('Delete', style: TextStyle(color: Colors.red.shade700)),
+              title: Text(
+                'Delete',
+                style: TextStyle(
+                  fontSize: Responsive.fontSize(context, 16),
+                  color: Colors.red.shade700,
+                ),
+              ),
               onTap: () {
                 Navigator.pop(ctx);
                 _confirmDelete(post, feedRepo);
@@ -462,16 +495,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _confirmDelete(PostModel post, FeedRepository feedRepo) async {
-    final confirm = await showDialog<bool>(
+    final confirm = await showConfirmDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete post?'),
-        content: const Text('This cannot be undone.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), style: TextButton.styleFrom(foregroundColor: Colors.red), child: const Text('Delete')),
-        ],
-      ),
+      title: 'Delete post?',
+      message: 'This cannot be undone.',
+      confirmLabel: 'Delete',
+      destructive: true,
+      icon: Icons.delete_outline,
     );
     if (confirm != true || !mounted) return;
     try {

@@ -236,8 +236,14 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
               ),
               child: TextField(
                 controller: _textController,
-                decoration: const InputDecoration(
+                style: TextStyle(
+                  fontSize: Responsive.fontSize(context, 14),
+                  fontWeight: FontWeight.w400,
+                  color: Colors.black,
+                ),
+                decoration: InputDecoration(
                   hintText: 'Message',
+                  hintStyle: TextStyle(fontSize: Responsive.fontSize(context, 14), color: Colors.grey.shade600),
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 ),
