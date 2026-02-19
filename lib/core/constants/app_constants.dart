@@ -39,6 +39,8 @@ class AppConstants {
   static const String routeAddAction = '/add-action';
   static const String routeCompass = '/compass';
   static const String routeChat = '/chat';
+  static const String routeCreateGroup = '/create-group';
+  static const String routeGroupSettings = '/group-settings';
   /// Path for 1:1 conversation; use [chatConversationPath(chatId)] to build.
   static String chatConversationPath(String chatId) => '/chat/$chatId';
   static const String routeProfile = '/profile';

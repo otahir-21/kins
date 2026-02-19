@@ -13,6 +13,7 @@ import 'package:kins_app/repositories/feed_repository.dart';
 import 'package:kins_app/repositories/interest_repository.dart';
 import 'package:kins_app/screens/comments/comments_bottom_sheet.dart';
 import 'package:kins_app/widgets/confirm_dialog.dart';
+import 'package:kins_app/widgets/fab_location.dart';
 import 'package:kins_app/widgets/feed_post_card.dart';
 import 'package:kins_app/widgets/skeleton/skeleton_loaders.dart';
 import 'package:share_plus/share_plus.dart';
@@ -189,6 +190,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         shape: const CircleBorder(),
         child: Icon(Icons.edit_outlined, color: Colors.grey.shade700, size: 18),
       ),
+      floatingActionButtonLocation: const KinsFabLocation(),
     );
   }
 

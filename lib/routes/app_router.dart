@@ -17,6 +17,8 @@ import 'package:kins_app/screens/discover/discover_screen.dart';
 import 'package:kins_app/screens/create_post/create_post_screen.dart';
 import 'package:kins_app/screens/chat/chat_screen.dart';
 import 'package:kins_app/screens/chat/conversation_screen.dart';
+import 'package:kins_app/screens/chat/create_group_screen.dart';
+import 'package:kins_app/screens/chat/group_setting_screen.dart';
 import 'package:kins_app/screens/membership/membership_screen.dart';
 import 'package:kins_app/screens/profile/profile_screen.dart';
 import 'package:kins_app/screens/profile/settings_menu_screen.dart';
@@ -112,6 +114,19 @@ final appRouter = GoRouter(
       path: AppConstants.routeChat,
       name: 'chat',
       builder: (context, state) => const ChatScreen(),
+    ),
+    GoRoute(
+      path: AppConstants.routeCreateGroup,
+      name: 'create-group',
+      builder: (context, state) => const CreateGroupScreen(),
+    ),
+    GoRoute(
+      path: AppConstants.routeGroupSettings,
+      name: 'group-settings',
+      builder: (context, state) {
+        final args = state.extra is GroupSettingArgs ? state.extra as GroupSettingArgs : null;
+        return GroupSettingScreen(args: args);
+      },
     ),
     GoRoute(
       path: '/chat/:chatId',

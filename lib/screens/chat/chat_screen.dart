@@ -6,9 +6,15 @@ import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:intl/intl.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
+import 'package:kins_app/core/network/backend_api_client.dart';
 import 'package:kins_app/models/chat_model.dart';
 import 'package:kins_app/providers/chat_provider.dart';
+import 'package:kins_app/providers/notification_provider.dart';
 import 'package:kins_app/providers/user_details_provider.dart';
+import 'package:kins_app/screens/chat/group_setting_screen.dart';
+import 'package:kins_app/widgets/app_drawer.dart';
+import 'package:kins_app/widgets/app_header.dart';
+import 'package:kins_app/widgets/fab_location.dart';
 import 'package:kins_app/widgets/floating_nav_overlay.dart';
 import 'package:kins_app/widgets/skeleton/skeleton_loaders.dart';
 
@@ -22,42 +28,58 @@ class ChatScreen extends ConsumerStatefulWidget {
 }
 
 class _ChatScreenState extends ConsumerState<ChatScreen> {
-  int _selectedSegment = 1; // 0: Groups, 1: Chats, 2: Marketplace
+  int _selectedSegment = 0; // 0: Groups, 1: Chats, 2: Marketplace
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
 
+  String? _userName;
+  String? _userLocation;
+  String? _profilePictureUrl;
+
   // Mock groups list
   final List<Map<String, dynamic>> _groups = [
-    {
-      'title': 'Mums of Jumeirah',
-      'description': 'Local mums in Jumeirah area',
-      'members': 477,
-      'imageUrl': null,
-    },
-    {
-      'title': 'Abu Dhabi Schools',
-      'description': 'Discuss schools and activities',
-      'members': 1480,
-      'imageUrl': null,
-    },
-    {
-      'title': 'Miscarriage Recovery',
-      'description': 'Support and healing together',
-      'members': 821,
-      'imageUrl': null,
-    },
-    {
-      'title': 'Mums Who Walk',
-      'description': 'Walking groups and meetups',
-      'members': 75,
-      'imageUrl': null,
-    },
+    {'id': '1', 'title': 'Mums of Jumeirah', 'description': 'Local mums in Jumeirah area', 'members': 477, 'imageUrl': null},
+    {'id': '2', 'title': 'Abu Dhabi Schools', 'description': 'Discuss schools and activities', 'members': 1480, 'imageUrl': null},
+    {'id': '3', 'title': 'Miscarriage Recovery', 'description': 'Support and healing together', 'members': 821, 'imageUrl': null},
+    {'id': '4', 'title': 'Mums Who Walk', 'description': 'Walking groups and meetups', 'members': 75, 'imageUrl': null},
   ];
 
   @override
   void initState() {
     super.initState();
     _searchController.addListener(() => setState(() {}));
+    _loadUserProfile();
+  }
+
+  Future<void> _loadUserProfile() async {
+    try {
+      final me = await BackendApiClient.get('/me');
+      final user = me['user'] is Map<String, dynamic>
+          ? me['user'] as Map<String, dynamic>
+          : me;
+      final city = user['city']?.toString();
+      final country = user['country']?.toString();
+      final location =
+          (city != null && city.isNotEmpty) ||
+              (country != null && country.isNotEmpty)
+          ? [
+              if (city != null && city.isNotEmpty) city,
+              if (country != null && country.isNotEmpty) country,
+            ].join(', ')
+          : null;
+      if (mounted) {
+        setState(() {
+          _userName =
+              user['name']?.toString() ??
+              user['username']?.toString() ??
+              'Chats';
+          _userLocation = location;
+          _profilePictureUrl = user['profilePictureUrl']?.toString();
+        });
+      }
+    } catch (e) {
+      debugPrint('ChatScreen: failed to load user profile: $e');
+    }
   }
 
   @override
@@ -67,262 +89,395 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     super.dispose();
   }
 
+  static const List<String> _tabTitles = ['Groups', 'Chats', 'Marketplace'];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: FloatingNavOverlay(
-        currentIndex: 1,
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildHeader(),
-              _buildSegmentedControl(),
-              _buildSearchBar(),
-              Expanded(
-                child: _selectedSegment == 0
-                    ? _buildGroupsList()
+      drawer: AppDrawer(
+        onAfterSettings: () {
+          if (mounted) _loadUserProfile();
+        },
+      ),
+      body: Builder(
+        builder: (scaffoldContext) => FloatingNavOverlay(
+          currentIndex: 1,
+          child: SafeArea(
+            child: CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(child: _buildHeader(scaffoldContext)),
+                SliverToBoxAdapter(child: _buildTabSelector()),
+                SliverToBoxAdapter(child: _buildSearchBar()),
+                _selectedSegment == 0
+                    ? _buildGroupsSliver()
                     : _selectedSegment == 1
-                        ? _buildChatsList()
-                        : _buildMarketplacePlaceholder(),
-              ),
-            ],
+                    ? _buildChatsSliver()
+                    : _buildMarketplaceSliver(),
+              ],
+            ),
           ),
         ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _onFabPressed,
         mini: true,
+        shape: const CircleBorder(),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87,
         elevation: 2,
         child: const Icon(Icons.add, size: 22),
       ),
+      floatingActionButtonLocation: const KinsFabLocation(),
     );
   }
 
-  Widget _buildHeader() {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        Responsive.screenPaddingH(context),
-        Responsive.spacing(context, 12),
-        Responsive.screenPaddingH(context),
-        Responsive.spacing(context, 8),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              'Chats',
-              style: TextStyle(
-                fontSize: Responsive.fontSize(context, 28),
-                fontWeight: FontWeight.bold,
+  Widget _buildHeader(BuildContext scaffoldContext) {
+    final uid = currentUserId;
+    final notificationState = uid.isNotEmpty
+        ? ref.watch(notificationsProvider(uid))
+        : null;
+    final unreadCount = notificationState?.unreadCount ?? 0;
+
+    return AppHeader(
+      leading: AppHeader.drawerButton(scaffoldContext),
+      name: _userName ?? 'Chats',
+      subtitle: _userLocation,
+      profileImageUrl: _profilePictureUrl,
+      onTitleTap: () => context.push(AppConstants.routeProfile),
+      trailing: GestureDetector(
+        onTap: () => context.push(AppConstants.routeNotifications),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: 35,
+              height: 36,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.notifications_outlined,
+                size: 18,
                 color: Colors.black87,
               ),
             ),
-          ),
-          IconButton(
-            icon: Icon(Icons.search, color: Colors.grey.shade700),
-            onPressed: () => _searchFocusNode.requestFocus(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSegmentedControl() {
-    const segments = ['Groups', 'Chats', 'Marketplace'];
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      child: Row(
-        children: List.generate(segments.length, (index) {
-          final isSelected = _selectedSegment == index;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => setState(() => _selectedSegment = index),
-              child: Container(
-                padding: EdgeInsets.symmetric(vertical: Responsive.spacing(context, 10)),
-                decoration: BoxDecoration(
-                  color: isSelected ? Colors.grey.shade200 : Colors.transparent,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  segments[index],
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: Responsive.fontSize(context, 14),
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                    color: Colors.black87,
+            if (unreadCount > 0)
+              Positioned(
+                top: 4,
+                right: 4,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
                   ),
                 ),
               ),
-            ),
-          );
-        }),
+          ],
+        ),
       ),
     );
   }
+
+  static const Color _tabIndicatorColor = Color(0xFF7A084D);
+
+  Widget _buildTabSelector() {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: Responsive.spacing(context, 8)),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: _tabTitles.asMap().entries.map((entry) {
+          final index = entry.key;
+          final title = entry.value;
+          final isSelected = _selectedSegment == index;
+          return GestureDetector(
+            onTap: () => setState(() => _selectedSegment = index),
+            behavior: HitTestBehavior.opaque,
+            child: IntrinsicWidth(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: Responsive.fontSize(context, 18) * 0.7,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.w400,
+                      color: isSelected ? Colors.black : Colors.grey,
+                    ),
+                  ),
+                  SizedBox(height: Responsive.spacing(context, 6)),
+                  if (isSelected)
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      height: 2,
+                      color: _tabIndicatorColor,
+                    )
+                  else
+                    const SizedBox(height: 2),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  static const Color _searchBorderGrey = Color(0xFFE5E5E5);
 
   Widget _buildSearchBar() {
     return Padding(
-      padding: EdgeInsets.fromLTRB(
-        Responsive.screenPaddingH(context),
-        0,
-        Responsive.screenPaddingH(context),
-        Responsive.spacing(context, 12),
+      padding: EdgeInsets.symmetric(
+        horizontal: Responsive.screenPaddingH(context),
+        vertical: Responsive.spacing(context, 8),
       ),
-      child: TextField(
-        controller: _searchController,
-        focusNode: _searchFocusNode,
-        style: TextStyle(
-          fontSize: Responsive.fontSize(context, 14),
-          fontWeight: FontWeight.w400,
-          color: Colors.black,
+      child: Container(
+        height: 32,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: _searchBorderGrey, width: 1),
         ),
-        decoration: InputDecoration(
-          hintText: 'Search',
-          hintStyle: TextStyle(fontSize: Responsive.fontSize(context, 14), color: Colors.grey.shade600),
-          prefixIcon: Icon(Icons.search, color: Colors.grey.shade600, size: 24),
-          filled: true,
-          fillColor: Colors.grey.shade100,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            const SizedBox(width: 16),
+            Icon(Icons.search, size: 20, color: Colors.grey.shade600),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextField(
+                controller: _searchController,
+                focusNode: _searchFocusNode,
+                style: TextStyle(
+                  fontSize: Responsive.fontSize(context, 14),
+                  fontWeight: FontWeight.w400,
+                  color: Colors.black,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Search',
+                  hintStyle: TextStyle(
+                    fontSize: Responsive.fontSize(context, 14),
+                    color: Colors.grey.shade600,
+                  ),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  errorBorder: InputBorder.none,
+                  focusedErrorBorder: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                  isDense: true,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Image.asset(
+              'assets/logo/Logo-KINS.png',
+              errorBuilder: (_, __, ___) => Text(
+                'KINS',
+                style: TextStyle(
+                  fontSize: Responsive.fontSize(context, 15),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildChatsList() {
-    final myUid = currentUserId;
-    final chatsAsync = ref.watch(myChatsStreamProvider);
-    return chatsAsync.when(
-      data: (chats) {
-        final searchQuery = _searchController.text.toLowerCase();
-        final filtered = searchQuery.isEmpty
-            ? chats
-            : chats.where((c) {
-                // Filter by other user name will be applied in row via provider
-                return c.lastMessageText.toLowerCase().contains(searchQuery);
-              }).toList();
-        if (filtered.isEmpty) {
-          return Center(
-            child: Text(
-              chats.isEmpty ? 'No chats yet. Tap + to start a conversation.' : 'No matching chats.',
-              style: TextStyle(fontSize: Responsive.fontSize(context, 15), color: Colors.grey.shade600),
-              textAlign: TextAlign.center,
-            ),
-          );
-        }
-        return ListView.builder(
-          padding: EdgeInsets.symmetric(horizontal: Responsive.screenPaddingH(context)),
-          itemCount: filtered.length,
-          itemBuilder: (context, index) {
-            final chat = filtered[index];
-            return _ChatListRow(chat: chat, myUid: myUid);
-          },
-        );
-      },
-      loading: () => const SkeletonChatList(),
-      error: (e, st) {
-        debugPrint('Chat list error: $e');
-        debugPrint('Stack: $st');
-        final msg = e.toString();
-        final isIndex = msg.contains('index') || msg.contains('Index') || msg.contains('create_composite');
-        final isPermission = msg.contains('PERMISSION_DENIED') || msg.contains('permission');
-        String hint = '';
-        if (isIndex) {
-          hint = "\n\nFix: Copy the 'https://console.firebase.google.com/...' link from the debug console above, open it in a browser, then click 'Create index'. Use Collection group scope if you created one manually.";
-        }
-        if (isPermission) hint = '\n\nAdd the chats security rules in Firebase Console → Firestore → Rules (see FIREBASE_CHAT_SETUP.md).';
-        return Center(
-          child: Padding(
-            padding: EdgeInsets.all(Responsive.screenPaddingH(context)),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.error_outline, size: 48, color: Colors.grey.shade600),
-                const SizedBox(height: 16),
-                Text(
-                  'Something went wrong',
-                  style: TextStyle(fontSize: Responsive.fontSize(context, 18), fontWeight: FontWeight.w600, color: Colors.grey.shade800),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  msg + hint,
-                  style: TextStyle(fontSize: Responsive.fontSize(context, 13), color: Colors.grey.shade600),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildGroupsList() {
+  Widget _buildGroupsSliver() {
     final searchQuery = _searchController.text.toLowerCase();
     final filtered = searchQuery.isEmpty
         ? _groups
-        : _groups.where((g) => (g['title'] as String).toLowerCase().contains(searchQuery)).toList();
-
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      itemCount: filtered.length,
-      itemBuilder: (context, index) {
-        final group = filtered[index];
-        return _GroupCard(
-          title: group['title'] as String,
-          description: group['description'] as String,
-          members: group['members'] as int,
-          imageUrl: group['imageUrl'] as String?,
-          onJoin: () {
-            // TODO: Join group
-          },
-        );
-      },
+        : _groups
+              .where(
+                (g) =>
+                    (g['title'] as String).toLowerCase().contains(searchQuery),
+              )
+              .toList();
+    return SliverPadding(
+      padding: EdgeInsets.only(bottom: Responsive.spacing(context, 24)),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final group = filtered[index];
+          return GroupCard(
+            groupId: group['id'] as String? ?? '',
+            name: group['title'] as String,
+            description: group['description'] as String,
+            members: group['members'] as int,
+            imageUrl: group['imageUrl'] as String?,
+            onTap: () {
+              context.push(
+                AppConstants.routeGroupSettings,
+                extra: GroupSettingArgs(
+                  groupId: group['id'] as String? ?? '',
+                  name: group['title'] as String,
+                  description: group['description'] as String,
+                  members: group['members'] as int,
+                  imageUrl: group['imageUrl'] as String?,
+                ),
+              );
+            },
+            onJoin: () {
+              // TODO: Join group
+            },
+          );
+        }, childCount: filtered.length),
+      ),
     );
   }
 
-  Widget _buildMarketplacePlaceholder() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.shopping_bag_outlined, size: 56, color: Colors.grey.shade400),
-          const SizedBox(height: 16),
-          Text(
-            'Marketplace',
-            style: TextStyle(fontSize: Responsive.fontSize(context, 18), fontWeight: FontWeight.w600, color: Colors.grey.shade700),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Buy & sell with other kins',
-            style: TextStyle(fontSize: Responsive.fontSize(context, 14), color: Colors.grey.shade600),
-          ),
-        ],
+  Widget _buildChatsSliver() {
+    final myUid = currentUserId;
+    final chatsAsync = ref.watch(myChatsStreamProvider);
+    return SliverFillRemaining(
+      hasScrollBody: true,
+      child: chatsAsync.when(
+        data: (chats) {
+          final searchQuery = _searchController.text.toLowerCase();
+          final filtered = searchQuery.isEmpty
+              ? chats
+              : chats
+                    .where(
+                      (c) =>
+                          c.lastMessageText.toLowerCase().contains(searchQuery),
+                    )
+                    .toList();
+          if (filtered.isEmpty) {
+            return Center(
+              child: Text(
+                chats.isEmpty
+                    ? 'No chats yet. Tap + to start a conversation.'
+                    : 'No matching chats.',
+                style: TextStyle(
+                  fontSize: Responsive.fontSize(context, 15),
+                  color: Colors.grey.shade600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            );
+          }
+          return ListView.builder(
+            padding: EdgeInsets.symmetric(
+              horizontal: Responsive.screenPaddingH(context),
+            ),
+            itemCount: filtered.length,
+            itemBuilder: (context, index) {
+              final chat = filtered[index];
+              return _ChatListRow(chat: chat, myUid: myUid);
+            },
+          );
+        },
+        loading: () => const SkeletonChatList(),
+        error: (e, st) {
+          debugPrint('Chat list error: $e');
+          debugPrint('Stack: $st');
+          final msg = e.toString();
+          final isIndex =
+              msg.contains('index') ||
+              msg.contains('Index') ||
+              msg.contains('create_composite');
+          final isPermission =
+              msg.contains('PERMISSION_DENIED') || msg.contains('permission');
+          String hint = '';
+          if (isIndex) {
+            hint =
+                "\n\nFix: Copy the 'https://console.firebase.google.com/...' link from the debug console above, open it in a browser, then click 'Create index'. Use Collection group scope if you created one manually.";
+          }
+          if (isPermission)
+            hint =
+                '\n\nAdd the chats security rules in Firebase Console → Firestore → Rules (see FIREBASE_CHAT_SETUP.md).';
+          return Center(
+            child: Padding(
+              padding: EdgeInsets.all(Responsive.screenPaddingH(context)),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 48,
+                    color: Colors.grey.shade600,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Something went wrong',
+                    style: TextStyle(
+                      fontSize: Responsive.fontSize(context, 18),
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade800,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    msg + hint,
+                    style: TextStyle(
+                      fontSize: Responsive.fontSize(context, 13),
+                      color: Colors.grey.shade600,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildMarketplaceSliver() {
+    return SliverFillRemaining(
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.shopping_bag_outlined,
+              size: 56,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Marketplace',
+              style: TextStyle(
+                fontSize: Responsive.fontSize(context, 18),
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Buy & sell with other kins',
+              style: TextStyle(
+                fontSize: Responsive.fontSize(context, 14),
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   void _onFabPressed() {
     if (_selectedSegment == 0) {
-      // New group - TODO
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('New group coming soon')),
-      );
+      context.push(AppConstants.routeCreateGroup);
     } else if (_selectedSegment == 1) {
       _showNewChatSheet();
     } else {
       // Marketplace
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Marketplace coming soon')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Marketplace coming soon')));
     }
   }
 
@@ -339,7 +494,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ),
     );
   }
-
 }
 
 /// Row that loads other user's name/avatar and opens conversation on tap.
@@ -352,10 +506,14 @@ class _ChatListRow extends ConsumerWidget {
   static String _formatTime(DateTime? date) {
     if (date == null) return '';
     final now = DateTime.now();
-    if (date.day == now.day && date.month == now.month && date.year == now.year) {
+    if (date.day == now.day &&
+        date.month == now.month &&
+        date.year == now.year) {
       return DateFormat.jm().format(date);
     }
-    if (date.year == now.year && date.month == now.month && now.day - date.day == 1) {
+    if (date.year == now.year &&
+        date.month == now.month &&
+        now.day - date.day == 1) {
       return 'Yesterday';
     }
     if (date.year == now.year) return DateFormat.MMMd().format(date);
@@ -379,10 +537,7 @@ class _ChatListRow extends ConsumerWidget {
       onTap: () {
         context.push(
           AppConstants.chatConversationPath(chat.id),
-          extra: {
-            'otherUserName': name,
-            'otherUserAvatarUrl': avatarUrl,
-          },
+          extra: {'otherUserName': name, 'otherUserAvatarUrl': avatarUrl},
         );
       },
     );
@@ -417,7 +572,9 @@ class _ChatListTile extends StatelessWidget {
             CircleAvatar(
               radius: 28,
               backgroundColor: const Color(0xFF6B4C93).withOpacity(0.2),
-              backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl!) : null,
+              backgroundImage: avatarUrl != null
+                  ? NetworkImage(avatarUrl!)
+                  : null,
               child: avatarUrl == null
                   ? Text(
                       name.isNotEmpty ? name[0].toUpperCase() : '?',
@@ -470,7 +627,10 @@ class _ChatListTile extends StatelessWidget {
                 if (unreadCount > 0) ...[
                   const SizedBox(height: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: const BoxDecoration(
                       color: Color(0xFF6B4C93),
                       borderRadius: BorderRadius.all(Radius.circular(12)),
@@ -494,108 +654,223 @@ class _ChatListTile extends StatelessWidget {
   }
 }
 
-class _GroupCard extends StatelessWidget {
-  final String title;
+/// Reusable group card with image, name, description, member avatars, and Join button.
+class GroupCard extends StatelessWidget {
+  final String groupId;
+  final String name;
   final String description;
   final int members;
   final String? imageUrl;
+  final VoidCallback? onTap;
   final VoidCallback onJoin;
 
-  const _GroupCard({
-    required this.title,
+  const GroupCard({
+    super.key,
+    this.groupId = '',
+    required this.name,
     required this.description,
     required this.members,
     this.imageUrl,
+    this.onTap,
     required this.onJoin,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
+    final child = Container(
+      margin: EdgeInsets.symmetric(
+        horizontal: Responsive.screenPaddingH(context),
+        vertical: Responsive.spacing(context, 5),
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(Responsive.scale(context, 24)),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.08),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 20,
+            // offset: const Offset(0, 10),
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              width: 64,
-              height: 64,
-              color: const Color(0xFF6B4C93).withOpacity(0.15),
-              child: imageUrl != null
-                  ? Image.network(imageUrl!, fit: BoxFit.cover)
-                  : const Icon(Icons.group, color: Color(0xFF6B4C93), size: 32),
-            ),
+            borderRadius: BorderRadius.circular(20),
+            child: imageUrl != null && imageUrl!.isNotEmpty
+                ? Image.network(
+                    imageUrl!,
+                    height: Responsive.scale(context, 140),
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  )
+                : Container(
+                    height: Responsive.scale(context, 140),
+                    width: double.infinity,
+                    color: const Color(0xFF6B4C93).withOpacity(0.15),
+                    child: Icon(
+                      Icons.group,
+                      color: const Color(0xFF6B4C93),
+                      size: Responsive.scale(context, 48),
+                    ),
+                  ),
           ),
-          const SizedBox(width: 14),
-          Expanded(
+
+          Padding(
+            padding: const EdgeInsets.only(
+              left: 18,
+              right: 18,
+              bottom: 8,
+              top: 5,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: Responsive.fontSize(context, 16),
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: TextStyle(
-                    fontSize: Responsive.fontSize(context, 13),
-                    color: Colors.grey.shade600,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
+                // TITLE + MEMBER COUNT
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.start,
                   children: [
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: Responsive.fontSize(context, 12),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     Text(
                       '$members Members',
                       style: TextStyle(
                         fontSize: Responsive.fontSize(context, 12),
-                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[700],
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    TextButton(
-                      onPressed: onJoin,
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        backgroundColor: Colors.grey.shade200,
-                        foregroundColor: Colors.black87,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
+                  ],
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: Responsive.fontSize(context, 14),
+                        height: 1.4,
+                        color: Colors.grey[700],
                       ),
-                      child: Text('Join', style: TextStyle(fontSize: Responsive.fontSize(context, 13), fontWeight: FontWeight.w500)),
                     ),
+                    _MemberAvatars(memberCount: members),
+                    _GroupJoinPlusButton(onTap: onJoin),
                   ],
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+    if (onTap != null) {
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(Responsive.scale(context, 24)),
+        child: child,
+      );
+    }
+    return child;
+  }
+}
+
+/// Avatar stack: up to 2 member circles + one "N+" overflow circle (same size as avatars).
+class _MemberAvatars extends StatelessWidget {
+  final int memberCount;
+
+  const _MemberAvatars({required this.memberCount});
+
+  static const double _avatarRadius = 14;
+  static const double _overlap = 8;
+
+  @override
+  Widget build(BuildContext context) {
+    final diameter = _avatarRadius * 2;
+    final showOverflow = memberCount > 2;
+    final avatarCount = showOverflow ? 2 : memberCount.clamp(1, 2);
+    final circleCount = showOverflow ? 3 : avatarCount;
+    final totalWidth = circleCount * (diameter - _overlap) + _overlap;
+
+    return SizedBox(
+      width: totalWidth,
+      height: diameter,
+      child: Stack(
+        children: [
+          // First 2 avatars (placeholder circles)
+          ...List.generate(avatarCount, (i) {
+            return Positioned(
+              left: i * (diameter - _overlap),
+              child: CircleAvatar(
+                radius: _avatarRadius,
+                backgroundColor: const Color(0xFF6B4C93).withOpacity(0.25),
+                child: Text(
+                  '${i + 1}',
+                  style: TextStyle(
+                    fontSize: Responsive.fontSize(context, 12),
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF6B4C93),
+                  ),
+                ),
+              ),
+            );
+          }),
+          // "N+" overflow circle (same size, white bg, black text)
+          if (showOverflow)
+            Positioned(
+              left: 2 * (diameter - _overlap),
+              child: CircleAvatar(
+                radius: _avatarRadius,
+                backgroundColor: Colors.white,
+                child: Text(
+                  '${(memberCount - 2).clamp(1, 999)}+',
+                  style: TextStyle(
+                    fontSize: Responsive.fontSize(context, 11),
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Circular plus button matching avatar size (light grey bg, dark + icon).
+class _GroupJoinPlusButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _GroupJoinPlusButton({required this.onTap});
+
+  static const double _size = 28;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: _size,
+        height: _size,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.grey.shade200,
+        ),
+        child: Icon(Icons.add, size: 20, color: Colors.grey.shade700),
       ),
     );
   }
@@ -621,7 +896,10 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message), duration: const Duration(seconds: 3)),
+          SnackBar(
+            content: Text(message),
+            duration: const Duration(seconds: 3),
+          ),
         );
       }
     });
@@ -636,9 +914,9 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
       return;
     }
     if (widget.myUid.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please sign in first')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please sign in first')));
       return;
     }
 
@@ -649,12 +927,18 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
 
       final status = await userRepo.checkUserByPhoneNumber(phone);
       if (!status.exists || status.userId == null) {
-        if (mounted) _showMessageAndClose('No user found with this number. They need to join the app first.');
+        if (mounted)
+          _showMessageAndClose(
+            'No user found with this number. They need to join the app first.',
+          );
         return;
       }
       final otherUserId = status.userId!;
       if (otherUserId == widget.myUid) {
-        if (mounted) _showMessageAndClose("You can't chat with yourself. Enter another person's number.");
+        if (mounted)
+          _showMessageAndClose(
+            "You can't chat with yourself. Enter another person's number.",
+          );
         return;
       }
 
@@ -663,7 +947,10 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
         chatId = await chatRepo.getOrCreate1v1Chat(widget.myUid, otherUserId);
       } catch (e) {
         debugPrint('Chat create error: $e');
-        if (mounted) _showMessageAndClose('Cannot create chat. Check Firestore rules for "chats" (create).');
+        if (mounted)
+          _showMessageAndClose(
+            'Cannot create chat. Check Firestore rules for "chats" (create).',
+          );
         return;
       }
 
@@ -680,14 +967,13 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
 
       if (!mounted) return;
       widget.onStarted(); // close sheet first
-      await Future.delayed(const Duration(milliseconds: 300)); // let sheet close
+      await Future.delayed(
+        const Duration(milliseconds: 300),
+      ); // let sheet close
       if (!mounted) return;
       context.push(
         AppConstants.chatConversationPath(chatId),
-        extra: {
-          'otherUserName': otherName,
-          'otherUserAvatarUrl': otherPhoto,
-        },
+        extra: {'otherUserName': otherName, 'otherUserAvatarUrl': otherPhoto},
       );
     } catch (e) {
       debugPrint('Start chat error: $e');
@@ -700,7 +986,9 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
@@ -712,7 +1000,10 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
                 children: [
                   Text(
                     'New chat',
-                    style: TextStyle(fontSize: Responsive.fontSize(context, 20), fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: Responsive.fontSize(context, 20),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const Spacer(),
                   IconButton(
@@ -724,7 +1015,10 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
               const SizedBox(height: 8),
               Text(
                 'Enter their phone number with country code (e.g. +1 234 567 8900)',
-                style: TextStyle(fontSize: Responsive.fontSize(context, 14), color: Colors.grey.shade600),
+                style: TextStyle(
+                  fontSize: Responsive.fontSize(context, 14),
+                  color: Colors.grey.shade600,
+                ),
               ),
               const SizedBox(height: 16),
               IntlPhoneField(
@@ -735,8 +1029,14 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
                 ),
                 decoration: InputDecoration(
                   labelText: 'Phone number',
-                  labelStyle: TextStyle(fontSize: Responsive.fontSize(context, 14), color: Colors.grey.shade600),
-                  hintStyle: TextStyle(fontSize: Responsive.fontSize(context, 14), color: Colors.grey.shade600),
+                  labelStyle: TextStyle(
+                    fontSize: Responsive.fontSize(context, 14),
+                    color: Colors.grey.shade600,
+                  ),
+                  hintStyle: TextStyle(
+                    fontSize: Responsive.fontSize(context, 14),
+                    color: Colors.grey.shade600,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
