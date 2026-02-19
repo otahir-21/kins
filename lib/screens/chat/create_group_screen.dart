@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/core/responsive/responsive.dart';
+import 'package:kins_app/repositories/groups_repository.dart';
 import 'package:kins_app/screens/chat/group_setting_screen.dart';
 
 /// Create group screen: circular image, group type (Interactive / Updates only),
@@ -22,6 +23,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
 
   File? _pickedImageFile;
   bool _isUpdatesOnly = true; // "Updates only" selected by default
+  bool _submitting = false;
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
 
@@ -42,7 +44,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     }
   }
 
-  void _onSubmit() {
+  Future<void> _onSubmit() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -50,18 +52,41 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
       );
       return;
     }
-    final description = _descriptionController.text.trim();
-    context.pop();
-    context.push(
-      AppConstants.routeGroupSettings,
-      extra: GroupSettingArgs(
-        groupId: 'new',
+    if (_submitting) return;
+    setState(() => _submitting = true);
+    try {
+      final type = _isUpdatesOnly ? 'updates_only' : 'interactive';
+      final description = _descriptionController.text.trim();
+      final created = await GroupsRepository.createGroup(
         name: name,
+        type: type,
         description: description,
-        members: 1,
-        imageFile: _pickedImageFile,
-      ),
-    );
+        image: _pickedImageFile,
+      );
+      if (!mounted) return;
+      context.pop();
+      context.push(
+        AppConstants.routeGroupSettings,
+        extra: GroupSettingArgs(
+          groupId: created.id,
+          name: created.name,
+          description: created.description,
+          members: created.memberCount,
+          imageUrl: created.imageUrl,
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() => _submitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              e.toString().replaceFirst(RegExp(r'^Exception:?\s*'), ''),
+            ),
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -306,7 +331,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: _onSubmit,
+          onTap: _submitting ? null : _onSubmit,
           borderRadius: BorderRadius.circular(Responsive.scale(context, 28)),
           child: Container(
             padding: EdgeInsets.symmetric(
@@ -324,7 +349,16 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                 ),
               ],
             ),
-            child: Icon(Icons.check, size: Responsive.scale(context, 28), color: Colors.black),
+            child: _submitting
+                ? SizedBox(
+                    width: Responsive.scale(context, 28),
+                    height: Responsive.scale(context, 28),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.black,
+                    ),
+                  )
+                : Icon(Icons.check, size: Responsive.scale(context, 28), color: Colors.black),
           ),
         ),
       ),

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,11 +9,15 @@ import 'package:intl/intl.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/core/network/backend_api_client.dart';
+import 'package:kins_app/routes/app_router.dart';
 import 'package:kins_app/models/chat_model.dart';
 import 'package:kins_app/providers/chat_provider.dart';
 import 'package:kins_app/providers/notification_provider.dart';
 import 'package:kins_app/providers/user_details_provider.dart';
-import 'package:kins_app/screens/chat/group_setting_screen.dart';
+import 'package:kins_app/repositories/groups_repository.dart';
+import 'package:kins_app/services/follow_service.dart';
+import 'package:kins_app/screens/chat/group_conversation_screen.dart';
+import 'package:kins_app/services/firebase_chat_auth_service.dart';
 import 'package:kins_app/widgets/app_drawer.dart';
 import 'package:kins_app/widgets/app_header.dart';
 import 'package:kins_app/widgets/fab_location.dart';
@@ -27,7 +33,7 @@ class ChatScreen extends ConsumerStatefulWidget {
   ConsumerState<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends ConsumerState<ChatScreen> {
+class _ChatScreenState extends ConsumerState<ChatScreen> with RouteAware {
   int _selectedSegment = 0; // 0: Groups, 1: Chats, 2: Marketplace
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
@@ -36,19 +42,78 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   String? _userLocation;
   String? _profilePictureUrl;
 
-  // Mock groups list
-  final List<Map<String, dynamic>> _groups = [
-    {'id': '1', 'title': 'Mums of Jumeirah', 'description': 'Local mums in Jumeirah area', 'members': 477, 'imageUrl': null},
-    {'id': '2', 'title': 'Abu Dhabi Schools', 'description': 'Discuss schools and activities', 'members': 1480, 'imageUrl': null},
-    {'id': '3', 'title': 'Miscarriage Recovery', 'description': 'Support and healing together', 'members': 821, 'imageUrl': null},
-    {'id': '4', 'title': 'Mums Who Walk', 'description': 'Walking groups and meetups', 'members': 75, 'imageUrl': null},
-  ];
+  List<GroupListItem> _groups = [];
+  bool _groupsLoading = true;
+  String? _groupsError;
+  Timer? _searchDebounce;
+  bool _routeObserverSubscribed = false;
+  bool _firebaseChatReady = false;
+  bool _firebaseChatSigningIn = false;
+  String? _firebaseChatError;
 
   @override
   void initState() {
     super.initState();
-    _searchController.addListener(() => setState(() {}));
+    _searchController.addListener(_onSearchChanged);
     _loadUserProfile();
+    _loadGroups();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is ModalRoute<void> && !_routeObserverSubscribed) {
+      _routeObserverSubscribed = true;
+      appRouteObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void didPopNext() {
+    // User returned to this screen (e.g. from Group Setting or Discover); refresh groups list.
+    if (_selectedSegment == 0) _loadGroups();
+  }
+
+  void _onSearchChanged() {
+    setState(() {});
+    _searchDebounce?.cancel();
+    if (_selectedSegment != 0) return;
+    _searchDebounce = Timer(const Duration(milliseconds: 400), () {
+      if (mounted && _selectedSegment == 0) _loadGroups();
+    });
+  }
+
+  Future<void> _loadGroups() async {
+    if (_selectedSegment != 0) return;
+    if (!mounted) return;
+    setState(() {
+      _groupsLoading = true;
+      _groupsError = null;
+    });
+    try {
+      final search = _searchController.text.trim();
+      final res = await GroupsRepository.getGroups(
+        search: search.isEmpty ? null : search,
+        page: 1,
+        limit: 20,
+      );
+      if (mounted && _selectedSegment == 0) {
+        setState(() {
+          _groups = res.groups;
+          _groupsLoading = false;
+          _groupsError = null;
+        });
+      }
+    } catch (e) {
+      if (mounted && _selectedSegment == 0) {
+        setState(() {
+          _groups = [];
+          _groupsLoading = false;
+          _groupsError = e.toString().replaceFirst(RegExp(r'^Exception:?\s*'), '');
+        });
+      }
+    }
   }
 
   Future<void> _loadUserProfile() async {
@@ -84,6 +149,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   void dispose() {
+    if (_routeObserverSubscribed) {
+      appRouteObserver.unsubscribe(this);
+    }
+    _searchDebounce?.cancel();
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
@@ -194,7 +264,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           final title = entry.value;
           final isSelected = _selectedSegment == index;
           return GestureDetector(
-            onTap: () => setState(() => _selectedSegment = index),
+            onTap: () {
+              setState(() => _selectedSegment = index);
+              if (index == 0) {
+                _loadGroups();
+              } else if (index == 1 && !_firebaseChatReady && !_firebaseChatSigningIn) {
+                _ensureFirebaseForChats();
+              }
+            },
             behavior: HitTestBehavior.opaque,
             child: IntrinsicWidth(
               child: Column(
@@ -229,8 +306,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  static const Color _searchBorderGrey = Color(0xFFE5E5E5);
-
   Widget _buildSearchBar() {
     return Padding(
       padding: EdgeInsets.symmetric(
@@ -240,9 +315,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       child: Container(
         height: 32,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Colors.grey.shade100,
           borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: _searchBorderGrey, width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 2,
+              offset: const Offset(0, 1),
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -272,6 +353,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   focusedErrorBorder: InputBorder.none,
                   contentPadding: EdgeInsets.zero,
                   isDense: true,
+                  filled: true,
+                  fillColor: Colors.transparent,
                 ),
               ),
             ),
@@ -294,35 +377,88 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Widget _buildGroupsSliver() {
-    final searchQuery = _searchController.text.toLowerCase();
-    final filtered = searchQuery.isEmpty
-        ? _groups
-        : _groups
-              .where(
-                (g) =>
-                    (g['title'] as String).toLowerCase().contains(searchQuery),
-              )
-              .toList();
+    if (_groupsLoading && _groups.isEmpty) {
+      return SliverPadding(
+        padding: EdgeInsets.only(bottom: Responsive.spacing(context, 24)),
+        sliver: SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: Responsive.spacing(context, 32)),
+            child: Center(
+              child: CircularProgressIndicator(color: const Color(0xFF7A084D)),
+            ),
+          ),
+        ),
+      );
+    }
+    if (_groupsError != null && _groups.isEmpty) {
+      return SliverPadding(
+        padding: EdgeInsets.only(bottom: Responsive.spacing(context, 24)),
+        sliver: SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: Responsive.spacing(context, 32)),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _groupsError!,
+                    style: TextStyle(
+                      fontSize: Responsive.fontSize(context, 14),
+                      color: Colors.grey.shade700,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: Responsive.spacing(context, 12)),
+                  TextButton(
+                    onPressed: _loadGroups,
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    if (_groups.isEmpty) {
+      return SliverPadding(
+        padding: EdgeInsets.only(bottom: Responsive.spacing(context, 24)),
+        sliver: SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: Responsive.spacing(context, 32)),
+            child: Center(
+              child: Text(
+                'No groups yet. Tap + to create one.',
+                style: TextStyle(
+                  fontSize: Responsive.fontSize(context, 15),
+                  color: Colors.grey.shade600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     return SliverPadding(
       padding: EdgeInsets.only(bottom: Responsive.spacing(context, 24)),
       sliver: SliverList(
         delegate: SliverChildBuilderDelegate((context, index) {
-          final group = filtered[index];
+          final group = _groups[index];
           return GroupCard(
-            groupId: group['id'] as String? ?? '',
-            name: group['title'] as String,
-            description: group['description'] as String,
-            members: group['members'] as int,
-            imageUrl: group['imageUrl'] as String?,
+            groupId: group.id,
+            name: group.name,
+            description: group.description,
+            members: group.memberCount,
+            imageUrl: group.imageUrl,
             onTap: () {
               context.push(
-                AppConstants.routeGroupSettings,
-                extra: GroupSettingArgs(
-                  groupId: group['id'] as String? ?? '',
-                  name: group['title'] as String,
-                  description: group['description'] as String,
-                  members: group['members'] as int,
-                  imageUrl: group['imageUrl'] as String?,
+                AppConstants.groupConversationPath(group.id),
+                extra: GroupConversationArgs(
+                  groupId: group.id,
+                  name: group.name,
+                  description: group.description,
+                  imageUrl: group.imageUrl,
                 ),
               );
             },
@@ -330,13 +466,80 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               // TODO: Join group
             },
           );
-        }, childCount: filtered.length),
+        }, childCount: _groups.length),
       ),
     );
   }
 
+  Future<void> _ensureFirebaseForChats() async {
+    if (_firebaseChatReady || _firebaseChatSigningIn) return;
+    setState(() {
+      _firebaseChatSigningIn = true;
+      _firebaseChatError = null;
+    });
+    try {
+      await FirebaseChatAuthService.ensureFirebaseSignedIn();
+      if (mounted) {
+        setState(() {
+          _firebaseChatReady = true;
+          _firebaseChatSigningIn = false;
+          _firebaseChatError = null;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _firebaseChatSigningIn = false;
+          _firebaseChatError = e.toString();
+        });
+      }
+    }
+  }
+
   Widget _buildChatsSliver() {
     final myUid = currentUserId;
+    if (_selectedSegment == 1 && !_firebaseChatReady) {
+      if (!_firebaseChatSigningIn && _firebaseChatError == null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _ensureFirebaseForChats());
+      }
+      return SliverFillRemaining(
+        hasScrollBody: false,
+        child: Center(
+          child: _firebaseChatError != null
+              ? Padding(
+                  padding: EdgeInsets.all(Responsive.screenPaddingH(context)),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Could not load chats',
+                        style: TextStyle(
+                          fontSize: Responsive.fontSize(context, 16),
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade800,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _firebaseChatError!,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: Responsive.fontSize(context, 13), color: Colors.grey.shade600),
+                      ),
+                      const SizedBox(height: 16),
+                      TextButton(
+                        onPressed: () {
+                          setState(() => _firebaseChatError = null);
+                          _ensureFirebaseForChats();
+                        },
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                )
+              : const CircularProgressIndicator(),
+        ),
+      );
+    }
     final chatsAsync = ref.watch(myChatsStreamProvider);
     return SliverFillRemaining(
       hasScrollBody: true,
@@ -394,7 +597,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           }
           if (isPermission)
             hint =
-                '\n\nAdd the chats security rules in Firebase Console → Firestore → Rules (see FIREBASE_CHAT_SETUP.md).';
+                '\n\nAdd Firestore rules for "conversations" in Firebase Console → Firestore → Rules (see docs/FIREBASE_GROUP_CHAT_RULES.md § 1:1).';
           return Center(
             child: Padding(
               padding: EdgeInsets.all(Responsive.screenPaddingH(context)),
@@ -472,7 +675,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (_selectedSegment == 0) {
       context.push(AppConstants.routeCreateGroup);
     } else if (_selectedSegment == 1) {
-      _showNewChatSheet();
+      context.push(AppConstants.routeNewChat);
     } else {
       // Marketplace
       ScaffoldMessenger.of(
@@ -506,16 +709,18 @@ class _ChatListRow extends ConsumerWidget {
   static String _formatTime(DateTime? date) {
     if (date == null) return '';
     final now = DateTime.now();
-    if (date.day == now.day &&
-        date.month == now.month &&
-        date.year == now.year) {
+    final diff = now.difference(date);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
+    if (diff.inHours < 24) return '${diff.inHours} hr ago';
+    if (date.day == now.day && date.month == now.month && date.year == now.year) {
       return DateFormat.jm().format(date);
     }
-    if (date.year == now.year &&
-        date.month == now.month &&
-        now.day - date.day == 1) {
+    if (date.year == now.year && date.month == now.month && now.day - date.day == 1) {
       return 'Yesterday';
     }
+    if (diff.inDays < 7) return '${diff.inDays} days ago';
+    if (diff.inDays < 14) return 'a week ago';
     if (date.year == now.year) return DateFormat.MMMd().format(date);
     return DateFormat.yMMMd().format(date);
   }
@@ -523,8 +728,11 @@ class _ChatListRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final otherUserId = chat.otherParticipantId(myUid);
+    if (kDebugMode && otherUserId.isEmpty) {
+      debugPrint('⚠️ [ChatListRow] otherUserId is empty for conversation ${chat.id} participantIds=${chat.participantIds} myUid=$myUid');
+    }
     final otherUserAsync = ref.watch(otherUserByIdProvider(otherUserId));
-    final name = otherUserAsync.valueOrNull?.name ?? 'User';
+    final name = otherUserAsync.valueOrNull?.displayNameForChat ?? 'User';
     final avatarUrl = otherUserAsync.valueOrNull?.profilePictureUrl;
     final timeStr = _formatTime(chat.lastMessageAt);
 
@@ -537,7 +745,11 @@ class _ChatListRow extends ConsumerWidget {
       onTap: () {
         context.push(
           AppConstants.chatConversationPath(chat.id),
-          extra: {'otherUserName': name, 'otherUserAvatarUrl': avatarUrl},
+          extra: {
+            'otherUserId': otherUserId,
+            'otherUserName': name,
+            'otherUserAvatarUrl': avatarUrl,
+          },
         );
       },
     );
@@ -756,14 +968,16 @@ class GroupCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Text(
-                      description,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: Responsive.fontSize(context, 14),
-                        height: 1.4,
-                        color: Colors.grey[700],
+                    Expanded(
+                      child: Text(
+                        description,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: Responsive.fontSize(context, 14),
+                          height: 1.4,
+                          color: Colors.grey[700],
+                        ),
                       ),
                     ),
                     _MemberAvatars(memberCount: members),
@@ -923,8 +1137,6 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
     setState(() => _isLoading = true);
     try {
       final userRepo = ref.read(userDetailsRepositoryProvider);
-      final chatRepo = ref.read(chatRepositoryProvider);
-
       final status = await userRepo.checkUserByPhoneNumber(phone);
       if (!status.exists || status.userId == null) {
         if (mounted)
@@ -942,14 +1154,15 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
         return;
       }
 
+      final directRepo = ref.read(directChatRepositoryProvider);
       String chatId;
       try {
-        chatId = await chatRepo.getOrCreate1v1Chat(widget.myUid, otherUserId);
+        chatId = await directRepo.getOrCreateConversation(widget.myUid, otherUserId);
       } catch (e) {
         debugPrint('Chat create error: $e');
         if (mounted)
           _showMessageAndClose(
-            'Cannot create chat. Check Firestore rules for "chats" (create).',
+            'Cannot create chat. Check Firestore rules for "conversations".',
           );
         return;
       }
@@ -957,8 +1170,8 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
       String? otherName;
       String? otherPhoto;
       try {
-        final otherUser = await userRepo.getUserDetails(otherUserId);
-        otherName = otherUser?.name ?? 'User';
+        final otherUser = await FollowService.getPublicProfile(otherUserId);
+        otherName = otherUser?.displayNameForChat ?? 'User';
         otherPhoto = otherUser?.profilePictureUrl;
       } catch (e) {
         debugPrint('User details error (using fallback): $e');
@@ -973,7 +1186,11 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
       if (!mounted) return;
       context.push(
         AppConstants.chatConversationPath(chatId),
-        extra: {'otherUserName': otherName, 'otherUserAvatarUrl': otherPhoto},
+        extra: {
+          'otherUserId': otherUserId,
+          'otherUserName': otherName,
+          'otherUserAvatarUrl': otherPhoto,
+        },
       );
     } catch (e) {
       debugPrint('Start chat error: $e');

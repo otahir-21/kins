@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/core/network/backend_api_client.dart';
 
 /// Public user profile from follow API.
@@ -6,6 +7,8 @@ class FollowUserInfo {
   final String id;
   final String? name;
   final String? username;
+  /// Backend may send this (name → username → "User"); use in chat list/header.
+  final String? displayName;
   final String? profilePictureUrl;
   final String? bio;
   final int followerCount;
@@ -16,6 +19,7 @@ class FollowUserInfo {
     required this.id,
     this.name,
     this.username,
+    this.displayName,
     this.profilePictureUrl,
     this.bio,
     this.followerCount = 0,
@@ -29,12 +33,21 @@ class FollowUserInfo {
       id: id,
       name: json['name']?.toString(),
       username: json['username']?.toString(),
+      displayName: json['displayName']?.toString(),
       profilePictureUrl: json['profilePictureUrl']?.toString(),
       bio: json['bio']?.toString(),
       followerCount: (json['followerCount'] ?? 0) as int,
       followingCount: (json['followingCount'] ?? 0) as int,
       isFollowedByMe: json['isFollowedByMe'] == true,
     );
+  }
+
+  /// Display name for chat/list: use backend displayName when present, else name → username → 'User'.
+  String get displayNameForChat {
+    if (displayName != null && displayName!.trim().isNotEmpty) return displayName!.trim();
+    if (name != null && name!.trim().isNotEmpty) return name!.trim();
+    if (username != null && username!.trim().isNotEmpty) return username!.trim();
+    return 'User';
   }
 }
 
@@ -75,15 +88,47 @@ class FollowService {
   FollowService._();
 
   /// GET /users/:userId - Public profile.
+  /// Expects { success: true, user: { id, name, username, displayName, profilePictureUrl, ... } }.
+  /// If backend returns user fields at top level (no "user" wrapper), we parse that too.
   static Future<FollowUserInfo?> getPublicProfile(String userId) async {
+    final path = '/users/$userId';
+    final url = '${AppConstants.apiV1BaseUrl}$path';
+    if (kDebugMode) debugPrint('🔵 [getPublicProfile] GET $url');
     try {
-      final res = await BackendApiClient.get('/users/$userId');
-      if (res['success'] != true) return null;
-      final user = res['user'];
-      if (user is! Map<String, dynamic>) return null;
-      return FollowUserInfo.fromJson(Map<String, dynamic>.from(user));
+      final res = await BackendApiClient.get(path);
+      if (kDebugMode) {
+        debugPrint('🔵 [getPublicProfile] response keys: ${res.keys.join(', ')}');
+        debugPrint('🔵 [getPublicProfile] success=${res['success']}');
+        if (res['user'] is Map) {
+          final u = res['user'] as Map;
+          debugPrint('🔵 [getPublicProfile] user.displayName=${u['displayName']} user.name=${u['name']} user.username=${u['username']}');
+        }
+      }
+      if (res['success'] != true) {
+        if (kDebugMode) debugPrint('❌ [getPublicProfile] success != true, returning null');
+        return null;
+      }
+      // Backend may use "user" or "data" for the profile object
+      Map<String, dynamic>? userMap = res['user'] is Map<String, dynamic>
+          ? Map<String, dynamic>.from(res['user'] as Map<String, dynamic>)
+          : (res['data'] is Map<String, dynamic>
+              ? Map<String, dynamic>.from(res['data'] as Map<String, dynamic>)
+              : null);
+      if (userMap == null && (res['name'] != null || res['username'] != null || res['id'] != null || res['_id'] != null)) {
+        userMap = Map<String, dynamic>.from(res);
+      }
+      if (userMap == null) {
+        if (kDebugMode) debugPrint('❌ [getPublicProfile] no user/data object in response');
+        return null;
+      }
+      if ((userMap['id'] == null || userMap['id'].toString().isEmpty) && (userMap['_id'] == null || userMap['_id'].toString().isEmpty)) {
+        userMap = Map<String, dynamic>.from(userMap)..['id'] = userId;
+      }
+      final info = FollowUserInfo.fromJson(userMap);
+      if (kDebugMode) debugPrint('🔵 [getPublicProfile] parsed displayNameForChat=${info.displayNameForChat}');
+      return info;
     } catch (e) {
-      debugPrint('❌ FollowService.getPublicProfile: $e');
+      debugPrint('❌ [getPublicProfile] $url -> $e');
       return null;
     }
   }

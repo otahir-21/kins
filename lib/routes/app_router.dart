@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/core/network/backend_api_client.dart';
@@ -18,7 +19,9 @@ import 'package:kins_app/screens/create_post/create_post_screen.dart';
 import 'package:kins_app/screens/chat/chat_screen.dart';
 import 'package:kins_app/screens/chat/conversation_screen.dart';
 import 'package:kins_app/screens/chat/create_group_screen.dart';
+import 'package:kins_app/screens/chat/group_conversation_screen.dart';
 import 'package:kins_app/screens/chat/group_setting_screen.dart';
+import 'package:kins_app/screens/chat/new_chat_screen.dart';
 import 'package:kins_app/screens/membership/membership_screen.dart';
 import 'package:kins_app/screens/profile/profile_screen.dart';
 import 'package:kins_app/screens/profile/settings_menu_screen.dart';
@@ -28,7 +31,15 @@ import 'package:kins_app/screens/profile/edit_tags_screen.dart';
 import 'package:kins_app/screens/profile/followers_screen.dart';
 import 'package:kins_app/screens/profile/following_screen.dart';
 
+/// Use with RouteAware in screens that must refresh when user returns (e.g. Chat groups list).
+final RouteObserver<ModalRoute<void>> appRouteObserver = RouteObserver<ModalRoute<void>>();
+
+/// Global navigator key so FCM notification tap can navigate without context.
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+
 final appRouter = GoRouter(
+  navigatorKey: rootNavigatorKey,
+  observers: [appRouteObserver],
   initialLocation: AppConstants.routeSplash,
   redirect: (context, state) {
     if (shouldRedirectToLogin) {
@@ -116,6 +127,11 @@ final appRouter = GoRouter(
       builder: (context, state) => const ChatScreen(),
     ),
     GoRoute(
+      path: AppConstants.routeNewChat,
+      name: 'new-chat',
+      builder: (context, state) => const NewChatScreen(),
+    ),
+    GoRoute(
       path: AppConstants.routeCreateGroup,
       name: 'create-group',
       builder: (context, state) => const CreateGroupScreen(),
@@ -129,6 +145,17 @@ final appRouter = GoRouter(
       },
     ),
     GoRoute(
+      path: '/chat/group/:groupId',
+      name: 'group-conversation',
+      builder: (context, state) {
+        final groupId = state.pathParameters['groupId'] ?? '';
+        final args = state.extra is GroupConversationArgs
+            ? state.extra as GroupConversationArgs
+            : GroupConversationArgs(groupId: groupId, name: 'Group', description: '');
+        return GroupConversationScreen(args: args);
+      },
+    ),
+    GoRoute(
       path: '/chat/:chatId',
       name: 'chat-conversation',
       builder: (context, state) {
@@ -136,6 +163,7 @@ final appRouter = GoRouter(
         final extra = state.extra as Map<String, dynamic>?;
         return ConversationScreen(
           chatId: chatId,
+          otherUserId: extra?['otherUserId'] as String?,
           otherUserName: extra?['otherUserName'] as String?,
           otherUserAvatarUrl: extra?['otherUserAvatarUrl'] as String?,
         );

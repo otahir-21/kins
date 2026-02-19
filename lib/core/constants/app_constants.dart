@@ -4,6 +4,8 @@ class AppConstants {
   static const String keyUserPhoneNumber = 'user_phone_number';
   static const String keyUserId = 'user_id';
   static const String keyJwtToken = 'jwt_token';
+  /// Set to true after signing in to Firebase with custom token for chat. Clear on token error to re-fetch.
+  static const String keyFirebaseChatSignedIn = 'firebase_chat_signed_in';
 
   // Backend API (override with --dart-define or env)
   static const String apiBaseUrl = String.fromEnvironment(
@@ -17,6 +19,13 @@ class AppConstants {
   );
   static const String sendOtpPath = '/auth/send-otp';
   static const String verifyOtpPath = '/auth/verify-otp';
+
+  /// Path for Firebase custom token (group chat). Backend must return { "token": "..." }.
+  /// Override if your backend uses a different path, e.g. --dart-define=FIREBASE_TOKEN_PATH=/auth/firebase-token
+  static const String firebaseTokenPath = String.fromEnvironment(
+    'FIREBASE_TOKEN_PATH',
+    defaultValue: '/me/firebase-token',
+  );
 
   /// When true: use Firebase Phone Auth. When false: use Twilio backend (send-otp/verify-otp).
   static const bool useFirebaseAuth = bool.fromEnvironment(
@@ -39,10 +48,13 @@ class AppConstants {
   static const String routeAddAction = '/add-action';
   static const String routeCompass = '/compass';
   static const String routeChat = '/chat';
+  static const String routeNewChat = '/chat/new-chat';
   static const String routeCreateGroup = '/create-group';
   static const String routeGroupSettings = '/group-settings';
   /// Path for 1:1 conversation; use [chatConversationPath(chatId)] to build.
   static String chatConversationPath(String chatId) => '/chat/$chatId';
+  /// Path for group conversation; use [groupConversationPath(groupId)] to build.
+  static String groupConversationPath(String groupId) => '/chat/group/$groupId';
   static const String routeProfile = '/profile';
   static const String routeEditProfile = '/edit-profile';
   static const String routeSettings = '/settings';

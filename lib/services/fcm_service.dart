@@ -11,12 +11,22 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Handle background message
 }
 
+/// Callback when user taps a notification (or opens app from notification).
+/// [data] is message.data; for chat use type, conversationId/groupId, senderName, etc.
+typedef OnNotificationTapCallback = void Function(Map<String, String> data);
+
 class FCMService {
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   final NotificationRepository _repository = NotificationRepository();
+  OnNotificationTapCallback? _onNotificationTap;
 
-  /// Initialize FCM and request permissions (Android/iOS only)
-  Future<void> initialize() async {
+  /// If app was opened from a notification (terminated state), data is stored here until [flushPendingNotificationTap] is called with context.
+  static Map<String, String>? pendingNotificationData;
+
+  /// Initialize FCM and request permissions (Android/iOS only).
+  /// [onNotificationTap] is called when user taps a notification (or opens from one); use for chat deep link.
+  Future<void> initialize({OnNotificationTapCallback? onNotificationTap}) async {
+    _onNotificationTap = onNotificationTap;
     try {
       // Request permission
       NotificationSettings settings = await _messaging.requestPermission(
@@ -67,11 +77,16 @@ class FCMService {
         // Handle notification taps
         FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
 
-        // Check for initial notification (app opened from terminated state)
+        // Check for initial notification (app opened from terminated state).
+        // Store data so app can navigate after first frame (context not available yet).
         final initialMessage = await _messaging.getInitialMessage();
         if (initialMessage != null) {
           debugPrint('📬 App opened from notification: ${initialMessage.messageId}');
-          // Handle initial notification if needed
+          final data = initialMessage.data;
+          if (data.isNotEmpty) {
+            FCMService.pendingNotificationData =
+                data.map((k, v) => MapEntry(k, v?.toString() ?? ''));
+          }
         }
       } else {
         debugPrint('❌ Notification permission denied');
@@ -104,11 +119,22 @@ class FCMService {
     }
   }
 
-  /// Handle notification tap
+  /// Handle notification tap (background / foreground). For cold start, data is in [pendingNotificationData].
   void _handleNotificationTap(RemoteMessage message) {
     debugPrint('👆 Notification tapped: ${message.messageId}');
-    // Navigate to appropriate screen based on notification data
-    // This will be handled by the app's navigation system
+    final data = message.data;
+    if (data.isEmpty) return;
+    final map = data.map((k, v) => MapEntry(k, v?.toString() ?? ''));
+    _onNotificationTap?.call(map);
+  }
+
+  /// Call from app after first frame when context is available (e.g. to handle cold start from notification).
+  static void flushPendingNotificationTap(OnNotificationTapCallback onTap) {
+    final pending = pendingNotificationData;
+    if (pending != null) {
+      pendingNotificationData = null;
+      onTap(pending);
+    }
   }
 
   /// Save notification from FCM message to Firestore

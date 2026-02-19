@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/core/utils/secure_storage_service.dart';
@@ -126,6 +127,45 @@ class BackendApiClient {
     return jsonDecode(resp.body) as Map<String, dynamic>;
   }
 
+  /// PUT [path] with multipart/form-data. Do not set Content-Type; the client sets multipart/form-data with boundary.
+  static Future<Map<String, dynamic>> putMultipart(
+    String path, {
+    Map<String, String>? fields,
+    List<http.MultipartFile>? files,
+    bool useAuth = true,
+  }) async {
+    final uri = Uri.parse('$_baseUrl$path');
+    final request = http.MultipartRequest('PUT', uri);
+    if (useAuth) {
+      final t = _token;
+      if (t != null && t.isNotEmpty) {
+        request.headers['Authorization'] = 'Bearer $t';
+      }
+    }
+    if (fields != null) request.fields.addAll(fields);
+    if (files != null) request.files.addAll(files);
+    assert(() {
+      debugPrint('[BackendApiClient.putMultipart] $path | fields: ${request.fields.keys.toList()}, files: ${request.files.length}');
+      return true;
+    }());
+    final streamedResponse = await request.send();
+    final resp = await http.Response.fromStream(streamedResponse);
+    assert(() {
+      debugPrint('[BackendApiClient.putMultipart] Response ${resp.statusCode} ${resp.reasonPhrase}');
+      debugPrint('[BackendApiClient.putMultipart] Body: ${resp.body.isEmpty ? "(empty)" : resp.body.length > 500 ? "${resp.body.substring(0, 500)}..." : resp.body}');
+      return true;
+    }());
+    if (resp.statusCode >= 400) {
+      assert(() {
+        debugPrint('[BackendApiClient.putMultipart] ERROR ${resp.statusCode}: ${resp.body}');
+        return true;
+      }());
+    }
+    await _checkResponse(resp);
+    if (resp.body.isEmpty) return {};
+    return jsonDecode(resp.body) as Map<String, dynamic>;
+  }
+
   /// GET [path]. If [useAuth] is true (default), adds Bearer token.
   static Future<Map<String, dynamic>> get(
     String path, {
@@ -136,6 +176,18 @@ class BackendApiClient {
     await _checkResponse(resp);
     if (resp.body.isEmpty) return {};
     return jsonDecode(resp.body) as Map<String, dynamic>;
+  }
+
+  /// GET firebase-token path - Returns custom token for Firebase Auth (group chat). Response: { success, token } or { token }.
+  static Future<String> getFirebaseCustomToken() async {
+    final path = AppConstants.firebaseTokenPath;
+    if (kDebugMode) debugPrint('[BackendApiClient] GET $_baseUrl$path');
+    final json = await get(path);
+    final token = json['token']?.toString() ?? json['firebaseToken']?.toString();
+    if (token == null || token.isEmpty) {
+      throw BackendApiException(400, json['error']?.toString() ?? json['message']?.toString() ?? 'No Firebase token');
+    }
+    return token;
   }
 
   /// GET [path] returning a list.
@@ -160,6 +212,23 @@ class BackendApiClient {
   }) async {
     final uri = Uri.parse('$_baseUrl$path');
     final resp = await http.put(
+      uri,
+      headers: _headers(auth: useAuth),
+      body: jsonEncode(body),
+    );
+    await _checkResponse(resp);
+    if (resp.body.isEmpty) return {};
+    return jsonDecode(resp.body) as Map<String, dynamic>;
+  }
+
+  /// PATCH [path] with [body]. Many backends use PATCH for partial update.
+  static Future<Map<String, dynamic>> patch(
+    String path, {
+    required Map<String, dynamic> body,
+    bool useAuth = true,
+  }) async {
+    final uri = Uri.parse('$_baseUrl$path');
+    final resp = await http.patch(
       uri,
       headers: _headers(auth: useAuth),
       body: jsonEncode(body),
