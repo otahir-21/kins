@@ -2,18 +2,25 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kins_app/core/network/backend_api_client.dart';
 import 'package:kins_app/core/utils/auth_utils.dart';
 import 'package:kins_app/repositories/auth_repository.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:kins_app/core/constants/app_constants.dart';
 import 'package:kins_app/core/responsive/responsive.dart';
 import 'package:kins_app/repositories/user_details_repository.dart';
 import 'package:kins_app/providers/auth_provider.dart';
+import 'package:kins_app/providers/follow_provider.dart';
+import 'package:kins_app/providers/groups_provider.dart';
 import 'package:kins_app/providers/notification_provider.dart';
+import 'package:kins_app/repositories/follow_repository.dart';
+import 'package:kins_app/repositories/groups_repository.dart';
+import 'package:kins_app/screens/chat/group_conversation_screen.dart';
+import 'package:kins_app/widgets/group_card.dart';
 import 'package:kins_app/services/location_service.dart';
 import 'package:kins_app/repositories/location_repository.dart';
+import 'package:kins_app/widgets/app_header.dart';
 import 'package:kins_app/widgets/confirm_dialog.dart';
 import 'package:kins_app/widgets/floating_nav_overlay.dart';
 import 'package:kins_app/widgets/kins_logo.dart';
@@ -35,6 +42,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   GoogleMapController? _mapController;
   Position? _currentPosition;
   final LocationService _locationService = LocationService();
+  final TextEditingController _searchController = TextEditingController();
   final List<String> _statusOptions = [
     'Expecting Mother',
     'New Mother',
@@ -43,11 +51,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     'Planning Pregnancy',
   ];
 
-  final List<String> _kinsightsOptions = [
-    'Price & Discounts',
-    'Online Reviews',
-    'Expert Advice',
-    'Influencer Reviews',
+  final List<({String label, String percent})> _kinsightsOptions = [
+    (label: 'Lorem ipsum', percent: '12%'),
+    (label: 'Lorem ipsum', percent: '55%'),
+    (label: 'Lorem ipsum', percent: '34%'),
   ];
 
   @override
@@ -94,6 +101,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   
   @override
   void dispose() {
+    _searchController.dispose();
     _mapController?.dispose();
     super.dispose();
   }
@@ -104,23 +112,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       try {
         final repository = UserDetailsRepository();
         final userDetails = await repository.getUserDetails(uid);
-        
-        // Get location and profile picture from Firestore
-        final doc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(uid)
-            .get();
-        
-        final data = doc.exists ? doc.data() : null;
-        String? location = data?['location']?['city'] ?? 'Dubai, UAE';
-        // Use profile picture URL only (not documentUrl - documents are PDFs and can't be shown as images)
-        final profilePicUrl = data?['profilePictureUrl'] ?? data?['profilePicture'];
-        
+        // Get location and profile picture from backend GET /me
+        final me = await BackendApiClient.get('/me');
+        final user = me['user'] as Map<String, dynamic>? ?? me as Map<String, dynamic>;
+        final city = user['city']?.toString();
+        final country = user['country']?.toString();
+        final location = (city != null && city.isNotEmpty) || (country != null && country.isNotEmpty)
+            ? [if (city != null && city.isNotEmpty) city, if (country != null && country.isNotEmpty) country].join(', ')
+            : 'Dubai, UAE';
+        final profilePicUrl = user['profilePictureUrl']?.toString() ?? user['profilePicture']?.toString();
+
         if (mounted) {
           setState(() {
             _userName = userDetails?.name ?? 'User';
             _selectedStatus = userDetails?.status ?? _statusOptions[0];
-            _userLocation = location ?? 'Dubai, UAE';
+            _userLocation = location;
             _profilePictureUrl = profilePicUrl;
             _isLoading = false;
           });
@@ -225,15 +231,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      const SizedBox(height: 12),
+                      _buildSearchBar(),
+                      _buildActionRow(),
+                      _buildSuggestedForYou(),
                       const SizedBox(height: 16),
-                      _buildFeatureCardsGrid(),
+                      _buildGroupsSection(),
                       const SizedBox(height: 16),
                       _buildMapSection(),
                       const SizedBox(height: 16),
                       _buildPromotionalAdCard(),
                       const SizedBox(height: 16),
                       _buildKinsightsSection(),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 100),
                     ],
                   ),
                 ),
@@ -246,226 +256,507 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildHeader() {
+    final uid = currentUserId;
+    final notificationState = uid.isNotEmpty ? ref.watch(notificationsProvider(uid)) : null;
+    final unreadCount = notificationState?.unreadCount ?? 0;
+
     return Container(
-      padding: EdgeInsets.fromLTRB(
-        Responsive.screenPaddingH(context),
-        Responsive.spacing(context, 8),
-        Responsive.screenPaddingH(context),
-        Responsive.spacing(context, 12),
-      ),
-      child: Column(
-        children: [
-          // Top Row: Menu, Title, Profile
-          Row(
+      color: Colors.white,
+      child: AppHeader(
+        leading: AppHeader.drawerButton(context),
+        name: _userName ?? 'Home',
+        subtitle: _userLocation,
+        profileImageUrl: _profilePictureUrl,
+        onTitleTap: () => context.push(AppConstants.routeProfile),
+        trailing: GestureDetector(
+          onTap: () => context.push(AppConstants.routeNotifications),
+          child: Stack(
+            clipBehavior: Clip.none,
             children: [
-              // Hamburger Menu
-              Builder(
-                builder: (context) => IconButton(
-                  icon: const Icon(Icons.menu, color: Colors.black),
-                  onPressed: () {
-                    Scaffold.of(context).openDrawer();
-                  },
+              Container(
+                width: 35,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  shape: BoxShape.circle,
                 ),
+                child: const Icon(Icons.notifications_outlined, size: 18, color: Colors.black87),
               ),
-              
-              // Home Title
-              Expanded(
-                child: Text(
-                  'Home',
-                  style: TextStyle(
-                    fontSize: Responsive.fontSize(context, 18),
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              
-              // Profile Picture (on the right) – tap to open profile
-              GestureDetector(
-                onTap: () => context.push(AppConstants.routeProfile),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: _profilePictureUrl != null ? null : const Color(0xFF6B4C93),
-                    shape: BoxShape.circle,
-                    image: _profilePictureUrl != null
-                        ? DecorationImage(
-                            image: NetworkImage(_profilePictureUrl!),
-                            fit: BoxFit.cover,
-                          )
-                        : null,
-                  ),
-                  child: _profilePictureUrl == null
-                      ? const Icon(
-                          Icons.person,
-                          color: Colors.white,
-                          size: 24,
-                        )
-                      : null,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          
-          // Status Chip and Change Button
-          Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: _showStatusDialog,
+              if (unreadCount > 0)
+                Positioned(
+                  top: 4,
+                  right: 4,
                   child: Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: Responsive.screenPaddingH(context),
-                      vertical: Responsive.spacing(context, 10),
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: Colors.grey.shade300,
-                        width: 1,
-                      ),
-                    ),
-                    child: Text(
-                      _selectedStatus ?? 'Expecting Mother',
-                      style: TextStyle(
-                        fontSize: Responsive.fontSize(context, 14),
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black,
-                      ),
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              TextButton(
-                onPressed: _showStatusDialog,
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: Responsive.screenPaddingH(context),
-                    vertical: Responsive.spacing(context, 10),
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                    side: BorderSide(color: Colors.grey.shade300),
-                  ),
-                ),
-                child: Text(
-                  'Change',
-                  style: TextStyle(
-                    color: Colors.grey.shade700,
-                    fontSize: Responsive.fontSize(context, 14),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildFeatureCardsGrid() {
-    return Column(
-      children: [
-        // First Row
-        Row(
-          children: [
-            Expanded(
-              child: _buildFeatureCard(
-                icon: Icons.workspace_premium,
-                title: 'Become a brand',
-                color: const Color(0xFFE6E6FA), // Light purple
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildFeatureCard(
-                icon: Icons.shopping_bag_outlined,
-                title: 'Marketplace',
-                color: const Color(0xFFE6E6FA),
-              ),
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: Responsive.screenPaddingH(context),
+        vertical: Responsive.spacing(context, 8),
+      ),
+      child: Container(
+        height: 32,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 2,
+              offset: const Offset(0, 1),
             ),
           ],
         ),
-        const SizedBox(height: 12),
-        // Second Row
-        Row(
+        child: Row(
           children: [
-            Expanded(
-              child: _buildFeatureCard(
-                icon: Icons.link,
-                title: 'Groups',
-                color: const Color(0xFFE6E6FA),
-              ),
-            ),
+            const SizedBox(width: 16),
+            Icon(Icons.search, size: 20, color: Colors.grey.shade600),
             const SizedBox(width: 12),
             Expanded(
-              child: _buildFeatureCard(
-                icon: Icons.people_outline,
-                title: 'Community',
-                color: const Color(0xFFE6E6FA),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (_) => setState(() {}),
+                style: TextStyle(
+                  fontSize: Responsive.fontSize(context, 14),
+                  fontWeight: FontWeight.w400,
+                  color: Colors.black,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Search',
+                  hintStyle: TextStyle(
+                    fontSize: Responsive.fontSize(context, 14),
+                    color: Colors.grey.shade600,
+                  ),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  errorBorder: InputBorder.none,
+                  focusedErrorBorder: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                  isDense: true,
+                  filled: true,
+                  fillColor: Colors.transparent,
+                ),
               ),
             ),
+            if (_searchController.text.isNotEmpty)
+              IconButton(
+                icon: Icon(Icons.close, size: 20, color: Colors.grey.shade600),
+                onPressed: () {
+                  _searchController.clear();
+                  setState(() {});
+                },
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              ),
+            const SizedBox(width: 8),
           ],
+        ),
+      ),
+    );
+  }
+
+  static const Color _actionCardBg = Color(0xFFF8F8F8);
+  static const Color _actionCircleBg = Color(0xFFEEEEEE);
+  static const Color _actionTitleColor = Color(0xFF333333);
+  static const Color _actionSubtitleColor = Color(0xFF666666);
+  static const Color _groupsTagPurple = Color(0xFF7C1D54);
+  static const double _actionCapsuleWidth = 200;
+  static const double _actionChipWidth = 64;
+  static const double _actionChipHeight = 28;
+
+  Widget _buildActionRow() {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        Responsive.screenPaddingH(context),
+        Responsive.spacing(context, 16),
+        Responsive.screenPaddingH(context),
+        Responsive.spacing(context, 12),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _buildActionCard(
+              title: 'Create',
+              subtitle: 'Group',
+              tag: 'Groups',
+              onTagTap: () => context.push(AppConstants.routeDiscover),
+              onTap: () => context.push(AppConstants.routeCreateGroup),
+            ),
+            SizedBox(width: Responsive.spacing(context, 12)),
+            _buildActionCard(
+              title: 'Create',
+              subtitle: 'Post',
+              tag: 'Post',
+              onTagTap: () => context.push(AppConstants.routeCreatePost),
+              onTap: () => context.push(AppConstants.routeCreatePost),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionCard({
+    required String title,
+    required String subtitle,
+    String? tag,
+    VoidCallback? onTagTap,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: Container(
+          width: _actionCapsuleWidth,
+          padding: EdgeInsets.symmetric(
+            horizontal: Responsive.spacing(context, 16),
+            vertical: Responsive.spacing(context, 12),
+          ),
+          decoration: BoxDecoration(
+            color: _actionCardBg,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: const BoxDecoration(
+                  color: _actionCircleBg,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.add, size: 22, color: Colors.black),
+              ),
+              SizedBox(width: Responsive.spacing(context, 12)),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: Responsive.fontSize(context, 14),
+                        fontWeight: FontWeight.w700,
+                        color: _actionTitleColor,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    SizedBox(height: Responsive.spacing(context, 2)),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: Responsive.fontSize(context, 13),
+                        fontWeight: FontWeight.w400,
+                        color: _actionSubtitleColor,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              if (tag != null)
+                GestureDetector(
+                  onTap: onTagTap ?? onTap,
+                  child: Container(
+                    width: _actionChipWidth,
+                    height: _actionChipHeight,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: _groupsTagPurple,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      tag!,
+                      style: TextStyle(
+                        fontSize: Responsive.fontSize(context, 12),
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static const double _suggestionChipHeight = 56;
+  static const double _suggestionFollowBtnHeight = 28;
+  static const Color _suggestionPurple = Color(0xFF6B4C93);
+
+  Widget _buildSuggestedForYou() {
+    final suggestionsAsync = ref.watch(suggestionsProvider);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            Responsive.screenPaddingH(context),
+            Responsive.spacing(context, 8),
+            0,
+            Responsive.spacing(context, 8),
+          ),
+          child: Text(
+            'Suggested for you',
+            style: TextStyle(
+              fontSize: Responsive.fontSize(context, 16),
+              fontWeight: FontWeight.w500,
+              color: Colors.grey.shade700,
+            ),
+          ),
+        ),
+        suggestionsAsync.when(
+          data: (suggestions) {
+            if (suggestions.isEmpty) return const SizedBox.shrink();
+            return SizedBox(
+              height: _suggestionChipHeight,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: EdgeInsets.symmetric(horizontal: Responsive.screenPaddingH(context)),
+                itemCount: suggestions.length,
+                separatorBuilder: (_, __) => SizedBox(width: Responsive.spacing(context, 12)),
+                itemBuilder: (context, i) {
+                  final user = suggestions[i];
+                  return _buildSuggestionChip(user);
+                },
+              ),
+            );
+          },
+          loading: () => SizedBox(
+            height: _suggestionChipHeight,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: EdgeInsets.symmetric(horizontal: Responsive.screenPaddingH(context)),
+              itemCount: 3,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (_, __) => _buildSuggestionChipPlaceholder(),
+            ),
+          ),
+          error: (_, __) => const SizedBox.shrink(),
         ),
       ],
     );
   }
 
-  Widget _buildFeatureCard({
-    required IconData icon,
-    required String title,
-    required Color color,
-  }) {
+  Widget _buildSuggestionChipPlaceholder() {
     return Container(
-      height: 120,
+      width: 200,
+      padding: EdgeInsets.symmetric(horizontal: Responsive.spacing(context, 12), vertical: 8),
       decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: Colors.grey.shade200),
       ),
-      child: Stack(
+      child: Row(
         children: [
-          // Decorative illustration (simplified)
-          Positioned(
-            right: -20,
-            bottom: -20,
-            child: Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: const Color(0xFF6B4C93).withOpacity(0.2),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.all(Responsive.screenPaddingH(context)),
+          CircleAvatar(radius: 20, backgroundColor: Colors.grey.shade300),
+          SizedBox(width: Responsive.spacing(context, 10)),
+          Expanded(
             child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  icon,
-                  size: 28,
-                  color: const Color(0xFF6B4C93),
-                ),
-                const Spacer(),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: Responsive.fontSize(context, 14),
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black,
-                  ),
-                ),
+                Container(height: 10, width: 60, color: Colors.grey.shade300),
+                const SizedBox(height: 4),
+                Container(height: 8, width: 80, color: Colors.grey.shade200),
               ],
             ),
           ),
+          Container(
+            width: 64,
+            height: _suggestionFollowBtnHeight,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSuggestionChip(FollowUserInfo user) {
+    final isFollowed = user.isFollowedByMe;
+    final displayName = user.displayNameForChat;
+    final handle = user.username != null && user.username!.isNotEmpty
+        ? '@${user.username!}'
+        : '';
+
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: Responsive.spacing(context, 12), vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircleAvatar(
+            radius: 20,
+            backgroundColor: Colors.grey.shade300,
+            backgroundImage: user.profilePictureUrl != null && user.profilePictureUrl!.isNotEmpty
+                ? NetworkImage(user.profilePictureUrl!)
+                : null,
+            child: user.profilePictureUrl == null || user.profilePictureUrl!.isEmpty
+                ? Icon(Icons.person, color: Colors.grey.shade600, size: 22)
+                : null,
+          ),
+          SizedBox(width: Responsive.spacing(context, 10)),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                displayName,
+                style: TextStyle(
+                  fontSize: Responsive.fontSize(context, 14),
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (handle.isNotEmpty) ...[
+                SizedBox(height: Responsive.spacing(context, 2)),
+                Text(
+                  handle,
+                  style: TextStyle(
+                    fontSize: Responsive.fontSize(context, 12),
+                    color: Colors.grey.shade600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ],
+          ),
+          SizedBox(width: Responsive.spacing(context, 10)),
+          _SuggestionFollowButton(
+            userId: user.id,
+            isFollowed: isFollowed,
+            onStateChanged: () => ref.invalidate(suggestionsProvider),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static const double _groupCardWidth = 280;
+  static const double _groupCardHeight = 220;
+
+  Widget _buildGroupsSection() {
+    final groupsAsync = ref.watch(homeGroupsProvider);
+    return groupsAsync.when(
+      data: (response) {
+        final groups = response.groups;
+        if (groups.isEmpty) return const SizedBox.shrink();
+        return SizedBox(
+              height: _groupCardHeight,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: EdgeInsets.symmetric(horizontal: Responsive.screenPaddingH(context)),
+                itemCount: groups.length,
+                separatorBuilder: (_, __) => SizedBox(width: Responsive.spacing(context, 12)),
+                itemBuilder: (context, index) {
+                  final group = groups[index];
+                  return SizedBox(
+                    width: _groupCardWidth,
+                    child: GroupCard(
+                      groupId: group.id,
+                      name: group.name,
+                      description: group.description,
+                      members: group.memberCount,
+                      imageUrl: group.imageUrl,
+                      horizontalSlide: true,
+                      onTap: () {
+                        context.push(
+                          AppConstants.groupConversationPath(group.id),
+                          extra: GroupConversationArgs(
+                            groupId: group.id,
+                            name: group.name,
+                            description: group.description,
+                            imageUrl: group.imageUrl,
+                          ),
+                        );
+                      },
+                      onJoin: () {
+                        // TODO: Join group; same as Chat tab
+                      },
+                    ),
+                  );
+                },
+              ),
+            );
+      },
+      loading: () => Padding(
+        padding: EdgeInsets.symmetric(vertical: Responsive.spacing(context, 24)),
+        child: Center(
+          child: CircularProgressIndicator(color: const Color(0xFF7C1D54)),
+        ),
+      ),
+      error: (err, _) => Padding(
+        padding: EdgeInsets.symmetric(vertical: Responsive.spacing(context, 16)),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                err.toString().replaceFirst(RegExp(r'^Exception:?\s*'), ''),
+                style: TextStyle(fontSize: Responsive.fontSize(context, 13), color: Colors.grey.shade700),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: Responsive.spacing(context, 8)),
+              TextButton(
+                onPressed: () => ref.invalidate(homeGroupsProvider),
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -562,6 +853,42 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                   ),
                 ),
+              // LIVING label with blue pin (left side)
+              Positioned(
+                top: 16,
+                left: 16,
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: Responsive.spacing(context, 10),
+                    vertical: Responsive.spacing(context, 6),
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.3),
+                        blurRadius: 8,
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.location_on, size: 18, color: Colors.blue.shade700),
+                      const SizedBox(width: 6),
+                      Text(
+                        'LIVING',
+                        style: TextStyle(
+                          fontSize: Responsive.fontSize(context, 12),
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               // Location marker overlay (Dubai Hills Mall)
               Positioned(
                 bottom: 20,
@@ -788,72 +1115,54 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Kinsights',
+            'Kinsights: What factors influence your purchases the most?',
             style: TextStyle(
-              fontSize: Responsive.fontSize(context, 22),
-              fontWeight: FontWeight.bold,
+              fontSize: Responsive.fontSize(context, 16),
+              fontWeight: FontWeight.w600,
               color: Colors.black,
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'What influences your mother & child purchases the most?',
-            style: TextStyle(
-              fontSize: Responsive.fontSize(context, 14),
-              color: Colors.black87,
-            ),
-          ),
           const SizedBox(height: 16),
-          // Filter chips grid (2x2)
-          Row(
-            children: [
-              Expanded(
-                child: _buildKinsightChip(_kinsightsOptions[0]),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildKinsightChip(_kinsightsOptions[1]),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _buildKinsightChip(_kinsightsOptions[2]),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildKinsightChip(_kinsightsOptions[3]),
-              ),
-            ],
-          ),
+          ..._kinsightsOptions.map((option) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _buildKinsightRow(option.label, option.percent),
+              )),
         ],
       ),
     );
   }
 
-  Widget _buildKinsightChip(String text) {
+  Widget _buildKinsightRow(String label, String percent) {
     return Container(
-      padding: EdgeInsets.symmetric(vertical: Responsive.spacing(context, 14)),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.grey.shade300,
-          width: 1,
-        ),
+      padding: EdgeInsets.symmetric(
+        horizontal: Responsive.screenPaddingH(context),
+        vertical: Responsive.spacing(context, 12),
       ),
-      child: Center(
-        child: Text(
-          text,
-          style: TextStyle(
-            fontSize: Responsive.fontSize(context, 13),
-            fontWeight: FontWeight.w500,
-            color: Colors.black87,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: Responsive.fontSize(context, 14),
+              fontWeight: FontWeight.w500,
+              color: Colors.black87,
+            ),
           ),
-          textAlign: TextAlign.center,
-        ),
+          Text(
+            percent,
+            style: TextStyle(
+              fontSize: Responsive.fontSize(context, 14),
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1020,4 +1329,97 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+}
+
+/// Follow/Following button for suggestion chip. Calls follow or unfollow then [onStateChanged].
+class _SuggestionFollowButton extends ConsumerStatefulWidget {
+  const _SuggestionFollowButton({
+    required this.userId,
+    required this.isFollowed,
+    required this.onStateChanged,
+  });
+
+  final String userId;
+  final bool isFollowed;
+  final VoidCallback onStateChanged;
+
+  @override
+  ConsumerState<_SuggestionFollowButton> createState() => _SuggestionFollowButtonState();
+}
+
+class _SuggestionFollowButtonState extends ConsumerState<_SuggestionFollowButton> {
+  bool _loading = false;
+  bool _isFollowed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _isFollowed = widget.isFollowed;
+  }
+
+  @override
+  void didUpdateWidget(_SuggestionFollowButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.userId != widget.userId || oldWidget.isFollowed != widget.isFollowed) {
+      _isFollowed = widget.isFollowed;
+    }
+  }
+
+  Future<void> _onTap() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    final repo = ref.read(followRepositoryProvider);
+    try {
+      if (_isFollowed) {
+        await repo.unfollow(widget.userId);
+        if (mounted) setState(() => _isFollowed = false);
+      } else {
+        await repo.follow(widget.userId);
+        if (mounted) setState(() => _isFollowed = true);
+      }
+      widget.onStateChanged();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceFirst(RegExp(r'^Exception:?\s*'), ''))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  static const double _btnHeight = 28;
+  static const Color _purple = Color(0xFF7C1D54); // same as Groups tag
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: _isFollowed ? Colors.grey.shade200 : _purple,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: _loading ? null : _onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          width: 64,
+          height: _btnHeight,
+          alignment: Alignment.center,
+          child: _loading
+              ? SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: _isFollowed ? Colors.grey.shade600 : Colors.white),
+                )
+              : Text(
+                  _isFollowed ? 'Following' : 'Follow',
+                  style: TextStyle(
+                    fontSize: Responsive.fontSize(context, 12),
+                    fontWeight: FontWeight.w600,
+                    color: _isFollowed ? Colors.grey.shade700 : Colors.white,
+                  ),
+                ),
+        ),
+      ),
+    );
+  }
 }

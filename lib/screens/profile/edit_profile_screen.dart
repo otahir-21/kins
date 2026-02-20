@@ -501,14 +501,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 child: TextField(
                   controller: _interestSearchController,
                   onChanged: (_) => setState(() {}),
-style: TextStyle(
-          fontSize: Responsive.fontSize(context, 14),
-          fontWeight: FontWeight.w400,
-          color: Colors.black,
-        ),
-        decoration: InputDecoration(
-          hintText: 'Search interests',
-          hintStyle: TextStyle(fontSize: Responsive.fontSize(context, 14), color: Colors.grey.shade600),
+                  style: TextStyle(
+                    fontSize: Responsive.fontSize(context, 14),
+                    fontWeight: FontWeight.w400,
+                    color: Colors.black,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Search interests',
+                    hintStyle: TextStyle(fontSize: Responsive.fontSize(context, 14), color: Colors.grey.shade600),
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,
@@ -517,7 +517,17 @@ style: TextStyle(
                   ),
                 ),
               ),
-              const SizedBox(width: 16),
+              if (_interestSearchController.text.isNotEmpty)
+                IconButton(
+                  icon: Icon(Icons.close, size: 20, color: Colors.grey.shade600),
+                  onPressed: () {
+                    _interestSearchController.clear();
+                    setState(() {});
+                  },
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                ),
+              const SizedBox(width: 8),
             ],
           ),
         ),

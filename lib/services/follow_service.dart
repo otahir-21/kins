@@ -133,6 +133,24 @@ class FollowService {
     }
   }
 
+  /// GET /users/suggestions - Suggested users for "Suggested for you".
+  /// Query: limit (optional, default 20, max 50).
+  static Future<List<FollowUserInfo>> getSuggestions({int limit = 20}) async {
+    try {
+      final path = '/users/suggestions?limit=${limit.clamp(1, 50)}';
+      final res = await BackendApiClient.get(path);
+      if (res['success'] != true) return [];
+      final list = res['suggestions'] as List<dynamic>? ?? [];
+      return list
+          .whereType<Map<String, dynamic>>()
+          .map((e) => FollowUserInfo.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    } catch (e) {
+      debugPrint('❌ FollowService.getSuggestions: $e');
+      return [];
+    }
+  }
+
   /// GET /users/:userId/follow/status - Follow status + user profile.
   static Future<FollowStatusResponse?> getFollowStatus(String userId) async {
     try {

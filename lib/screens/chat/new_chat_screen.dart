@@ -196,6 +196,7 @@ class _NewChatScreenState extends ConsumerState<NewChatScreen> {
               ),
               child: TextField(
                 controller: _searchController,
+                onChanged: (_) => setState(() {}),
                 style: TextStyle(
                   fontSize: Responsive.fontSize(context, 16),
                   color: Colors.black87,
@@ -207,6 +208,15 @@ class _NewChatScreenState extends ConsumerState<NewChatScreen> {
                     color: Colors.grey.shade600,
                   ),
                   prefixIcon: Icon(Icons.search, size: 22, color: Colors.grey.shade600),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: Icon(Icons.close, size: 20, color: Colors.grey.shade600),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() {});
+                          },
+                        )
+                      : null,
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,

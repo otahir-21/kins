@@ -760,7 +760,17 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                   ),
                 ),
               ),
-              const SizedBox(width: 16),
+              if (_interestSearchController.text.isNotEmpty)
+                IconButton(
+                  icon: Icon(Icons.close, size: 20, color: Colors.grey.shade600),
+                  onPressed: () {
+                    _interestSearchController.clear();
+                    setState(() {});
+                  },
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                ),
+              const SizedBox(width: 8),
             ],
           ),
         ),

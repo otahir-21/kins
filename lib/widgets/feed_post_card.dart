@@ -8,12 +8,14 @@ import 'package:kins_app/widgets/post_header.dart';
 import 'package:kins_app/widgets/post_interaction_bar.dart';
 /// Reusable feed post card - text, image/video, or poll.
 /// Used by Discover and Profile screens.
+/// When [showDivider] is false, the card does not draw its bottom divider (e.g. when the list draws a full-width divider).
 class FeedPostCard extends StatefulWidget {
   final PostModel post;
   final FeedRepository feedRepo;
   final void Function(PostModel post) onComment;
   final void Function(PostModel post) onShare;
   final VoidCallback onMore;
+  final bool showDivider;
 
   const FeedPostCard({
     super.key,
@@ -22,6 +24,7 @@ class FeedPostCard extends StatefulWidget {
     required this.onComment,
     required this.onShare,
     required this.onMore,
+    this.showDivider = true,
   });
 
   @override
@@ -86,6 +89,7 @@ class _FeedPostCardState extends State<FeedPostCard> {
         onComment: widget.onComment,
         onShare: widget.onShare,
         onMore: widget.onMore,
+        showDivider: widget.showDivider,
       );
     }
 
@@ -98,6 +102,7 @@ class _FeedPostCardState extends State<FeedPostCard> {
         onComment: widget.onComment,
         onShare: widget.onShare,
         onMore: widget.onMore,
+        showDivider: widget.showDivider,
       );
     }
 
@@ -107,6 +112,7 @@ class _FeedPostCardState extends State<FeedPostCard> {
       onComment: widget.onComment,
       onShare: widget.onShare,
       onMore: widget.onMore,
+      showDivider: widget.showDivider,
     );
   }
 }
@@ -118,6 +124,7 @@ class _MediaPostCard extends StatelessWidget {
   final void Function(PostModel post) onComment;
   final void Function(PostModel post) onShare;
   final VoidCallback onMore;
+  final bool showDivider;
 
   const _MediaPostCard({
     required this.post,
@@ -126,6 +133,7 @@ class _MediaPostCard extends StatelessWidget {
     required this.onComment,
     required this.onShare,
     required this.onMore,
+    this.showDivider = true,
   });
 
   static String _getTimeAgo(DateTime createdAt) {
@@ -225,11 +233,12 @@ class _MediaPostCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 6),
-                const Divider(
-                  height: 1,
-                  thickness: 0.8,
-                  color: Color(0xFFE5E5E5),
-                ),
+                if (showDivider)
+                  const Divider(
+                    height: 1,
+                    thickness: 0.8,
+                    color: Color(0xFFE5E5E5),
+                  ),
                 const SizedBox(height: 0),
                   ],
                 ),
@@ -253,6 +262,7 @@ class _PollPostCard extends StatelessWidget {
   final void Function(PostModel post) onComment;
   final void Function(PostModel post) onShare;
   final VoidCallback onMore;
+  final bool showDivider;
 
   const _PollPostCard({
     required this.post,
@@ -261,6 +271,7 @@ class _PollPostCard extends StatelessWidget {
     required this.onComment,
     required this.onShare,
     required this.onMore,
+    this.showDivider = true,
   });
 
   static String _getTimeAgo(DateTime createdAt) {
@@ -327,11 +338,12 @@ class _PollPostCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    const Divider(
-                      height: 1,
-                      thickness: 0.8,
-                      color: Color(0xFFE5E5E5),
-                    ),
+                    if (showDivider)
+                      const Divider(
+                        height: 1,
+                        thickness: 0.8,
+                        color: Color(0xFFE5E5E5),
+                      ),
                     const SizedBox(height: 0),
                   ],
                 ),

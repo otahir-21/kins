@@ -76,6 +76,39 @@ class KinLocationModel {
     );
   }
 
+  /// From backend API user object (GET /me or GET /users/nearby item).
+  /// Supports top-level latitude/longitude or location subdocument.
+  factory KinLocationModel.fromBackend(String userId, Map<String, dynamic> data) {
+    final loc = data['location'] as Map<String, dynamic>?;
+    double lat = 0.0;
+    double lng = 0.0;
+    DateTime updated = DateTime.now();
+    bool isVisible = data['locationIsVisible'] == true || (loc?['isVisible'] == true);
+    if (data['latitude'] != null && data['longitude'] != null) {
+      lat = (data['latitude'] as num).toDouble();
+      lng = (data['longitude'] as num).toDouble();
+      final at = data['locationUpdatedAt'] ?? loc?['updatedAt'];
+      if (at != null) updated = DateTime.tryParse(at.toString()) ?? updated;
+    } else if (loc != null && loc['latitude'] != null && loc['longitude'] != null) {
+      lat = (loc['latitude'] as num).toDouble();
+      lng = (loc['longitude'] as num).toDouble();
+      final at = loc['updatedAt'];
+      if (at != null) updated = DateTime.tryParse(at.toString()) ?? updated;
+    }
+    return KinLocationModel(
+      userId: userId,
+      latitude: lat,
+      longitude: lng,
+      updatedAt: updated,
+      isVisible: isVisible,
+      name: data['name']?.toString() ?? data['displayName']?.toString(),
+      profilePicture: data['profilePictureUrl']?.toString() ?? data['profilePicture']?.toString(),
+      nationality: data['nationality']?.toString(),
+      motherhoodStatus: data['status']?.toString() ?? data['motherhoodStatus']?.toString(),
+      description: data['bio']?.toString(),
+    );
+  }
+
   double distanceTo(double lat, double lng) {
     // Simple distance calculation using geolocator
     // This will be calculated using LocationService

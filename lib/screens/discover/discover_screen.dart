@@ -350,17 +350,13 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
       );
     }
 
-    // Show feed with pull-to-refresh and pagination
+    // Show feed with pull-to-refresh and pagination; full-width divider between cards
+    final horizontalPadding = Responsive.screenPaddingH(context);
     return RefreshIndicator(
       onRefresh: () => _loadFeed(isRefresh: true),
       child: ListView.builder(
         controller: _scrollController,
-        padding: EdgeInsets.fromLTRB(
-          Responsive.screenPaddingH(context),
-          0,
-          Responsive.screenPaddingH(context),
-          1,
-        ),
+        padding: const EdgeInsets.only(bottom: 1),
         itemCount: posts.length + (_hasMore ? 1 : 0),
         physics: const AlwaysScrollableScrollPhysics(),
         itemBuilder: (context, index) {
@@ -368,12 +364,23 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
             // Loading indicator at bottom
             return _isLoadingMore
                 ? Padding(
-                    padding: EdgeInsets.all(Responsive.screenPaddingH(context)),
+                    padding: EdgeInsets.all(horizontalPadding),
                     child: const SkeletonFeedItem(),
                   )
                 : const SizedBox.shrink();
           }
-          return _buildPostCardFromModel(posts[index], feedRepo);
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                child: _buildPostCardFromModel(context, posts[index], feedRepo),
+              ),
+              const Divider(height: 1, thickness: 0.8, color: _borderGrey),
+              const SizedBox(height: 8),
+            ],
+          );
         },
         cacheExtent: 1000, // Optimize scroll performance
       ),
@@ -477,12 +484,17 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
                     ),
                   )
                 ),
-                const SizedBox(width: 12),
-                Image.asset(
-                  'assets/logo/Logo-KINS.png',
-                  errorBuilder: (_, __, ___) => Text('KINS', style: TextStyle(fontSize: Responsive.fontSize(context, 15), fontWeight: FontWeight.w600)),
-                ),
-                const SizedBox(width: 16),
+                if (_searchController.text.isNotEmpty)
+                  IconButton(
+                    icon: Icon(Icons.close, size: 20, color: Colors.grey.shade600),
+                    onPressed: () {
+                      _searchController.clear();
+                      setState(() {});
+                    },
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  ),
+                const SizedBox(width: 8),
               ],
             ),
           ),
@@ -579,7 +591,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
     );
   }
 
-  Widget _buildPostCardFromModel(PostModel post, FeedRepository feedRepo) {
+  Widget _buildPostCardFromModel(BuildContext context, PostModel post, FeedRepository feedRepo) {
     return FeedPostCard(
       key: ValueKey(post.id),
       post: post,
@@ -587,6 +599,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
       onComment: (p) => _onCommentPost(context, p, feedRepo),
       onShare: (p) => _onSharePost(context, p, feedRepo),
       onMore: () => _showPostMoreMenu(context, post, feedRepo),
+      showDivider: false,
     );
   }
 
@@ -770,7 +783,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> with WidgetsBin
                   ),
                   itemCount: myPosts.length,
                   itemBuilder: (context, index) {
-                    return _buildPostCardFromModel(myPosts[index], feedRepo);
+                    return _buildPostCardFromModel(context, myPosts[index], feedRepo);
                   },
                 ),
               ),

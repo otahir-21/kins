@@ -8,6 +8,11 @@ final followRepositoryProvider = Provider<FollowRepository>((ref) {
   return FollowRepository();
 });
 
+/// Suggested users for "Suggested for you" (GET /users/suggestions). Refetch after follow/unfollow.
+final suggestionsProvider = FutureProvider.autoDispose<List<FollowUserInfo>>((ref) async {
+  return FollowService.getSuggestions(limit: 20);
+});
+
 /// Follower count for current user (from GET /me, not a separate call).
 /// Use Profile screen's _fetchUser which gets counts from /me.
 

@@ -203,7 +203,17 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 16),
+                              if (_searchController.text.isNotEmpty)
+                                IconButton(
+                                  icon: Icon(Icons.close, size: 20, color: Colors.grey.shade600),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    setState(() {});
+                                  },
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                ),
+                              const SizedBox(width: 8),
                             ],
                           ),
                         ),

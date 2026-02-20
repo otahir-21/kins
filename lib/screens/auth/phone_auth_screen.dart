@@ -137,20 +137,6 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const SizedBox(height: 24),
-                    Text(
-                      'Motherhood unmuted.',
-                      style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: colorScheme.onSurface,
-                      ) ?? TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: colorScheme.onSurface,
-                        fontFamily: theme.textTheme.bodyLarge?.fontFamily,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 24),
                     SignInCard(
                       isLoading: authState.isLoading,
                       onContinue: (String fullPhone) {

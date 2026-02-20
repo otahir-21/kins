@@ -16,7 +16,7 @@ import GoogleMaps
     
     // Initialize Google Maps
     // TODO: Replace with your Google Maps API Key
-    GMSServices.provideAPIKey("YOUR_GOOGLE_MAPS_API_KEY")
+    GMSServices.provideAPIKey("AIzaSyBdDdYhsa8lNmLqwG8xEejIZsx_YZCy49U")
     
     // Request notification permissions
     if #available(iOS 10.0, *) {

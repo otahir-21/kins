@@ -13,6 +13,7 @@ class PostCardText extends StatefulWidget {
   final void Function(PostModel post) onComment;
   final void Function(PostModel post) onShare;
   final VoidCallback onMore;
+  final bool showDivider;
 
   const PostCardText({
     super.key,
@@ -21,6 +22,7 @@ class PostCardText extends StatefulWidget {
     required this.onComment,
     required this.onShare,
     required this.onMore,
+    this.showDivider = true,
   });
 
   @override
@@ -90,11 +92,12 @@ class _PostCardTextState extends State<PostCardText> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    const Divider(
-                      height: 1,
-                      thickness: 0.8,
-                      color: Color(0xFFE5E5E5),
-                    ),
+                    if (widget.showDivider)
+                      const Divider(
+                        height: 1,
+                        thickness: 0.8,
+                        color: Color(0xFFE5E5E5),
+                      ),
                     const SizedBox(height: 0),
                   ],
                 ),

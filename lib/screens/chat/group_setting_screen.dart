@@ -776,12 +776,22 @@ class _AddMembersSheetContentState extends State<_AddMembersSheetContent> {
           padding: EdgeInsets.symmetric(horizontal: Responsive.screenPaddingH(context)),
           child: TextField(
             controller: _searchController,
+            onChanged: (_) => setState(() {}),
             style: TextStyle(backgroundColor: Colors.white, color: Colors.black),
             decoration: InputDecoration(
               fillColor: Colors.white,
               filled: true,
               hintText: 'Search users...',
               prefixIcon: Icon(Icons.search, size: Responsive.scale(context, 22), color: Colors.grey),
+              suffixIcon: _searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: Icon(Icons.close, size: 20, color: Colors.grey.shade600),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() {});
+                      },
+                    )
+                  : null,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -794,7 +804,6 @@ class _AddMembersSheetContentState extends State<_AddMembersSheetContent> {
               contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               isDense: true,
             ),
-            onChanged: (_) {},
           ),
         ),
         SizedBox(height: Responsive.spacing(context, 8)),
