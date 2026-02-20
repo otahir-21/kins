@@ -69,4 +69,6 @@ class AppConstants {
   static const String routeMembership = '/membership';
   static const String routeDiscover = '/discover';
   static const String routeCreatePost = '/create-post';
+  static const String routeSurveys = '/surveys';
+  static String surveyDetailPath(String surveyId) => '/surveys/$surveyId';
 }

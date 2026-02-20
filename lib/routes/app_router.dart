@@ -30,6 +30,7 @@ import 'package:kins_app/screens/profile/edit_profile_screen.dart';
 import 'package:kins_app/screens/profile/edit_tags_screen.dart';
 import 'package:kins_app/screens/profile/followers_screen.dart';
 import 'package:kins_app/screens/profile/following_screen.dart';
+import 'package:kins_app/screens/survey/survey_detail_screen.dart';
 
 /// Use with RouteAware in screens that must refresh when user returns (e.g. Chat groups list).
 final RouteObserver<ModalRoute<void>> appRouteObserver = RouteObserver<ModalRoute<void>>();
@@ -238,6 +239,18 @@ final appRouter = GoRouter(
       path: AppConstants.routeCreatePost,
       name: 'create-post',
       builder: (context, state) => const CreatePostScreen(),
+    ),
+    GoRoute(
+      path: '/surveys/:surveyId',
+      name: 'survey-detail',
+      builder: (context, state) {
+        final surveyId = state.pathParameters['surveyId'] ?? '';
+        final extra = state.extra as Map<String, dynamic>?;
+        return SurveyDetailScreen(
+          surveyId: surveyId,
+          initialTitle: extra?['title'] as String?,
+        );
+      },
     ),
     // Catch-all route for Firebase deep links and unknown paths
     GoRoute(

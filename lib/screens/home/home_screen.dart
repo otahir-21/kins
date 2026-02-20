@@ -24,7 +24,9 @@ import 'package:kins_app/widgets/app_header.dart';
 import 'package:kins_app/widgets/confirm_dialog.dart';
 import 'package:kins_app/widgets/floating_nav_overlay.dart';
 import 'package:kins_app/widgets/kins_logo.dart';
+import 'package:kins_app/widgets/promoted_ads_carousel.dart';
 import 'package:kins_app/widgets/skeleton/skeleton_loaders.dart';
+import 'package:kins_app/widgets/surveys_section.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -49,12 +51,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     'Mother',
     'Pregnant',
     'Planning Pregnancy',
-  ];
-
-  final List<({String label, String percent})> _kinsightsOptions = [
-    (label: 'Lorem ipsum', percent: '12%'),
-    (label: 'Lorem ipsum', percent: '55%'),
-    (label: 'Lorem ipsum', percent: '34%'),
   ];
 
   @override
@@ -242,7 +238,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       const SizedBox(height: 16),
                       _buildPromotionalAdCard(),
                       const SizedBox(height: 16),
-                      _buildKinsightsSection(),
+                      const SurveysSection(),
                       const SizedBox(height: 100),
                     ],
                   ),
@@ -936,235 +932,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildPromotionalAdCard() {
-    return Container(
-      height: 200,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Stack(
-          children: [
-            // Blurred background image placeholder
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.blue.shade100,
-                    Colors.purple.shade100,
-                  ],
-                ),
-              ),
-              child: Container(
-                color: Colors.blue.shade50,
-                // Placeholder for background image - can be replaced with actual image
-              ),
-            ),
-            // Promoted Ad label
-            Positioned(
-              top: 12,
-              right: 12,
-              child: Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: Responsive.spacing(context, 8),
-                  vertical: Responsive.spacing(context, 4),
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  'Promoted Ad',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: Responsive.fontSize(context, 10),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ),
-            // Red blob with pigeon logo (heart instead of 'i')
-            Center(
-              child: Container(
-                width: 140,
-                height: 140,
-                decoration: BoxDecoration(
-                  color: Colors.red.shade400,
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'p',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: Responsive.fontSize(context, 28),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const Icon(
-                        Icons.favorite,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                      Text(
-                        'geon',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: Responsive.fontSize(context, 28),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            // Baby footprint icons (decorative)
-            Positioned(
-              top: 40,
-              left: 30,
-              child: Icon(
-                Icons.favorite,
-                size: 20,
-                color: Colors.blue.shade200,
-              ),
-            ),
-            Positioned(
-              bottom: 50,
-              right: 40,
-              child: Icon(
-                Icons.favorite,
-                size: 16,
-                color: Colors.blue.shade200,
-              ),
-            ),
-            // Carousel dots
-            Positioned(
-              bottom: 12,
-              left: 0,
-              right: 0,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF6B4C93),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildKinsightsSection() {
-    return Container(
-      padding: EdgeInsets.all(Responsive.spacing(context, 20)),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.grey.shade200,
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Kinsights: What factors influence your purchases the most?',
-            style: TextStyle(
-              fontSize: Responsive.fontSize(context, 16),
-              fontWeight: FontWeight.w600,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(height: 16),
-          ..._kinsightsOptions.map((option) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _buildKinsightRow(option.label, option.percent),
-              )),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildKinsightRow(String label, String percent) {
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: Responsive.screenPaddingH(context),
-        vertical: Responsive.spacing(context, 12),
-      ),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: Responsive.fontSize(context, 14),
-              fontWeight: FontWeight.w500,
-              color: Colors.black87,
-            ),
-          ),
-          Text(
-            percent,
-            style: TextStyle(
-              fontSize: Responsive.fontSize(context, 14),
-              fontWeight: FontWeight.w600,
-              color: Colors.black87,
-            ),
-          ),
-        ],
-      ),
-    );
+    return const PromotedAdsCarousel();
   }
 
   Widget _buildDrawer() {
